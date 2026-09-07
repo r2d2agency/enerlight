@@ -597,6 +597,21 @@ export interface ComercialAdminCommission {
   created_at: string;
 }
 
+export interface ComercialAuditLog {
+  id: string;
+  actor_id?: string | null;
+  actor_name?: string | null;
+  user_id?: string | null;
+  user_name?: string | null;
+  action: string;
+  entity_type: string;
+  entity_id?: string | null;
+  old_value?: Record<string, unknown> | null;
+  new_value?: Record<string, unknown> | null;
+  ip_address?: string | null;
+  created_at: string;
+}
+
 // Administração — usa a mesma sessão do CRM (auth_token), não o token isolado do portal
 export const comercialAdminApi = {
   listActors: () => api<{ actors: ComercialAdminActor[] }>('/api/comercial/admin/actors'),
@@ -676,4 +691,6 @@ export const comercialAdminApi = {
   listCommissions: () => api<{ commissions: ComercialAdminCommission[] }>('/api/comercial/admin/commissions'),
   updateCommissionStatus: (id: string, status: 'previsto' | 'liberado' | 'pago') =>
     api<{ commission: ComercialAdminCommission }>(`/api/comercial/admin/commissions/${id}/status`, { method: 'POST', body: { status } }),
+
+  listAuditLogs: () => api<{ logs: ComercialAuditLog[] }>('/api/comercial/admin/audit-logs'),
 };

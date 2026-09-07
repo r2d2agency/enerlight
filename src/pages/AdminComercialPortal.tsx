@@ -21,6 +21,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import AdminComercialDashboardTab from './comercial/AdminComercialDashboardTab';
 import AdminComercialCommissionsTab from './comercial/AdminComercialCommissionsTab';
+import AdminComercialAuditTab from './comercial/AdminComercialAuditTab';
 import * as XLSX from 'xlsx';
 import {
   Loader2, Plus, Briefcase, Send, Lock, Unlock, UserPlus, Users2, Package, Tag, ArrowRightLeft, Check, X,
@@ -540,6 +541,7 @@ export default function AdminComercialPortal() {
           <TabsTrigger value="aprovacoes">
             Aprovações de Desconto{quoteApprovals.length > 0 ? ` (${quoteApprovals.length})` : ''}
           </TabsTrigger>
+          <TabsTrigger value="auditoria">Auditoria</TabsTrigger>
         </TabsList>
 
         <TabsContent value="dashboard" className="mt-4">
@@ -1093,6 +1095,10 @@ export default function AdminComercialPortal() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="auditoria" className="mt-4">
+          <AdminComercialAuditTab />
         </TabsContent>
       </Tabs>
 

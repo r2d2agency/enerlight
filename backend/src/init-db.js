@@ -5976,6 +5976,151 @@ CREATE INDEX IF NOT EXISTS idx_com_commissions_org ON com_commissions(organizati
 CREATE INDEX IF NOT EXISTS idx_com_commissions_actor ON com_commissions(actor_id);
 `;
 
+// Portal Comercial (Fase 6) — auditoria do módulo (padrão do repo: uma
+// tabela de auditoria por módulo, como ghost_audit_logs/doc_signature_audit_log,
+// não uma tabela global).
+const step78ComercialAudit = `
+CREATE TABLE IF NOT EXISTS com_audit_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  actor_id UUID REFERENCES com_actors(id) ON DELETE SET NULL,      -- quem agiu, quando é um ator do portal
+  user_id UUID REFERENCES users(id) ON DELETE SET NULL,            -- quem agiu, quando é admin via login do CRM
+  action VARCHAR(60) NOT NULL,
+  entity_type VARCHAR(40) NOT NULL,
+  entity_id UUID,
+  old_value JSONB,
+  new_value JSONB,
+  ip_address VARCHAR(64),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_com_audit_logs_org ON com_audit_logs(organization_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_com_audit_logs_entity ON com_audit_logs(entity_type, entity_id);
+`;
+
+// Migração de dados do módulo antigo (representative-portal.js / rep_portal_*)
+// para o Portal Comercial (com_*). Este step roda em TODO boot do backend
+// (como qualquer step deste arquivo) — por isso cada INSERT é idempotente
+// via uma coluna legacy_*_id (nunca duplica ao rodar de novo) e cada bloco
+// tem seu próprio EXCEPTION WHEN undefined_table, então em bancos onde o
+// módulo antigo nunca foi usado (rep_portal_* não existe) o step não faz
+// nada, silenciosamente. Representantes sem `linked_user_id` não são
+// migrados automaticamente (não dá pra criar login externo sem decidir
+// e-mail/senha por conta própria) — precisam ser convidados manualmente
+// pelo admin do Portal Comercial depois.
+const step79MigrateRepPortalData = `
+DO $$ BEGIN
+  ALTER TABLE com_customers ADD COLUMN legacy_rep_portal_company_id UUID;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE online_quotes ADD COLUMN legacy_rep_portal_quote_id UUID;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE online_quote_items ADD COLUMN legacy_rep_portal_quote_item_id UUID;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE com_sales ADD COLUMN legacy_rep_portal_order_id UUID;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE com_sale_items ADD COLUMN legacy_rep_portal_order_item_id UUID;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_com_customers_legacy_rp ON com_customers(legacy_rep_portal_company_id) WHERE legacy_rep_portal_company_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_online_quotes_legacy_rp ON online_quotes(legacy_rep_portal_quote_id) WHERE legacy_rep_portal_quote_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_online_quote_items_legacy_rp ON online_quote_items(legacy_rep_portal_quote_item_id) WHERE legacy_rep_portal_quote_item_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_com_sales_legacy_rp ON com_sales(legacy_rep_portal_order_id) WHERE legacy_rep_portal_order_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_com_sale_items_legacy_rp ON com_sale_items(legacy_rep_portal_order_item_id) WHERE legacy_rep_portal_order_item_id IS NOT NULL;
+
+-- 1) com_actors para representantes com linked_user_id que já usam o portal antigo
+DO $$
+BEGIN
+  INSERT INTO com_actors (organization_id, user_id, name, email, profile, status, created_by)
+  SELECT DISTINCT r.organization_id, r.linked_user_id, u.name, u.email, 'vendedor', 'active', r.linked_user_id
+  FROM crm_representatives r
+  JOIN users u ON u.id = r.linked_user_id
+  WHERE r.linked_user_id IS NOT NULL
+    AND NOT EXISTS (SELECT 1 FROM com_actors ca WHERE ca.user_id = r.linked_user_id)
+    AND (
+      EXISTS (SELECT 1 FROM rep_portal_companies x WHERE x.representative_id = r.id)
+      OR EXISTS (SELECT 1 FROM rep_portal_quotes x WHERE x.representative_id = r.id)
+      OR EXISTS (SELECT 1 FROM rep_portal_orders x WHERE x.representative_id = r.id)
+    );
+EXCEPTION WHEN undefined_table THEN NULL; END $$;
+
+-- 2) Clientes (rep_portal_companies -> com_customers)
+DO $$
+BEGIN
+  INSERT INTO com_customers
+    (organization_id, owner_actor_id, type, company_name, trade_name, cnpj, state_registration,
+     phone, email, contact_name, zip_code, address, address_number, address_complement,
+     neighborhood, city, state, notes, created_by, updated_by, created_at, legacy_rep_portal_company_id)
+  SELECT c.organization_id, ca.id, 'pj', c.company_name, c.trade_name, c.cnpj, c.state_registration,
+         c.contact_phone, c.contact_email, c.contact_name, c.address_zip_code, c.address_street,
+         c.address_number, c.address_complement, c.address_district, c.address_city, c.address_state,
+         c.notes, ca.id, ca.id, c.created_at, c.id
+  FROM rep_portal_companies c
+  JOIN crm_representatives r ON r.id = c.representative_id
+  JOIN com_actors ca ON ca.user_id = r.linked_user_id
+  WHERE NOT EXISTS (SELECT 1 FROM com_customers ex WHERE ex.legacy_rep_portal_company_id = c.id)
+  ON CONFLICT (organization_id, cnpj) WHERE cnpj IS NOT NULL AND cnpj <> '' DO NOTHING;
+EXCEPTION WHEN undefined_table THEN NULL; END $$;
+
+-- 3) Orçamentos (rep_portal_quotes -> online_quotes)
+DO $$
+BEGIN
+  INSERT INTO online_quotes
+    (organization_id, actor_id, customer_id, price_list_id, status, client_name, client_document,
+     client_email, client_phone, subtotal_value, discount_value, total_value, notes, quote_number, created_at, legacy_rep_portal_quote_id)
+  SELECT q.organization_id, ca.id,
+         (SELECT id FROM com_customers WHERE legacy_rep_portal_company_id = q.company_id),
+         q.price_list_id, q.status, q.company_name, q.client_document, q.client_email, q.client_phone,
+         q.subtotal_value, q.discount_value, q.total_value, q.notes, q.code, q.created_at, q.id
+  FROM rep_portal_quotes q
+  JOIN crm_representatives r ON r.id = q.representative_id
+  JOIN com_actors ca ON ca.user_id = r.linked_user_id
+  WHERE NOT EXISTS (SELECT 1 FROM online_quotes ex WHERE ex.legacy_rep_portal_quote_id = q.id);
+EXCEPTION WHEN undefined_table THEN NULL; END $$;
+
+-- 3b) Itens dos orçamentos migrados
+DO $$
+BEGIN
+  INSERT INTO online_quote_items
+    (quote_id, product_code, product_name, description, quantity, unit_price, cost_price, total_price, discount_percent, legacy_rep_portal_quote_item_id)
+  SELECT nq.id, qi.product_code, qi.product_name, qi.description, qi.quantity, qi.unit_price, 0, qi.total_price, 0, qi.id
+  FROM rep_portal_quote_items qi
+  JOIN online_quotes nq ON nq.legacy_rep_portal_quote_id = qi.quote_id
+  WHERE NOT EXISTS (SELECT 1 FROM online_quote_items ex WHERE ex.legacy_rep_portal_quote_item_id = qi.id);
+EXCEPTION WHEN undefined_table THEN NULL; END $$;
+
+-- 4) Vendas (rep_portal_orders -> com_sales)
+DO $$
+BEGIN
+  INSERT INTO com_sales
+    (organization_id, quote_id, customer_id, actor_id, status, client_name, client_document,
+     subtotal_value, discount_value, freight_value, total_value, notes, sale_number, created_by, created_at, legacy_rep_portal_order_id)
+  SELECT o.organization_id,
+         (SELECT id FROM online_quotes WHERE legacy_rep_portal_quote_id = o.quote_id),
+         (SELECT id FROM com_customers WHERE legacy_rep_portal_company_id = o.company_id),
+         ca.id,
+         CASE WHEN o.status ILIKE '%cancel%' THEN 'canceled' ELSE 'confirmed' END,
+         o.company_name, o.client_document, o.total_value, 0, 0, o.total_value, o.notes, o.order_number, ca.id, o.created_at, o.id
+  FROM rep_portal_orders o
+  JOIN crm_representatives r ON r.id = o.representative_id
+  JOIN com_actors ca ON ca.user_id = r.linked_user_id
+  WHERE NOT EXISTS (SELECT 1 FROM com_sales ex WHERE ex.legacy_rep_portal_order_id = o.id);
+EXCEPTION WHEN undefined_table THEN NULL; END $$;
+
+-- 4b) Itens das vendas migradas
+DO $$
+BEGIN
+  INSERT INTO com_sale_items
+    (sale_id, product_code, product_name, description, quantity, unit_price, total_price, discount_percent, legacy_rep_portal_order_item_id)
+  SELECT ns.id, oi.product_code, oi.product_name, oi.description, oi.quantity, oi.unit_price, oi.total_price, 0, oi.id
+  FROM rep_portal_order_items oi
+  JOIN com_sales ns ON ns.legacy_rep_portal_order_id = oi.order_id
+  WHERE NOT EXISTS (SELECT 1 FROM com_sale_items ex WHERE ex.legacy_rep_portal_order_item_id = oi.id);
+EXCEPTION WHEN undefined_table THEN NULL; END $$;
+`;
+
 
 
 
@@ -6194,6 +6339,8 @@ const migrationSteps = [
   { name: 'Portal Comercial (Orçamentos)', sql: step75ComercialQuotes, critical: false },
   { name: 'Portal Comercial (Oportunidades & Vendas)', sql: step76ComercialOpportunitiesSales, critical: false },
   { name: 'Portal Comercial (Comissão)', sql: step77ComercialCommission, critical: false },
+  { name: 'Portal Comercial (Auditoria)', sql: step78ComercialAudit, critical: false },
+  { name: 'Portal Comercial (Migração de dados do rep_portal_* antigo)', sql: step79MigrateRepPortalData, critical: false },
 ];
 
 

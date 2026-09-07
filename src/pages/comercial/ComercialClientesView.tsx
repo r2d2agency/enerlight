@@ -139,7 +139,7 @@ export default function ComercialClientesView({ actor, listCustomers, createCust
               </div>
               {form.type === 'pj' ? (
                 <>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-1">
                       <Label>Nome fantasia</Label>
                       <Input value={form.trade_name} onChange={(e) => setForm({ ...form, trade_name: e.target.value })} />
@@ -160,7 +160,7 @@ export default function ComercialClientesView({ actor, listCustomers, createCust
                   <Input value={form.cpf} onChange={(e) => setForm({ ...form, cpf: e.target.value })} disabled={!!editing} />
                 </div>
               )}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label>Telefone</Label>
                   <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
@@ -175,7 +175,7 @@ export default function ComercialClientesView({ actor, listCustomers, createCust
                 <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
               </div>
               {form.type === 'pj' && (
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <Label>Responsável</Label>
                     <Input value={form.contact_name} onChange={(e) => setForm({ ...form, contact_name: e.target.value })} />
@@ -186,7 +186,7 @@ export default function ComercialClientesView({ actor, listCustomers, createCust
                   </div>
                 </div>
               )}
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="space-y-1">
                   <Label>CEP</Label>
                   <Input value={form.zip_code} onChange={(e) => setForm({ ...form, zip_code: e.target.value })} />
@@ -196,7 +196,7 @@ export default function ComercialClientesView({ actor, listCustomers, createCust
                   <Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
                 </div>
               </div>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="space-y-1">
                   <Label>Número</Label>
                   <Input value={form.address_number} onChange={(e) => setForm({ ...form, address_number: e.target.value })} />
@@ -210,7 +210,7 @@ export default function ComercialClientesView({ actor, listCustomers, createCust
                   <Input value={form.neighborhood} onChange={(e) => setForm({ ...form, neighborhood: e.target.value })} />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label>Cidade</Label>
                   <Input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />

@@ -118,6 +118,52 @@ function gate(key) {
   };
 }
 
+// Auditoria (item 20) — nunca deixa uma falha de log quebrar a ação principal.
+async function logAudit(req, { action, entityType, entityId, oldValue, newValue }) {
+  try {
+    const organizationId = req.actor?.organization_id || (await getUserOrg(req.userId))?.organization_id;
+    if (!organizationId) return;
+    const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || null;
+    await query(
+      `INSERT INTO com_audit_logs (organization_id, actor_id, user_id, action, entity_type, entity_id, old_value, new_value, ip_address)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+      [organizationId, req.actor?.id || null, req.userId || null, action, entityType, entityId || null,
+        oldValue !== undefined ? JSON.stringify(oldValue) : null, newValue !== undefined ? JSON.stringify(newValue) : null, ip]
+    );
+  } catch (error) {
+    console.error('[comercial] audit log error:', error);
+  }
+}
+
+// Rate limit do login externo (item 21) — em memória, por email+IP, mesmo
+// padrão leve já usado no cooldown de esqueci-senha deste arquivo.
+const loginAttempts = new Map();
+const LOGIN_MAX_ATTEMPTS = 5;
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+
+function isLoginRateLimited(key) {
+  const entry = loginAttempts.get(key);
+  if (!entry) return false;
+  if (Date.now() - entry.firstAttemptAt > LOGIN_WINDOW_MS) {
+    loginAttempts.delete(key);
+    return false;
+  }
+  return entry.count >= LOGIN_MAX_ATTEMPTS;
+}
+
+function registerLoginFailure(key) {
+  const entry = loginAttempts.get(key);
+  if (!entry || Date.now() - entry.firstAttemptAt > LOGIN_WINDOW_MS) {
+    loginAttempts.set(key, { count: 1, firstAttemptAt: Date.now() });
+  } else {
+    entry.count += 1;
+  }
+}
+
+function clearLoginAttempts(key) {
+  loginAttempts.delete(key);
+}
+
 // Resolve o com_actors do usuário interno autenticado (login do CRM) e bloqueia
 // quem ainda não foi provisionado como ator do Portal Comercial pelo admin.
 async function internalActorGate(req, res, next) {
@@ -847,6 +893,7 @@ async function convertQuoteToSaleHandler(req, res) {
     }
 
     await calculateSaleCommission(sale, sale.price_list_id);
+    await logAudit(req, { action: 'sale_created', entityType: 'com_sale', entityId: sale.id, newValue: { quote_id: quote.id, total_value: sale.total_value } });
 
     res.status(201).json({ sale });
   } catch (error) {
@@ -1003,10 +1050,23 @@ async function createOpportunityHandler(req, res) {
     if (!b.customer_id) return res.status(400).json({ error: 'Cliente é obrigatório' });
 
     const custResult = await query(
-      'SELECT id FROM com_customers WHERE id = $1 AND organization_id = $2',
+      'SELECT id, owner_actor_id FROM com_customers WHERE id = $1 AND organization_id = $2',
       [b.customer_id, req.actor.organization_id]
     );
-    if (custResult.rows.length === 0) return res.status(404).json({ error: 'Cliente não encontrado' });
+    const customer = custResult.rows[0];
+    if (!customer) return res.status(404).json({ error: 'Cliente não encontrado' });
+
+    if (req.actor.profile !== 'admin') {
+      if (req.actor.profile === 'gerente' && req.actor.team_id) {
+        const ok = customer.owner_actor_id && await query(
+          'SELECT 1 FROM com_actors WHERE id = $1 AND (id = $2 OR team_id = $3)',
+          [customer.owner_actor_id, req.actor.id, req.actor.team_id]
+        );
+        if (!ok || ok.rows.length === 0) return res.status(403).json({ error: 'Cliente fora do seu escopo' });
+      } else if (customer.owner_actor_id !== req.actor.id) {
+        return res.status(403).json({ error: 'Cliente fora do seu escopo' });
+      }
+    }
 
     await ensureDefaultStages(req.actor.organization_id);
     let stageId = b.stage_id;
@@ -1287,6 +1347,11 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ error: 'Email e senha são obrigatórios' });
     }
 
+    const rateLimitKey = `${email.toLowerCase()}|${req.ip || ''}`;
+    if (isLoginRateLimited(rateLimitKey)) {
+      return res.status(429).json({ error: 'Muitas tentativas de login. Tente novamente em alguns minutos.' });
+    }
+
     const result = await query(
       'SELECT id, email, name, password_hash, status FROM com_actors WHERE lower(email) = lower(trim($1)) LIMIT 1',
       [email]
@@ -1294,13 +1359,16 @@ router.post('/login', async (req, res) => {
 
     const actor = result.rows[0];
     if (!actor || !actor.password_hash) {
+      registerLoginFailure(rateLimitKey);
       return res.status(401).json({ error: 'Credenciais inválidas' });
     }
 
     const validPassword = await bcrypt.compare(password, actor.password_hash);
     if (!validPassword || actor.status !== 'active') {
+      registerLoginFailure(rateLimitKey);
       return res.status(401).json({ error: 'Credenciais inválidas' });
     }
+    clearLoginAttempts(rateLimitKey);
 
     await query('UPDATE com_actors SET last_login_at = NOW() WHERE id = $1', [actor.id]);
 
@@ -1641,6 +1709,7 @@ adminRouter.post('/actors/link-internal', gate('can_manage_comercial_portal'), a
       [org.organization_id, user_id, user.name, user.email, profile || 'vendedor', team_id || null, req.userId]
     );
 
+    await logAudit(req, { action: 'actor_linked', entityType: 'com_actor', entityId: result.rows[0].id, newValue: result.rows[0] });
     res.status(201).json({ actor: result.rows[0] });
   } catch (error) {
     console.error('[comercial] link-internal error:', error);
@@ -1696,6 +1765,7 @@ adminRouter.post('/actors/invite-external', gate('can_manage_comercial_portal'),
       console.error('[comercial] invite email error:', emailError);
     }
 
+    await logAudit(req, { action: 'actor_invited', entityType: 'com_actor', entityId: actor.id, newValue: actor });
     res.status(201).json({ actor });
   } catch (error) {
     console.error('[comercial] invite-external error:', error);
@@ -1791,6 +1861,7 @@ adminRouter.post('/actors/:id/block', gate('can_manage_comercial_portal'), async
     [req.params.id, org.organization_id]
   );
   if (result.rows.length === 0) return res.status(404).json({ error: 'Ator não encontrado' });
+  await logAudit(req, { action: 'actor_blocked', entityType: 'com_actor', entityId: result.rows[0].id });
   res.json({ actor: result.rows[0] });
 });
 
@@ -1812,6 +1883,7 @@ adminRouter.post('/actors/:id/unblock', gate('can_manage_comercial_portal'), asy
     `UPDATE com_actors SET status = 'active', updated_at = NOW() WHERE id = $1 RETURNING id, status`,
     [actor.id]
   );
+  await logAudit(req, { action: 'actor_unblocked', entityType: 'com_actor', entityId: actor.id });
   res.json({ actor: result.rows[0] });
 });
 
@@ -1839,6 +1911,11 @@ adminRouter.post('/teams', gate('can_manage_comercial_portal'), async (req, res)
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'Sem organização' });
 
+    if (manager_actor_id) {
+      const mgr = await query('SELECT id FROM com_actors WHERE id = $1 AND organization_id = $2', [manager_actor_id, org.organization_id]);
+      if (mgr.rows.length === 0) return res.status(400).json({ error: 'Gerente inválido' });
+    }
+
     const result = await query(
       `INSERT INTO com_teams (organization_id, name, manager_actor_id, created_by)
        VALUES ($1, $2, $3, $4) RETURNING *`,
@@ -1858,6 +1935,10 @@ adminRouter.put('/teams/:id', gate('can_manage_comercial_portal'), async (req, r
     if (!org) return res.status(403).json({ error: 'Sem organização' });
 
     const { name, manager_actor_id } = req.body;
+    if (manager_actor_id) {
+      const mgr = await query('SELECT id FROM com_actors WHERE id = $1 AND organization_id = $2', [manager_actor_id, org.organization_id]);
+      if (mgr.rows.length === 0) return res.status(400).json({ error: 'Gerente inválido' });
+    }
     const result = await query(
       `UPDATE com_teams SET name = COALESCE($1, name), manager_actor_id = $2, updated_at = NOW()
        WHERE id = $3 AND organization_id = $4 RETURNING *`,
@@ -2034,6 +2115,7 @@ adminRouter.post('/price-lists/:id/items', gate('can_manage_comercial_portal'), 
       [req.params.id, p.id, p.sku, p.name, p.description, p.unit, p.category, p.subcategory, p.image_url,
         sale_price, cost_price ?? p.cost_price ?? 0, min_price || null]
     );
+    await logAudit(req, { action: 'price_list_item_set', entityType: 'price_list_item', entityId: result.rows[0].id, newValue: { sale_price, price_list_id: req.params.id, product_id } });
     res.status(201).json({ item: result.rows[0] });
   } catch (error) {
     console.error('[comercial] add price list item error:', error);
@@ -2043,6 +2125,9 @@ adminRouter.post('/price-lists/:id/items', gate('can_manage_comercial_portal'), 
 
 adminRouter.put('/price-lists/:id/items/:itemId', gate('can_manage_comercial_portal'), async (req, res) => {
   try {
+    const before = await query('SELECT sale_price, cost_price, min_price FROM price_list_items WHERE id = $1 AND price_list_id = $2', [req.params.itemId, req.params.id]);
+    if (before.rows.length === 0) return res.status(404).json({ error: 'Item não encontrado' });
+
     const { sale_price, cost_price, min_price } = req.body || {};
     const sets = [];
     const params = [];
@@ -2058,7 +2143,7 @@ adminRouter.put('/price-lists/:id/items/:itemId', gate('can_manage_comercial_por
       `UPDATE price_list_items SET ${sets.join(', ')} WHERE id = $${idx} AND price_list_id = $${idx + 1} RETURNING *`,
       params
     );
-    if (result.rows.length === 0) return res.status(404).json({ error: 'Item não encontrado' });
+    await logAudit(req, { action: 'price_list_item_updated', entityType: 'price_list_item', entityId: req.params.itemId, oldValue: before.rows[0], newValue: { sale_price, cost_price, min_price } });
     res.json({ item: result.rows[0] });
   } catch (error) {
     console.error('[comercial] update price list item error:', error);
@@ -2149,8 +2234,17 @@ adminRouter.put('/actors/:id/price-lists', gate('can_manage_comercial_portal'), 
     const actor = await query('SELECT id FROM com_actors WHERE id = $1 AND organization_id = $2', [req.params.id, org.organization_id]);
     if (actor.rows.length === 0) return res.status(404).json({ error: 'Ator não encontrado' });
 
-    const priceListIds = Array.isArray(req.body?.price_list_ids) ? req.body.price_list_ids : [];
-    const defaultId = req.body?.default_price_list_id || null;
+    const requestedIds = Array.isArray(req.body?.price_list_ids) ? req.body.price_list_ids : [];
+    const requestedDefaultId = req.body?.default_price_list_id || null;
+
+    // Nunca confia nos ids vindos do cliente sem checar que pertencem à
+    // mesma organização — evita conceder acesso a uma tabela de preço de
+    // outra organização.
+    const allowedIds = requestedIds.length > 0
+      ? (await query('SELECT id FROM price_lists WHERE organization_id = $1 AND id = ANY($2)', [org.organization_id, requestedIds])).rows.map((r) => r.id)
+      : [];
+    const priceListIds = requestedIds.filter((id) => allowedIds.includes(id));
+    const defaultId = requestedDefaultId && priceListIds.includes(requestedDefaultId) ? requestedDefaultId : null;
 
     await query('DELETE FROM com_actor_price_lists WHERE actor_id = $1', [req.params.id]);
     for (const plId of priceListIds) {
@@ -2164,6 +2258,7 @@ adminRouter.put('/actors/:id/price-lists', gate('can_manage_comercial_portal'), 
       await query('UPDATE com_actors SET default_price_list_id = $1, updated_at = NOW() WHERE id = $2', [defaultId, req.params.id]);
     }
 
+    await logAudit(req, { action: 'actor_price_lists_updated', entityType: 'com_actor', entityId: req.params.id, newValue: { price_list_ids: priceListIds, default_price_list_id: defaultId } });
     res.json({ message: 'Tabelas de preço atualizadas' });
   } catch (error) {
     console.error('[comercial] update actor price-lists error:', error);
@@ -2205,11 +2300,15 @@ adminRouter.post('/transfer-requests/:id/approve', gate('can_manage_comercial_po
     if (!tr) return res.status(404).json({ error: 'Solicitação não encontrada' });
     if (!tr.target_actor_id) return res.status(400).json({ error: 'Solicitação sem ator de destino definido' });
 
+    const targetActor = await query('SELECT id FROM com_actors WHERE id = $1 AND organization_id = $2', [tr.target_actor_id, org.organization_id]);
+    if (targetActor.rows.length === 0) return res.status(400).json({ error: 'Ator de destino inválido' });
+
     await query('UPDATE com_customers SET owner_actor_id = $1, updated_at = NOW() WHERE id = $2', [tr.target_actor_id, tr.customer_id]);
     await query(
       `UPDATE com_customer_transfer_requests SET status = 'approved', resolved_at = NOW(), resolved_by_user_id = $1 WHERE id = $2`,
       [req.userId, tr.id]
     );
+    await logAudit(req, { action: 'customer_transferred', entityType: 'com_customer', entityId: tr.customer_id, oldValue: { owner_actor_id: tr.requested_by_actor_id }, newValue: { owner_actor_id: tr.target_actor_id } });
     res.json({ message: 'Transferência aprovada' });
   } catch (error) {
     console.error('[comercial] approve transfer error:', error);
@@ -2276,6 +2375,7 @@ adminRouter.post('/quote-approvals/:id/approve', gate('can_manage_comercial_port
        VALUES ($1, 'approval_approved', 'aguardando_aprovacao', 'enviado', $2)`,
       [qa.quote_id, `Aprovado por desconto de ${qa.requested_discount_percent}%`]
     );
+    await logAudit(req, { action: 'quote_discount_approved', entityType: 'online_quote', entityId: qa.quote_id, newValue: { requested_discount_percent: qa.requested_discount_percent, max_allowed_percent: qa.max_allowed_percent } });
     res.json({ message: 'Orçamento aprovado e enviado' });
   } catch (error) {
     console.error('[comercial] approve quote error:', error);
@@ -2302,6 +2402,7 @@ adminRouter.post('/quote-approvals/:id/reject', gate('can_manage_comercial_porta
       `INSERT INTO com_quote_history (quote_id, action, from_status, to_status) VALUES ($1, 'approval_rejected', 'aguardando_aprovacao', 'em_elaboracao')`,
       [qaResult.rows[0].quote_id]
     );
+    await logAudit(req, { action: 'quote_discount_rejected', entityType: 'online_quote', entityId: qaResult.rows[0].quote_id, newValue: { note: req.body?.note || null } });
     res.json({ message: 'Orçamento recusado, voltou para elaboração' });
   } catch (error) {
     console.error('[comercial] reject quote error:', error);
@@ -2435,6 +2536,15 @@ adminRouter.post('/commission-rules', gate('can_manage_comercial_portal'), async
     const { actor_id, price_list_id, percent } = req.body || {};
     if (percent === undefined || percent === null || percent === '') return res.status(400).json({ error: 'Percentual é obrigatório' });
 
+    if (actor_id) {
+      const a = await query('SELECT id FROM com_actors WHERE id = $1 AND organization_id = $2', [actor_id, org.organization_id]);
+      if (a.rows.length === 0) return res.status(400).json({ error: 'Vendedor inválido' });
+    }
+    if (price_list_id) {
+      const pl = await query('SELECT id FROM price_lists WHERE id = $1 AND organization_id = $2', [price_list_id, org.organization_id]);
+      if (pl.rows.length === 0) return res.status(400).json({ error: 'Tabela de preço inválida' });
+    }
+
     const result = await query(
       `INSERT INTO com_commission_rules (organization_id, actor_id, price_list_id, percent) VALUES ($1,$2,$3,$4) RETURNING *`,
       [org.organization_id, actor_id || null, price_list_id || null, percent]
@@ -2492,7 +2602,23 @@ adminRouter.post('/commissions/:id/status', gate('can_manage_comercial_portal'),
 
   const result = await query('UPDATE com_commissions SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *', [status, req.params.id]);
   if (result.rows.length === 0) return res.status(404).json({ error: 'Comissão não encontrada' });
+  await logAudit(req, { action: 'commission_status_changed', entityType: 'com_commission', entityId: req.params.id, newValue: { status } });
   res.json({ commission: result.rows[0] });
+});
+
+// --- Auditoria (item 20) ---
+
+adminRouter.get('/audit-logs', gate('can_manage_comercial_portal'), async (req, res) => {
+  const org = await getUserOrg(req.userId);
+  if (!org) return res.status(403).json({ error: 'Sem organização' });
+
+  const result = await query(
+    `SELECT al.*, a.name as actor_name, u.name as user_name FROM com_audit_logs al
+     LEFT JOIN com_actors a ON a.id = al.actor_id LEFT JOIN users u ON u.id = al.user_id
+     WHERE al.organization_id = $1 ORDER BY al.created_at DESC LIMIT 200`,
+    [org.organization_id]
+  );
+  res.json({ logs: result.rows });
 });
 
 router.use('/admin', adminRouter);
