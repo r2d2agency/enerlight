@@ -239,18 +239,15 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
     ],
   },
   {
-    title: "Portal Comercial",
+    // Sem permissionKey no nível da seção de propósito: junta a área do
+    // admin (can_manage_comercial_portal) e a área do próprio vendedor
+    // (can_access_comercial_portal) num único grupo — cada item continua
+    // filtrado pela sua permissão, então a seção só some inteira para quem
+    // não tem nenhuma das duas.
+    title: "Comercial",
     icon: Briefcase,
-    permissionKey: 'can_manage_comercial_portal',
     items: [
       { name: "Usuários e Equipes", href: "/admin/portal-comercial", icon: Briefcase, permissionKey: 'can_manage_comercial_portal' },
-    ],
-  },
-  {
-    title: "Meu Portal Comercial",
-    icon: Briefcase,
-    permissionKey: 'can_access_comercial_portal',
-    items: [
       { name: "Dashboard", href: "/portal-comercial/dashboard", icon: Briefcase, permissionKey: 'can_access_comercial_portal' },
       { name: "Clientes", href: "/portal-comercial/clientes", icon: Users, permissionKey: 'can_access_comercial_portal' },
       { name: "Catálogo", href: "/portal-comercial/catalogo", icon: Briefcase, permissionKey: 'can_access_comercial_portal' },
