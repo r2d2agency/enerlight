@@ -918,7 +918,8 @@ admin.get('/students', gate('can_view_ead'), async (req, res) => {
          (SELECT COUNT(*)::int FROM ead_enrollments e WHERE e.student_id = s.id) AS enrollment_count,
          (SELECT COUNT(*)::int FROM ead_attempts a WHERE a.student_id = s.id) AS attempts_count,
          (SELECT MIN(c.issued_at) FROM ead_certificates c WHERE c.student_id = s.id) AS certificate_date,
-         (SELECT a.score FROM ead_attempts a WHERE a.student_id = s.id AND a.passed = true ORDER BY a.created_at ASC LIMIT 1) AS certificate_score,
+         (SELECT a.score FROM ead_attempts a WHERE a.student_id = s.id ORDER BY a.created_at DESC LIMIT 1) AS last_score,
+         (SELECT a.passed FROM ead_attempts a WHERE a.student_id = s.id ORDER BY a.created_at DESC LIMIT 1) AS last_passed,
          COALESCE((
            SELECT COUNT(*)::int FROM ead_attempts a
             WHERE a.student_id = s.id

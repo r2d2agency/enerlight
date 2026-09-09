@@ -833,10 +833,11 @@ function StudentsTab({ students, onReload }: { students: any[]; onReload: () => 
       'UF': s.state || '',
       'Marca': s.brand_name || '',
       'Status': s.status || 'approved',
-      'Nota': s.certificate_score != null ? Number(s.certificate_score) : '',
+      'Nota (última tentativa)': s.last_score != null ? Number(s.last_score) : '',
+      'Aprovado na prova': s.attempts_count > 0 ? (s.last_passed ? 'Sim' : 'Não') : '',
       'Certificado obtido': s.certificate_count > 0 ? 'Sim' : 'Não',
-      'Tentativas até o certificado': s.certificate_count > 0 ? s.attempts_until_certificate : '',
       'Total de tentativas': s.attempts_count ?? 0,
+      'Tentativas até o certificado': s.certificate_count > 0 ? s.attempts_until_certificate : '',
       'Data do cadastro': s.created_at ? new Date(s.created_at).toLocaleString('pt-BR') : '',
       'Data do certificado': s.certificate_date ? new Date(s.certificate_date).toLocaleString('pt-BR') : '',
     }));
