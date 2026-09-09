@@ -14,8 +14,9 @@ import { Badge } from '@/components/ui/badge';
 import { FileUploadInput } from '@/components/ui/file-upload-input';
 import { eadAdminApi } from '@/lib/ead-api';
 import { resolveMediaUrl } from '@/lib/media';
+import { exportToExcel } from '@/lib/xlsx-export';
 import { toast } from 'sonner';
-import { Loader2, Plus, Pencil, Trash2, GraduationCap, Download, Award, FileQuestion, Video, Layers, Settings, BookOpen, ShieldCheck, KeyRound, Copy } from 'lucide-react';
+import { Loader2, Plus, Pencil, Trash2, GraduationCap, Download, FileSpreadsheet, Award, FileQuestion, Video, Layers, Settings, BookOpen, ShieldCheck, KeyRound, Copy } from 'lucide-react';
 import { CertificateEditor } from '@/components/ead/CertificateEditor';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -820,6 +821,29 @@ function StudentsTab({ students, onReload }: { students: any[]; onReload: () => 
     URL.revokeObjectURL(url);
   }
 
+  function exportXls() {
+    if (!filtered.length) { toast.error('Nenhum instalador para exportar'); return; }
+    const rows = filtered.map(s => ({
+      'Nome': s.name,
+      'CPF': s.cpf,
+      'Email': s.email,
+      'Telefone': s.phone || '',
+      'Empresa': s.company || '',
+      'Cidade': s.city || '',
+      'UF': s.state || '',
+      'Marca': s.brand_name || '',
+      'Status': s.status || 'approved',
+      'Nota': s.certificate_score != null ? Number(s.certificate_score) : '',
+      'Certificado obtido': s.certificate_count > 0 ? 'Sim' : 'Não',
+      'Tentativas até o certificado': s.certificate_count > 0 ? s.attempts_until_certificate : '',
+      'Total de tentativas': s.attempts_count ?? 0,
+      'Data do cadastro': s.created_at ? new Date(s.created_at).toLocaleString('pt-BR') : '',
+      'Data do certificado': s.certificate_date ? new Date(s.certificate_date).toLocaleString('pt-BR') : '',
+    }));
+    const suffix = companyFilter !== '__all__' && companyFilter !== '__none__' ? `_${companyFilter}` : '';
+    exportToExcel(rows, `instaladores_ead${suffix}_${new Date().toISOString().slice(0,10)}`);
+  }
+
   return (
     <div className="space-y-3">
       <Card>
@@ -869,6 +893,7 @@ function StudentsTab({ students, onReload }: { students: any[]; onReload: () => 
             <div className="flex gap-2">
               <ManualEnrollButton brands={brands} onDone={onReload} />
               <Button size="sm" variant="outline" onClick={exportCsv}><Download className="h-4 w-4 mr-1" /> Exportar CSV</Button>
+              <Button size="sm" variant="outline" onClick={exportXls}><FileSpreadsheet className="h-4 w-4 mr-1" /> Exportar XLS</Button>
             </div>
           </div>
 

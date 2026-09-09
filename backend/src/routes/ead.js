@@ -915,7 +915,16 @@ admin.get('/students', gate('can_view_ead'), async (req, res) => {
       `SELECT s.id, s.name, s.cpf, s.email, s.phone, s.company, s.city, s.state, s.status, s.extra_fields, s.approved_at, s.created_at,
          s.brand_id, b.name AS brand_name, b.slug AS brand_slug,
          (SELECT COUNT(*)::int FROM ead_certificates c WHERE c.student_id = s.id) AS certificate_count,
-         (SELECT COUNT(*)::int FROM ead_enrollments e WHERE e.student_id = s.id) AS enrollment_count
+         (SELECT COUNT(*)::int FROM ead_enrollments e WHERE e.student_id = s.id) AS enrollment_count,
+         (SELECT COUNT(*)::int FROM ead_attempts a WHERE a.student_id = s.id) AS attempts_count,
+         (SELECT MIN(c.issued_at) FROM ead_certificates c WHERE c.student_id = s.id) AS certificate_date,
+         (SELECT a.score FROM ead_attempts a WHERE a.student_id = s.id AND a.passed = true ORDER BY a.created_at ASC LIMIT 1) AS certificate_score,
+         COALESCE((
+           SELECT COUNT(*)::int FROM ead_attempts a
+            WHERE a.student_id = s.id
+              AND a.created_at <= (SELECT MIN(a2.created_at) FROM ead_attempts a2
+                                    WHERE a2.student_id = s.id AND a2.passed = true)
+         ), 0) AS attempts_until_certificate
        FROM ead_students s LEFT JOIN ead_brands b ON b.id = s.brand_id
        WHERE s.email <> 'preview@ead.local' ORDER BY s.created_at DESC`
     ));
