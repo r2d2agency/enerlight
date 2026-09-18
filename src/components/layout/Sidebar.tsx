@@ -54,6 +54,7 @@ import {
   GraduationCap,
   ShieldCheck,
   Factory,
+  Package,
 } from "lucide-react";
 
 import { API_URL, getAuthToken } from "@/lib/api";
@@ -69,7 +70,7 @@ interface NavItem {
   name: string;
   href: string;
   icon: any;
-  moduleKey?: 'campaigns' | 'billing' | 'groups' | 'scheduled_messages' | 'chatbots' | 'chat' | 'crm' | 'ai_agents' | 'group_secretary' | 'ghost' | 'projects' | 'internal_chat' | 'homologation' | 'tasks' | 'lead_gleego' | 'captador' | 'document_signatures' | 'licitacao' | 'logistics' | 'rh_module' | 'goals' | 'representatives' | 'representative_dashboard' | 'supervisor_ia' | 'ead' | 'representative_config';
+  moduleKey?: 'campaigns' | 'billing' | 'groups' | 'scheduled_messages' | 'chatbots' | 'chat' | 'crm' | 'ai_agents' | 'group_secretary' | 'ghost' | 'projects' | 'internal_chat' | 'homologation' | 'tasks' | 'lead_gleego' | 'captador' | 'document_signatures' | 'licitacao' | 'logistics' | 'rh_module' | 'goals' | 'representatives' | 'representative_dashboard' | 'supervisor_ia' | 'ead' | 'representative_config' | 'stock';
   adminOnly?: boolean;
   ownerOnly?: boolean;
   superadminOnly?: boolean;
@@ -80,7 +81,7 @@ interface NavSection {
   title: string;
   icon: any;
   items: NavItem[];
-  moduleKey?: 'campaigns' | 'billing' | 'groups' | 'scheduled_messages' | 'chatbots' | 'chat' | 'crm' | 'ai_agents' | 'group_secretary' | 'ghost' | 'projects' | 'internal_chat' | 'homologation' | 'tasks' | 'lead_gleego' | 'captador' | 'document_signatures' | 'licitacao' | 'logistics' | 'rh_module' | 'goals' | 'representatives' | 'representative_dashboard' | 'ead' | 'representative_config';
+  moduleKey?: 'campaigns' | 'billing' | 'groups' | 'scheduled_messages' | 'chatbots' | 'chat' | 'crm' | 'ai_agents' | 'group_secretary' | 'ghost' | 'projects' | 'internal_chat' | 'homologation' | 'tasks' | 'lead_gleego' | 'captador' | 'document_signatures' | 'licitacao' | 'logistics' | 'rh_module' | 'goals' | 'representatives' | 'representative_dashboard' | 'ead' | 'representative_config' | 'stock';
   adminOnly?: boolean;
   permissionKey?: string;
 }
