@@ -26,8 +26,26 @@ CREATE TABLE IF NOT EXISTS stock_movements (
 CREATE TABLE IF NOT EXISTS stock_imports (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(), organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
   document_hash VARCHAR(64) NOT NULL, invoice_number VARCHAR(100), created_by UUID REFERENCES users(id) ON DELETE SET NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  chave_nfe VARCHAR(44), serie VARCHAR(10), nnf VARCHAR(20),
+  emit_cnpj VARCHAR(20), emit_name VARCHAR(255), dest_cnpj VARCHAR(20), dest_name VARCHAR(255),
+  issue_date TIMESTAMPTZ, total_products NUMERIC(15,2), total_invoice NUMERIC(15,2),
+  raw_xml TEXT, status VARCHAR(20) NOT NULL DEFAULT 'processed',
+  items_total INTEGER DEFAULT 0, items_matched INTEGER DEFAULT 0, items_unmatched INTEGER DEFAULT 0,
   UNIQUE(organization_id, document_hash)
 );
+CREATE INDEX IF NOT EXISTS idx_stock_imports_org_date ON stock_imports(organization_id, created_at DESC);
+CREATE TABLE IF NOT EXISTS stock_import_items (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(), import_id UUID NOT NULL REFERENCES stock_imports(id) ON DELETE CASCADE,
+  item_number INTEGER NOT NULL, raw_code VARCHAR(150), description TEXT, ncm VARCHAR(20), cfop VARCHAR(10),
+  quantity NUMERIC(15,3), unit VARCHAR(20), unit_value NUMERIC(15,4), total_value NUMERIC(15,2),
+  matched_product_id UUID REFERENCES stock_products(id) ON DELETE SET NULL,
+  status VARCHAR(20) NOT NULL DEFAULT 'unmatched', movement_id UUID,
+  UNIQUE(import_id, item_number)
+);
+ALTER TABLE stock_import_items ADD COLUMN IF NOT EXISTS movement_type VARCHAR(20);
+ALTER TABLE stock_import_items ADD COLUMN IF NOT EXISTS operation_id UUID;
+ALTER TABLE stock_imports ADD COLUMN IF NOT EXISTS document_hash VARCHAR(64);
+CREATE INDEX IF NOT EXISTS idx_stock_import_items_import ON stock_import_items(import_id);
 CREATE INDEX IF NOT EXISTS idx_stock_products_org ON stock_products(organization_id);
 CREATE TABLE IF NOT EXISTS stock_alerts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(), organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,

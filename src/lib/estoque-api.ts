@@ -7,6 +7,7 @@ export interface EstoqueProduto { id: string; sku: string; name: string; unit: s
 export interface EstoqueBOMItem { id?: string; component_id?: string; component_product_id?: string; component_sku?: string; component_name?: string; quantity: number; unit?: string }
 export interface EstoqueBOM { id: string; product_id: string; version: number; active?: boolean; notes?: string; items: EstoqueBOMItem[] }
 export interface ImportacaoXmlResultado { id: string; hash?: string; items: number; imported: number; unmatched: number; duplicate?: boolean }
+export interface ImportacaoXml { id: string; document_hash: string; created_at: string; status: string; items_total: number; items_matched: number; items_unmatched: number; items?: any[]; raw_xml?: string }
 export interface EstoqueMovimento { id: string; product_id: string; sku?: string; name?: string; movement_type: TipoMovimento; quantity: number; notes?: string; reference?: string; created_at: string; balance?: number }
 export interface EstoqueAlerta { id: string; product_id: string; sku?: string; name?: string; alert_type: string; message: string; created_at: string }
 export interface ProdutoInput { sku: string; name: string; unit?: string; minimum_quantity?: number; product_kind?: ProdutoTipo; codes?: string[] }
@@ -30,4 +31,6 @@ export const estoqueApi = {
   consumirComposto: (product_id: string, quantity: number, notes?: string) => api('/api/stock/composite-out', { method: 'POST', body: { product_id, quantity, notes, idempotency_key: operationKey() } }),
   produzir: (product_id: string, quantity: number, notes?: string) => api('/api/stock/production-in', { method: 'POST', body: { product_id, quantity, notes, idempotency_key: operationKey() } }),
   importarXml: (xml: string) => api<ImportacaoXmlResultado>('/api/stock/import/xml', { method: 'POST', body: { xml } }),
+  listarImportacoes: () => api<ImportacaoXml[]>('/api/stock/imports'),
+  detalharImportacao: (id: string) => api<ImportacaoXml>(`/api/stock/imports/${id}`),
 };
