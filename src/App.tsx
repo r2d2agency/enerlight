@@ -161,6 +161,7 @@ const PortalComercialOportunidadeDetail = lazyRetry(() => import("./pages/Portal
 const PortalComercialVendas = lazyRetry(() => import("./pages/PortalComercialVendas"));
 const PortalComercialVendaDetail = lazyRetry(() => import("./pages/PortalComercialVendaDetail"));
 const AdminComercialPortal = lazyRetry(() => import("./pages/AdminComercialPortal"));
+const EstoqueAdmin = lazyRetry(() => import("./pages/EstoqueAdmin"));
 const PropostaPublica = lazyRetry(() => import("./pages/PropostaPublica"));
 
 
@@ -304,6 +305,7 @@ const App = () => (
               <Route path="/portal-comercial/vendas" element={<ProtectedRoute permissionKey="can_access_comercial_portal"><PortalComercialVendas /></ProtectedRoute>} />
               <Route path="/portal-comercial/vendas/:id" element={<ProtectedRoute permissionKey="can_access_comercial_portal"><PortalComercialVendaDetail /></ProtectedRoute>} />
               <Route path="/admin/portal-comercial" element={<ProtectedRoute permissionKey="can_manage_comercial_portal"><AdminComercialPortal /></ProtectedRoute>} />
+              <Route path="/admin/estoque" element={<ProtectedRoute><EstoqueAdmin /></ProtectedRoute>} />
               {/* Proposta pública — link enviado ao cliente final, sem autenticação (item 13) */}
               <Route path="/proposta/:token" element={<PropostaPublica />} />
 
