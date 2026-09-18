@@ -22,6 +22,7 @@ const PERMISSION_COLUMNS = [
   'can_edit_devolucoes', 'can_accept_devolucoes', 'can_refuse_devolucoes', 'can_manage_devolucao_sla',
   'can_delete_deals', 'can_delete_projects', 'can_delete_tasks', 'can_delete_homologation', 'can_delete_licitacao',
   'can_edit_logistics', 'can_delete_logistics',
+  'can_view_stock', 'can_edit_stock', 'can_import_stock_xml',
   'can_view_ead', 'can_manage_ead',
   'can_validate_billing', 'can_view_commission', 'can_manage_commission_rules',
   'can_view_payroll', 'can_manage_payroll',

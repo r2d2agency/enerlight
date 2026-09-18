@@ -68,6 +68,11 @@ CREATE TABLE IF NOT EXISTS user_permissions (
   can_edit_logistics BOOLEAN DEFAULT false,
   can_delete_logistics BOOLEAN DEFAULT false,
 
+  -- Estoque
+  can_view_stock BOOLEAN DEFAULT false,
+  can_edit_stock BOOLEAN DEFAULT false,
+  can_import_stock_xml BOOLEAN DEFAULT false,
+
   -- Ações de exclusão
   can_delete_deals BOOLEAN DEFAULT false,
   can_delete_projects BOOLEAN DEFAULT false,

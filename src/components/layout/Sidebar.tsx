@@ -214,6 +214,15 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
     ],
   },
   {
+    title: "Estoque",
+    icon: Package,
+    moduleKey: 'stock',
+    permissionKey: 'can_view_stock',
+    items: [
+      { name: "Visão geral", href: "/admin/estoque", icon: Package, permissionKey: 'can_view_stock' },
+    ],
+  },
+  {
     title: "Devoluções",
     icon: RotateCcw,
     permissionKey: 'can_view_devolucoes',

@@ -111,6 +111,14 @@ const PERMISSION_GROUPS: PermissionGroup[] = [
     ],
   },
   {
+    title: 'Estoque',
+    items: [
+      { key: 'can_view_stock', label: 'Ver Estoque', description: 'Visualizar produtos e saldos' },
+      { key: 'can_edit_stock', label: 'Gerenciar Estoque', description: 'Lançar movimentos, cadastrar produtos e administrar composições' },
+      { key: 'can_import_stock_xml', label: 'Importar XML de Estoque', description: 'Importar XMLs de notas fiscais e gerar baixas' },
+    ],
+  },
+  {
     title: 'Assinaturas',
     items: [
       { key: 'can_view_document_signatures', label: 'Assinaturas', description: 'Módulo de assinatura de documentos' },
