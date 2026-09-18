@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS stock_boms (
   notes TEXT, created_by UUID REFERENCES users(id) ON DELETE SET NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE(organization_id, product_id, version)
 );
-CREATE UNIQUE INDEX IF NOT EXISTS idx_stock_boms_active ON stock_boms(product_id) WHERE active;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_stock_boms_active ON stock_boms(organization_id, product_id) WHERE active;
 CREATE TABLE IF NOT EXISTS stock_bom_items (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(), bom_id UUID NOT NULL REFERENCES stock_boms(id) ON DELETE CASCADE,
   component_product_id UUID NOT NULL REFERENCES stock_products(id) ON DELETE RESTRICT, quantity NUMERIC(15,3) NOT NULL CHECK(quantity > 0),
