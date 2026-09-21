@@ -32,10 +32,11 @@ interface OrgMember { id: string; name: string; email: string; is_active: boolea
 
 const emptyProductForm = {
   sku: '', name: '', description: '', category: '', subcategory: '', unit: 'un',
-  cost_price: '', base_price: '',
+  cost_price: '', base_price: '', image_url: '',
+  potencia: '', temperatura_cor: '', dimensao: '', modelo: '', garantia: '',
 };
 
-interface ImportRow { sku: string; sale_price: number; cost_price?: number }
+interface ImportRow { sku: string; name?: string; sale_price?: number; base_price?: number; cost_price?: number }
 
 const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' }> = {
   pending: { label: 'Pendente', variant: 'secondary' },
@@ -88,7 +89,7 @@ export default function AdminComercialPortal() {
   const [priceListItems, setPriceListItems] = useState<ComercialPriceListItem[]>([]);
   const [loadingPriceListItems, setLoadingPriceListItems] = useState(false);
   const [addItemForm, setAddItemForm] = useState({ product_id: '', sale_price: '', cost_price: '' });
-  const [importPreview, setImportPreview] = useState<Array<ImportRow & { found: boolean; product_name?: string }>>([]);
+  const [importPreview, setImportPreview] = useState<Array<ImportRow & { found: boolean; product_name?: string; base_price?: number }>>([]);
   const [importing, setImporting] = useState(false);
 
   const { toast } = useToast();
@@ -251,9 +252,13 @@ export default function AdminComercialPortal() {
 
   const openEditProduct = (p: ComercialAdminProduct) => {
     setEditingProduct(p);
+    const specs = (p.specs || {}) as Record<string, string>;
     setProductForm({
       sku: p.sku || '', name: p.name, description: p.description || '', category: p.category || '',
       subcategory: p.subcategory || '', unit: p.unit, cost_price: String(p.cost_price ?? ''), base_price: String(p.base_price ?? ''),
+      image_url: p.image_url || '',
+      potencia: specs.potencia || '', temperatura_cor: specs.temperatura_cor || '', dimensao: specs.dimensao || '',
+      modelo: specs.modelo || '', garantia: specs.garantia || '',
     });
     setProductDialogOpen(true);
   };
@@ -265,10 +270,19 @@ export default function AdminComercialPortal() {
     }
     setSaving(true);
     try {
+      const { potencia, temperatura_cor, dimensao, modelo, garantia, ...rest } = productForm;
+      const specs: Record<string, string> = {};
+      if (potencia) specs.potencia = potencia;
+      if (temperatura_cor) specs.temperatura_cor = temperatura_cor;
+      if (dimensao) specs.dimensao = dimensao;
+      if (modelo) specs.modelo = modelo;
+      if (garantia) specs.garantia = garantia;
+
       const body = {
-        ...productForm,
+        ...rest,
         cost_price: productForm.cost_price ? Number(productForm.cost_price) : 0,
         base_price: productForm.base_price ? Number(productForm.base_price) : 0,
+        specs,
       };
       if (editingProduct) {
         await comercialAdminApi.updateProduct(editingProduct.id, body);
@@ -295,6 +309,21 @@ export default function AdminComercialPortal() {
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Tente novamente.';
       toast({ title: 'Erro ao atualizar produto', description: message, variant: 'destructive' });
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const handleDeleteProduct = async (p: ComercialAdminProduct) => {
+    if (!window.confirm(`Excluir o produto "${p.name}"? Orçamentos e tabelas de preço que já usam esse produto continuam com o nome/preço salvos, só perdem o vínculo com o cadastro.`)) return;
+    setActionLoadingId(p.id);
+    try {
+      await comercialAdminApi.deleteProduct(p.id);
+      toast({ title: 'Produto removido' });
+      load();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Tente novamente.';
+      toast({ title: 'Erro ao remover produto', description: message, variant: 'destructive' });
     } finally {
       setActionLoadingId(null);
     }
@@ -418,15 +447,16 @@ export default function AdminComercialPortal() {
 
   const handleAddPriceListItem = async () => {
     if (!managingPriceList) return;
-    if (!addItemForm.product_id || !addItemForm.sale_price) {
-      toast({ title: 'Produto e preço são obrigatórios', variant: 'destructive' });
+    if (!addItemForm.product_id) {
+      toast({ title: 'Selecione um produto', variant: 'destructive' });
       return;
     }
     setSaving(true);
     try {
+      const selectedProduct = products.find((p) => p.id === addItemForm.product_id);
       await comercialAdminApi.addPriceListItem(managingPriceList.id, {
         product_id: addItemForm.product_id,
-        sale_price: Number(addItemForm.sale_price),
+        sale_price: addItemForm.sale_price === '' ? Number(selectedProduct?.base_price) || 0 : Number(addItemForm.sale_price),
         cost_price: addItemForm.cost_price ? Number(addItemForm.cost_price) : undefined,
       });
       setAddItemForm({ product_id: '', sale_price: '', cost_price: '' });
@@ -473,13 +503,18 @@ export default function AdminComercialPortal() {
             return hit ? String(hit[1]) : '';
           };
           const sku = findCol(['sku', 'codigo', 'código']).trim();
-          const salePriceRaw = findCol(['preço', 'preco', 'valor', 'price']);
+          const name = findCol(['nome', 'produto', 'descrição', 'descricao']).trim();
+          const salePriceRaw = findCol(['preço tabela', 'preço', 'preco', 'valor', 'price']);
+          const basePriceRaw = findCol(['preço base', 'base_price', 'base']);
           const costPriceRaw = findCol(['custo', 'cost']);
-          const salePrice = Number(String(salePriceRaw).replace(/[^\d,.-]/g, '').replace(',', '.')) || 0;
-          const costPrice = costPriceRaw ? Number(String(costPriceRaw).replace(/[^\d,.-]/g, '').replace(',', '.')) || undefined : undefined;
+          const parseMoney = (value: string) => value ? Number(String(value).replace(/[^\d,.-]/g, '').replace(',', '.')) : undefined;
+          const salePrice = parseMoney(salePriceRaw);
+          const basePrice = parseMoney(basePriceRaw);
+          const costPrice = parseMoney(costPriceRaw);
+          const existing = productBySku.get(sku);
           return {
-            sku, sale_price: salePrice, cost_price: costPrice,
-            found: knownSkus.has(sku), product_name: productBySku.get(sku)?.name,
+            sku, name: name || undefined, sale_price: salePrice, base_price: basePrice, cost_price: costPrice,
+            found: knownSkus.has(sku), product_name: existing?.name || name || undefined,
           };
         }).filter((r) => r.sku);
 
@@ -498,12 +533,16 @@ export default function AdminComercialPortal() {
     try {
       const res = await comercialAdminApi.importPriceListItems(
         managingPriceList.id,
-        importPreview.filter((r) => r.found).map((r) => ({ sku: r.sku, sale_price: r.sale_price, cost_price: r.cost_price }))
+        importPreview.filter((r) => r.found || r.name).map((r) => ({ sku: r.sku, name: r.name, sale_price: r.sale_price, base_price: r.base_price, cost_price: r.cost_price }))
       );
       toast({
         title: `${res.imported_count} produto(s) importado(s)`,
-        description: res.not_found.length > 0 ? `${res.not_found.length} SKU(s) não encontrado(s) no catálogo.` : undefined,
+        description: `${res.created_count || 0} produto(s) novo(s) criado(s)${res.not_found.length > 0 ? `; ${res.not_found.length} linha(s) pendente(s)` : ''}.`,
       });
+      if (res.created_count) {
+        const productsRes = await comercialAdminApi.listProducts();
+        setProducts(productsRes.products);
+      }
       setImportPreview([]);
       openManagePriceList(managingPriceList);
       load();
@@ -842,6 +881,41 @@ export default function AdminComercialPortal() {
                       <Input type="number" step="0.01" value={productForm.base_price} onChange={(e) => setProductForm({ ...productForm, base_price: e.target.value })} />
                     </div>
                   </div>
+                  <div className="space-y-1">
+                    <Label>URL da imagem</Label>
+                    <div className="flex items-center gap-3">
+                      <Input value={productForm.image_url} onChange={(e) => setProductForm({ ...productForm, image_url: e.target.value })} placeholder="https://..." className="flex-1" />
+                      {productForm.image_url && (
+                        <img src={productForm.image_url} alt="" className="h-12 w-12 rounded object-cover border" onError={(e) => { (e.target as HTMLImageElement).style.visibility = 'hidden'; }} />
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground">Cole o link de uma imagem já hospedada. Usada no catálogo e, futuramente, na vitrine de produtos.</p>
+                  </div>
+                  <div className="space-y-2 border-t pt-3">
+                    <Label className="text-xs text-muted-foreground">Especificações técnicas (opcional)</Label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Potência</Label>
+                        <Input value={productForm.potencia} onChange={(e) => setProductForm({ ...productForm, potencia: e.target.value })} placeholder="Ex: 50W" />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Temperatura de cor</Label>
+                        <Input value={productForm.temperatura_cor} onChange={(e) => setProductForm({ ...productForm, temperatura_cor: e.target.value })} placeholder="Ex: 6500K" />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Dimensão</Label>
+                        <Input value={productForm.dimensao} onChange={(e) => setProductForm({ ...productForm, dimensao: e.target.value })} placeholder="Ex: 30x30x10cm" />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Modelo</Label>
+                        <Input value={productForm.modelo} onChange={(e) => setProductForm({ ...productForm, modelo: e.target.value })} />
+                      </div>
+                      <div className="space-y-1 col-span-2">
+                        <Label className="text-xs">Garantia</Label>
+                        <Input value={productForm.garantia} onChange={(e) => setProductForm({ ...productForm, garantia: e.target.value })} placeholder="Ex: 5 anos" />
+                      </div>
+                    </div>
+                  </div>
                 </div>
                 <DialogFooter>
                   <Button onClick={handleSaveProduct} disabled={saving}>
@@ -868,6 +942,7 @@ export default function AdminComercialPortal() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead></TableHead>
                       <TableHead>SKU</TableHead>
                       <TableHead>Nome</TableHead>
                       <TableHead>Categoria</TableHead>
@@ -878,7 +953,16 @@ export default function AdminComercialPortal() {
                   </TableHeader>
                   <TableBody>
                     {products.map((p) => (
-                      <TableRow key={p.id} className="cursor-pointer hover:bg-muted/50" onClick={() => openEditProduct(p)}>
+                      <TableRow key={p.id}>
+                        <TableCell>
+                          {p.image_url ? (
+                            <img src={p.image_url} alt="" className="h-9 w-9 rounded object-cover border" />
+                          ) : (
+                            <div className="h-9 w-9 rounded border bg-muted flex items-center justify-center">
+                              <Package className="h-4 w-4 text-muted-foreground" />
+                            </div>
+                          )}
+                        </TableCell>
                         <TableCell className="text-sm text-muted-foreground">{p.sku || '—'}</TableCell>
                         <TableCell className="font-medium">{p.name}</TableCell>
                         <TableCell className="text-sm text-muted-foreground">{[p.category, p.subcategory].filter(Boolean).join(' / ') || '—'}</TableCell>
@@ -888,9 +972,15 @@ export default function AdminComercialPortal() {
                         <TableCell>
                           <Badge variant={p.status === 'active' ? 'default' : 'secondary'}>{p.status === 'active' ? 'Ativo' : 'Inativo'}</Badge>
                         </TableCell>
-                        <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                        <TableCell className="text-right space-x-1">
+                          <Button variant="ghost" size="sm" onClick={() => openEditProduct(p)}>
+                            Editar
+                          </Button>
                           <Button variant="ghost" size="sm" disabled={actionLoadingId === p.id} onClick={() => handleToggleProductStatus(p)}>
                             {p.status === 'active' ? 'Inativar' : 'Ativar'}
+                          </Button>
+                          <Button variant="ghost" size="sm" disabled={actionLoadingId === p.id} onClick={() => handleDeleteProduct(p)}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -1107,6 +1197,7 @@ export default function AdminComercialPortal() {
           <DialogHeader>
             <DialogTitle>Produtos — {managingPriceList?.name}</DialogTitle>
           </DialogHeader>
+          <p className="text-xs text-muted-foreground">Selecione produtos do catálogo mestre ou importe uma planilha. O preço base é usado automaticamente quando o preço da tabela ficar vazio.</p>
 
           <div className="space-y-4">
             <div className="flex items-end gap-2 flex-wrap border rounded-md p-3">
@@ -1122,7 +1213,7 @@ export default function AdminComercialPortal() {
                 </Select>
               </div>
               <div className="space-y-1 w-28">
-                <Label className="text-xs">Preço nesta tabela</Label>
+                <Label className="text-xs">Preço nesta tabela (vazio = base)</Label>
                 <Input className="h-9" type="number" step="0.01" value={addItemForm.sale_price} onChange={(e) => setAddItemForm({ ...addItemForm, sale_price: e.target.value })} />
               </div>
               <div className="space-y-1 w-24">
@@ -1156,7 +1247,22 @@ export default function AdminComercialPortal() {
                         {item.product_code && <span className="text-xs text-muted-foreground ml-1">({item.product_code})</span>}
                       </TableCell>
                       <TableCell className="text-right">
-                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(item.sale_price) || 0)}
+                        <Input
+                          className="h-8 w-32 ml-auto text-right"
+                          type="number"
+                          step="0.01"
+                          defaultValue={Number(item.sale_price) || 0}
+                          onBlur={async (e) => {
+                            const value = Number(e.target.value);
+                            if (!Number.isFinite(value) || value < 0 || value === Number(item.sale_price)) return;
+                            try {
+                              await comercialAdminApi.updatePriceListItem(managingPriceList!.id, item.id, { sale_price: value });
+                              setPriceListItems((current) => current.map((currentItem) => currentItem.id === item.id ? { ...currentItem, sale_price: value } : currentItem));
+                            } catch (error) {
+                              toast({ title: 'Erro ao atualizar preço', description: error instanceof Error ? error.message : 'Tente novamente.', variant: 'destructive' });
+                            }
+                          }}
+                        />
                       </TableCell>
                       <TableCell className="text-right">
                         <Button variant="ghost" size="sm" onClick={() => handleDeletePriceListItem(item.id)}>
@@ -1201,9 +1307,11 @@ export default function AdminComercialPortal() {
                             </TableCell>
                             <TableCell>
                               {row.found ? (
-                                <Badge variant="default">encontrado</Badge>
+                                <Badge variant="default">já cadastrado</Badge>
+                              ) : row.name ? (
+                                <Badge variant="secondary">será criado</Badge>
                               ) : (
-                                <Badge variant="destructive">SKU não cadastrado</Badge>
+                                <Badge variant="destructive">nome obrigatório</Badge>
                               )}
                             </TableCell>
                           </TableRow>
@@ -1213,10 +1321,10 @@ export default function AdminComercialPortal() {
                   </div>
                   <div className="flex items-center justify-between">
                     <p className="text-xs text-muted-foreground">
-                      {importPreview.filter((r) => r.found).length} de {importPreview.length} serão importados
-                      (produtos não cadastrados no catálogo são ignorados).
+                      {importPreview.filter((r) => r.found || r.name).length} de {importPreview.length} serão processados.
+                      (novos produtos precisam ter nome na planilha).
                     </p>
-                    <Button size="sm" onClick={handleConfirmImport} disabled={importing || importPreview.every((r) => !r.found)}>
+                    <Button size="sm" onClick={handleConfirmImport} disabled={importing || importPreview.every((r) => !r.found && !r.name)}>
                       {importing && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
                       Confirmar importação
                     </Button>

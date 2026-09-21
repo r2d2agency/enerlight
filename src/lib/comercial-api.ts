@@ -554,6 +554,8 @@ export interface ComercialPriceListItem {
 
 export interface ComercialImportResult {
   imported_count: number;
+  created_count?: number;
+  created?: string[];
   not_found: Array<{ sku: string; reason: string }>;
 }
 
@@ -643,6 +645,8 @@ export const comercialAdminApi = {
     api<{ product: ComercialAdminProduct }>('/api/comercial/admin/products', { method: 'POST', body }),
   updateProduct: (id: string, body: Partial<ComercialAdminProduct>) =>
     api<{ product: ComercialAdminProduct }>(`/api/comercial/admin/products/${id}`, { method: 'PUT', body }),
+  deleteProduct: (id: string) =>
+    api<{ message: string }>(`/api/comercial/admin/products/${id}`, { method: 'DELETE' }),
 
   getActorPriceLists: (actorId: string) =>
     api<{ price_lists: ComercialActorPriceListEntry[] }>(`/api/comercial/admin/actors/${actorId}/price-lists`),
@@ -664,9 +668,11 @@ export const comercialAdminApi = {
   listPriceLists: () => api<{ price_lists: ComercialAdminPriceList[] }>('/api/comercial/admin/price-lists'),
   createPriceList: (body: { name: string; description?: string }) =>
     api<{ price_list: ComercialAdminPriceList }>('/api/comercial/admin/price-lists', { method: 'POST', body }),
+  updatePriceList: (priceListId: string, body: { name?: string; description?: string; is_active?: boolean }) =>
+    api<{ price_list: ComercialAdminPriceList }>(`/api/comercial/admin/price-lists/${priceListId}`, { method: 'PUT', body }),
   listPriceListItems: (priceListId: string) =>
     api<{ items: ComercialPriceListItem[] }>(`/api/comercial/admin/price-lists/${priceListId}/items`),
-  addPriceListItem: (priceListId: string, body: { product_id: string; sale_price: number; cost_price?: number; min_price?: number }) =>
+  addPriceListItem: (priceListId: string, body: { product_id: string; sale_price?: number; cost_price?: number; min_price?: number }) =>
     api<{ item: ComercialPriceListItem }>(`/api/comercial/admin/price-lists/${priceListId}/items`, { method: 'POST', body }),
   updatePriceListItem: (priceListId: string, itemId: string, body: { sale_price?: number; cost_price?: number; min_price?: number }) =>
     api<{ item: ComercialPriceListItem }>(`/api/comercial/admin/price-lists/${priceListId}/items/${itemId}`, { method: 'PUT', body }),

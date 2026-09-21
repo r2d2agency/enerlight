@@ -71,6 +71,7 @@ export default function ComercialCatalogoView({ listCatalog, listMyPriceLists }:
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead></TableHead>
                   <TableHead>SKU</TableHead>
                   <TableHead>Produto</TableHead>
                   <TableHead>Categoria</TableHead>
@@ -81,6 +82,15 @@ export default function ComercialCatalogoView({ listCatalog, listMyPriceLists }:
               <TableBody>
                 {products.map((p) => (
                   <TableRow key={p.id}>
+                    <TableCell>
+                      {p.image_url ? (
+                        <img src={p.image_url} alt="" className="h-9 w-9 rounded object-cover border" />
+                      ) : (
+                        <div className="h-9 w-9 rounded border bg-muted flex items-center justify-center">
+                          <Package className="h-4 w-4 text-muted-foreground opacity-50" />
+                        </div>
+                      )}
+                    </TableCell>
                     <TableCell className="text-sm text-muted-foreground">{p.sku || '—'}</TableCell>
                     <TableCell className="font-medium">
                       {p.name}

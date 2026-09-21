@@ -2,7 +2,7 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
-import { query } from '../db.js';
+import { query, pool } from '../db.js';
 import { authenticate } from '../middleware/auth.js';
 import { sendSystemEmail } from '../lib/systemEmail.js';
 
@@ -2034,6 +2034,25 @@ adminRouter.put('/products/:id', gate('can_manage_comercial_portal'), async (req
   }
 });
 
+// Excluir é seguro mesmo que o produto já tenha sido usado em tabelas de
+// preço ou orçamentos: as FKs (price_list_items.product_id,
+// online_quote_items.product_id) são ON DELETE SET NULL — o histórico e o
+// preço/nome já salvos no item continuam intactos, só perde o vínculo com
+// o cadastro mestre.
+adminRouter.delete('/products/:id', gate('can_manage_comercial_portal'), async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'Sem organização' });
+
+    const result = await query('DELETE FROM products WHERE id = $1 AND organization_id = $2 RETURNING id', [req.params.id, org.organization_id]);
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Produto não encontrado' });
+    res.json({ message: 'Produto removido' });
+  } catch (error) {
+    console.error('[comercial] delete product error:', error);
+    res.status(500).json({ error: 'Erro ao remover produto' });
+  }
+});
+
 // --- Tabelas de preço: cada tabela pode ter o mesmo produto com preço
 // diferente (item 7) — gerido aqui, reaproveitando price_lists/price_list_items
 // já existentes (online-quotes.js), agora ligados ao catálogo (products).
@@ -2071,6 +2090,30 @@ adminRouter.post('/price-lists', gate('can_manage_comercial_portal'), async (req
   }
 });
 
+adminRouter.put('/price-lists/:id', gate('can_manage_comercial_portal'), async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'Sem organização' });
+    const fields = [];
+    const values = [];
+    if (req.body?.name !== undefined) {
+      if (!String(req.body.name).trim()) return res.status(400).json({ error: 'Nome é obrigatório' });
+      fields.push(`name = $${values.length + 1}`); values.push(String(req.body.name).trim());
+    }
+    if (req.body?.description !== undefined) { fields.push(`description = $${values.length + 1}`); values.push(req.body.description || null); }
+    if (req.body?.is_active !== undefined) { fields.push(`is_active = $${values.length + 1}`); values.push(Boolean(req.body.is_active)); }
+    if (!fields.length) return res.status(400).json({ error: 'Nada para atualizar' });
+    values.push(req.params.id, org.organization_id);
+    const result = await query(`UPDATE price_lists SET ${fields.join(', ')}, updated_at = NOW() WHERE id = $${values.length - 1} AND organization_id = $${values.length} RETURNING id, name, description, is_active`, values);
+    if (!result.rows.length) return res.status(404).json({ error: 'Tabela de preço não encontrada' });
+    res.json({ price_list: result.rows[0] });
+  } catch (error) {
+    if (error.code === '23505') return res.status(409).json({ error: 'Já existe uma tabela com este nome' });
+    console.error('[comercial] update price list error:', error);
+    res.status(500).json({ error: 'Erro ao atualizar tabela de preço' });
+  }
+});
+
 adminRouter.get('/price-lists/:id/items', gate('can_manage_comercial_portal'), async (req, res) => {
   const org = await getUserOrg(req.userId);
   if (!org) return res.status(403).json({ error: 'Sem organização' });
@@ -2097,14 +2140,14 @@ adminRouter.post('/price-lists/:id/items', gate('can_manage_comercial_portal'), 
     if (pl.rows.length === 0) return res.status(404).json({ error: 'Tabela de preço não encontrada' });
 
     const { product_id, sale_price, cost_price, min_price } = req.body || {};
-    if (!product_id || sale_price === undefined || sale_price === null) {
-      return res.status(400).json({ error: 'Produto e preço são obrigatórios' });
-    }
+    if (!product_id) return res.status(400).json({ error: 'Produto é obrigatório' });
     const product = await query('SELECT * FROM products WHERE id = $1 AND organization_id = $2', [product_id, org.organization_id]);
     if (product.rows.length === 0) return res.status(404).json({ error: 'Produto não encontrado' });
     if (!product.rows[0].sku) return res.status(400).json({ error: 'Este produto precisa de um SKU para ser adicionado a uma tabela de preço' });
 
     const p = product.rows[0];
+    const effectiveSalePrice = sale_price === undefined || sale_price === null || sale_price === '' ? Number(p.base_price) || 0 : Number(sale_price);
+    if (!Number.isFinite(effectiveSalePrice) || effectiveSalePrice < 0) return res.status(400).json({ error: 'Preço inválido' });
     const result = await query(
       `INSERT INTO price_list_items (price_list_id, product_id, product_code, product_name, description, unit, category, subcategory, image_url, sale_price, cost_price, min_price)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
@@ -2113,7 +2156,7 @@ adminRouter.post('/price-lists/:id/items', gate('can_manage_comercial_portal'), 
          cost_price = EXCLUDED.cost_price, min_price = EXCLUDED.min_price, updated_at = NOW()
        RETURNING *`,
       [req.params.id, p.id, p.sku, p.name, p.description, p.unit, p.category, p.subcategory, p.image_url,
-        sale_price, cost_price ?? p.cost_price ?? 0, min_price || null]
+        effectiveSalePrice, cost_price ?? p.cost_price ?? 0, min_price || null]
     );
     await logAudit(req, { action: 'price_list_item_set', entityType: 'price_list_item', entityId: result.rows[0].id, newValue: { sale_price, price_list_id: req.params.id, product_id } });
     res.status(201).json({ item: result.rows[0] });
@@ -2129,6 +2172,8 @@ adminRouter.put('/price-lists/:id/items/:itemId', gate('can_manage_comercial_por
     if (before.rows.length === 0) return res.status(404).json({ error: 'Item não encontrado' });
 
     const { sale_price, cost_price, min_price } = req.body || {};
+    if (sale_price !== undefined && (!Number.isFinite(Number(sale_price)) || Number(sale_price) < 0)) return res.status(400).json({ error: 'Preço de venda inválido' });
+    if (cost_price !== undefined && (!Number.isFinite(Number(cost_price)) || Number(cost_price) < 0)) return res.status(400).json({ error: 'Custo inválido' });
     const sets = [];
     const params = [];
     let idx = 1;
@@ -2160,11 +2205,9 @@ adminRouter.delete('/price-lists/:id/items/:itemId', gate('can_manage_comercial_
   res.json({ message: 'Item removido da tabela' });
 });
 
-// Importação em massa (item 19): recebe linhas já parseadas pelo front
-// (SKU + preço), resolve cada SKU contra o catálogo e faz upsert. Nunca
-// sobrescreve nada de um SKU que não existe no catálogo — devolve a lista
-// de SKUs não encontrados para o admin decidir (cadastrar o produto antes,
-// corrigir a planilha, etc).
+// Importação em massa: resolve o SKU no catálogo mestre e cria o produto
+// quando necessário. O preço da linha é o preço da tabela; sem preço, usa
+// o preço base do produto existente ou recém-criado.
 adminRouter.post('/price-lists/:id/import-items', gate('can_manage_comercial_portal'), async (req, res) => {
   try {
     const org = await getUserOrg(req.userId);
@@ -2177,29 +2220,55 @@ adminRouter.post('/price-lists/:id/import-items', gate('can_manage_comercial_por
     if (rows.length === 0) return res.status(400).json({ error: 'Nenhuma linha para importar' });
 
     const imported = [];
+    const created = [];
     const notFound = [];
-    for (const row of rows) {
-      const sku = String(row.sku || '').trim();
-      const salePrice = Number(row.sale_price);
-      if (!sku || Number.isNaN(salePrice)) { notFound.push({ sku, reason: 'SKU ou preço inválido' }); continue; }
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      for (const row of rows) {
+        const sku = String(row.sku || '').trim();
+        const name = String(row.name || row.product_name || '').trim();
+        const providedSale = row.sale_price === undefined || row.sale_price === '' ? null : Number(row.sale_price);
+        if (!sku || (providedSale !== null && (!Number.isFinite(providedSale) || providedSale < 0))) {
+          notFound.push({ sku, reason: 'SKU ou preço inválido' }); continue;
+        }
 
-      const product = await query('SELECT * FROM products WHERE organization_id = $1 AND sku = $2', [org.organization_id, sku]);
-      if (product.rows.length === 0) { notFound.push({ sku, reason: 'Produto não cadastrado no catálogo' }); continue; }
+        let product = await client.query('SELECT * FROM products WHERE organization_id = $1 AND sku = $2 FOR UPDATE', [org.organization_id, sku]);
+        if (product.rows.length === 0) {
+          if (!name) { notFound.push({ sku, reason: 'Nome obrigatório para novo produto' }); continue; }
+          const basePrice = row.base_price === undefined || row.base_price === '' ? (providedSale || 0) : Number(row.base_price);
+          const costPrice = row.cost_price === undefined || row.cost_price === '' ? 0 : Number(row.cost_price);
+          if (!Number.isFinite(basePrice) || basePrice < 0 || !Number.isFinite(costPrice) || costPrice < 0) { notFound.push({ sku, reason: 'Preço base ou custo inválido' }); continue; }
+          product = await client.query(
+            `INSERT INTO products (organization_id, sku, name, description, category, subcategory, unit, cost_price, base_price, created_by)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+            [org.organization_id, sku, name, row.description || null, row.category || null, row.subcategory || null, row.unit || 'un', costPrice, basePrice, req.userId]
+          );
+          created.push(sku);
+        }
 
-      const p = product.rows[0];
-      const costPrice = row.cost_price !== undefined && !Number.isNaN(Number(row.cost_price)) ? Number(row.cost_price) : (p.cost_price || 0);
-      await query(
-        `INSERT INTO price_list_items (price_list_id, product_id, product_code, product_name, description, unit, category, subcategory, image_url, sale_price, cost_price)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
-         ON CONFLICT (price_list_id, product_code) DO UPDATE SET
-           product_id = EXCLUDED.product_id, product_name = EXCLUDED.product_name, sale_price = EXCLUDED.sale_price,
-           cost_price = EXCLUDED.cost_price, updated_at = NOW()`,
-        [req.params.id, p.id, p.sku, p.name, p.description, p.unit, p.category, p.subcategory, p.image_url, salePrice, costPrice]
-      );
-      imported.push(sku);
+        const p = product.rows[0];
+        const salePrice = providedSale === null ? Number(p.base_price) || 0 : providedSale;
+        const costPrice = row.cost_price !== undefined && row.cost_price !== '' && Number.isFinite(Number(row.cost_price)) ? Number(row.cost_price) : Number(p.cost_price) || 0;
+        await client.query(
+          `INSERT INTO price_list_items (price_list_id, product_id, product_code, product_name, description, unit, category, subcategory, image_url, sale_price, cost_price)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+           ON CONFLICT (price_list_id, product_code) DO UPDATE SET
+             product_id = EXCLUDED.product_id, product_name = EXCLUDED.product_name, sale_price = EXCLUDED.sale_price,
+             cost_price = EXCLUDED.cost_price, updated_at = NOW()`,
+          [req.params.id, p.id, p.sku, p.name, p.description, p.unit, p.category, p.subcategory, p.image_url, salePrice, costPrice]
+        );
+        imported.push(sku);
+      }
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
     }
 
-    res.json({ imported_count: imported.length, not_found: notFound });
+    res.json({ imported_count: imported.length, created_count: created.length, created, not_found: notFound });
   } catch (error) {
     console.error('[comercial] import price list items error:', error);
     res.status(500).json({ error: 'Erro ao importar planilha' });

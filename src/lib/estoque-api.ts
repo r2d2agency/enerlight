@@ -7,7 +7,7 @@ export interface EstoqueProduto { id: string; sku: string; name: string; unit: s
 export interface EstoqueBOMItem { id?: string; component_id?: string; component_product_id?: string; component_sku?: string; component_name?: string; quantity: number; unit?: string }
 export interface EstoqueBOM { id: string; product_id: string; version: number; active?: boolean; notes?: string; items: EstoqueBOMItem[] }
 export interface ImportacaoXmlResultado { id: string; hash?: string; items: number; imported: number; unmatched: number; duplicate?: boolean }
-export interface ImportacaoXml { id: string; document_hash: string; created_at: string; status: string; items_total: number; items_matched: number; items_unmatched: number; items?: any[]; raw_xml?: string }
+export interface ImportacaoXml { id: string; document_hash: string; invoice_number?: string; chave_nfe?: string; serie?: string; nnf?: string; emit_name?: string; dest_name?: string; issue_date?: string; total_products?: number; total_invoice?: number; created_at: string; status: string; items_total: number; items_matched: number; items_unmatched: number; items?: any[]; raw_xml?: string }
 export interface EstoqueMovimento { id: string; product_id: string; sku?: string; name?: string; movement_type: TipoMovimento; quantity: number; notes?: string; reference?: string; created_at: string; balance?: number }
 export interface EstoqueAlerta { id: string; product_id: string; sku?: string; name?: string; alert_type: string; message: string; created_at: string }
 export interface ProdutoInput { sku: string; name: string; unit?: string; minimum_quantity?: number; product_kind?: ProdutoTipo; codes?: string[] }
@@ -16,6 +16,7 @@ const operationKey = () => `ui-${Date.now()}-${Math.random().toString(36).slice(
 export const estoqueApi = {
   listarProdutos: async () => unwrap(await api<EstoqueProduto[] | { products: EstoqueProduto[] }>('/api/stock/products')),
   criarProduto: (body: ProdutoInput) => api<EstoqueProduto>('/api/stock/products', { method: 'POST', body }),
+  atualizarProduto: (id: string, body: ProdutoInput) => api<EstoqueProduto>(`/api/stock/products/${id}`, { method: 'PUT', body }),
   listarMovimentos: async () => unwrap(await api<EstoqueMovimento[] | { movements: EstoqueMovimento[] }>('/api/stock/movements')),
   registrarMovimento: (body: { product_id: string; movement_type: Exclude<TipoMovimento, 'PRODUCTION'>; quantity: number; notes?: string; reference?: string }) => api<EstoqueMovimento>('/api/stock/movements', { method: 'POST', body: { ...body, idempotency_key: operationKey() } }),
   listarAlertas: async () => unwrap(await api<EstoqueAlerta[] | { alerts: EstoqueAlerta[] }>('/api/stock/alerts')),
@@ -33,4 +34,5 @@ export const estoqueApi = {
   importarXml: (xml: string) => api<ImportacaoXmlResultado>('/api/stock/import/xml', { method: 'POST', body: { xml } }),
   listarImportacoes: () => api<ImportacaoXml[]>('/api/stock/imports'),
   detalharImportacao: (id: string) => api<ImportacaoXml>(`/api/stock/imports/${id}`),
+  excluirImportacao: (id: string) => api<ImportacaoXml>(`/api/stock/imports/${id}`, { method: 'DELETE' }),
 };
