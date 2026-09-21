@@ -1977,6 +1977,45 @@ adminRouter.get('/products', gate('can_manage_comercial_portal'), async (req, re
   res.json({ products: result.rows });
 });
 
+const catalogConfig = {
+  categories: { table: 'com_product_categories', parent: true },
+  channels: { table: 'com_product_channels', parent: false },
+  regions: { table: 'com_product_regions', parent: false },
+};
+for (const [resource, config] of Object.entries(catalogConfig)) {
+  adminRouter.get(`/${resource}`, gate('can_manage_comercial_portal'), async (req, res) => {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'Sem organização' });
+    const result = await query(`SELECT * FROM ${config.table} WHERE organization_id = $1 ORDER BY name`, [org.organization_id]);
+    res.json({ [resource]: result.rows });
+  });
+  adminRouter.post(`/${resource}`, gate('can_manage_comercial_portal'), async (req, res) => {
+    try {
+      const org = await getUserOrg(req.userId);
+      if (!org) return res.status(403).json({ error: 'Sem organização' });
+      const name = String(req.body?.name || '').trim();
+      if (!name) return res.status(400).json({ error: 'Nome é obrigatório' });
+      const parent = config.parent ? (req.body?.parent_id || null) : null;
+      const columns = config.parent ? 'organization_id, name, parent_id' : 'organization_id, name';
+      const values = config.parent ? '($1,$2,$3)' : '($1,$2)';
+      const result = await query(`INSERT INTO ${config.table} (${columns}) VALUES ${values} RETURNING *`, config.parent ? [org.organization_id, name, parent] : [org.organization_id, name]);
+      res.status(201).json({ [resource.slice(0, -1)]: result.rows[0] });
+    } catch (error) {
+      if (error.code === '23505') return res.status(409).json({ error: 'Já existe um cadastro com este nome' });
+      res.status(500).json({ error: 'Erro ao cadastrar classificação' });
+    }
+  });
+  adminRouter.put(`/${resource}/:id`, gate('can_manage_comercial_portal'), async (req, res) => {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'Sem organização' });
+    const name = String(req.body?.name || '').trim();
+    if (!name) return res.status(400).json({ error: 'Nome é obrigatório' });
+    const result = await query(`UPDATE ${config.table} SET name = $1, is_active = COALESCE($2, is_active), updated_at = NOW() WHERE id = $3 AND organization_id = $4 RETURNING *`, [name, req.body?.is_active, req.params.id, org.organization_id]);
+    if (!result.rows.length) return res.status(404).json({ error: 'Cadastro não encontrado' });
+    res.json({ [resource.slice(0, -1)]: result.rows[0] });
+  });
+}
+
 adminRouter.post('/products', gate('can_manage_comercial_portal'), async (req, res) => {
   try {
     const org = await getUserOrg(req.userId);
@@ -1988,11 +2027,12 @@ adminRouter.post('/products', gate('can_manage_comercial_portal'), async (req, r
     const result = await query(
       `INSERT INTO products
          (organization_id, sku, name, description, category, subcategory, unit, image_url,
-          cost_price, base_price, specs, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
+          cost_price, base_price, specs, created_by, category_id, subcategory_id, channel_id, region_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING *`,
       [org.organization_id, b.sku || null, b.name.trim(), b.description || null, b.category || null,
         b.subcategory || null, b.unit || 'un', b.image_url || null, b.cost_price || 0, b.base_price || 0,
-        JSON.stringify(b.specs || {}), req.userId]
+        JSON.stringify(b.specs || {}), req.userId, b.category_id || null, b.subcategory_id || null,
+        b.channel_id || null, b.region_id || null]
     );
     res.status(201).json({ product: result.rows[0] });
   } catch (error) {
@@ -2008,7 +2048,7 @@ adminRouter.put('/products/:id', gate('can_manage_comercial_portal'), async (req
     if (!org) return res.status(403).json({ error: 'Sem organização' });
 
     const b = req.body || {};
-    const fields = ['sku', 'name', 'description', 'category', 'subcategory', 'unit', 'image_url',
+    const fields = ['sku', 'name', 'description', 'category', 'subcategory', 'category_id', 'subcategory_id', 'channel_id', 'region_id', 'unit', 'image_url',
       'cost_price', 'base_price', 'status'];
     const sets = [];
     const params = [];

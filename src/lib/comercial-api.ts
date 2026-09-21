@@ -490,6 +490,10 @@ export interface ComercialAdminProduct {
   description?: string | null;
   category?: string | null;
   subcategory?: string | null;
+  category_id?: string | null;
+  subcategory_id?: string | null;
+  channel_id?: string | null;
+  region_id?: string | null;
   unit: string;
   image_url?: string | null;
   status: 'active' | 'inactive';
@@ -498,6 +502,13 @@ export interface ComercialAdminProduct {
   specs?: Record<string, unknown>;
   created_at: string;
   updated_at: string;
+}
+
+export interface ComercialProductClassification {
+  id: string;
+  name: string;
+  parent_id?: string | null;
+  is_active: boolean;
 }
 
 export interface ComercialActorPriceListEntry {
@@ -641,6 +652,12 @@ export const comercialAdminApi = {
     api<{ message: string }>(`/api/comercial/admin/teams/${id}`, { method: 'DELETE' }),
 
   listProducts: () => api<{ products: ComercialAdminProduct[] }>('/api/comercial/admin/products'),
+  listProductCategories: () => api<{ categories: ComercialProductClassification[] }>('/api/comercial/admin/categories'),
+  listProductChannels: () => api<{ channels: ComercialProductClassification[] }>('/api/comercial/admin/channels'),
+  listProductRegions: () => api<{ regions: ComercialProductClassification[] }>('/api/comercial/admin/regions'),
+  createProductCategory: (body: { name: string; parent_id?: string | null }) => api<{ category: ComercialProductClassification }>('/api/comercial/admin/categories', { method: 'POST', body }),
+  createProductChannel: (body: { name: string }) => api<{ channel: ComercialProductClassification }>('/api/comercial/admin/channels', { method: 'POST', body }),
+  createProductRegion: (body: { name: string }) => api<{ region: ComercialProductClassification }>('/api/comercial/admin/regions', { method: 'POST', body }),
   createProduct: (body: Partial<ComercialAdminProduct>) =>
     api<{ product: ComercialAdminProduct }>('/api/comercial/admin/products', { method: 'POST', body }),
   updateProduct: (id: string, body: Partial<ComercialAdminProduct>) =>

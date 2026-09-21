@@ -5671,6 +5671,26 @@ CREATE INDEX IF NOT EXISTS idx_com_actor_price_lists_actor ON com_actor_price_li
 // price_list_items já existentes (online-quotes.js) — só ganha um FK
 // opcional para o novo catálogo mestre.
 const step74ComercialCatalogCustomers = `
+CREATE TABLE IF NOT EXISTS com_product_categories (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(), organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  name VARCHAR(255) NOT NULL, parent_id UUID REFERENCES com_product_categories(id) ON DELETE SET NULL,
+  is_active BOOLEAN NOT NULL DEFAULT true, created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (organization_id, name, parent_id)
+);
+CREATE TABLE IF NOT EXISTS com_product_channels (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(), organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  name VARCHAR(255) NOT NULL, is_active BOOLEAN NOT NULL DEFAULT true, created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (organization_id, name)
+);
+CREATE TABLE IF NOT EXISTS com_product_regions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(), organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  name VARCHAR(255) NOT NULL, is_active BOOLEAN NOT NULL DEFAULT true, created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (organization_id, name)
+);
+CREATE INDEX IF NOT EXISTS idx_com_product_categories_org ON com_product_categories(organization_id);
+CREATE INDEX IF NOT EXISTS idx_com_product_channels_org ON com_product_channels(organization_id);
+CREATE INDEX IF NOT EXISTS idx_com_product_regions_org ON com_product_regions(organization_id);
+
 CREATE TABLE IF NOT EXISTS products (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -5679,6 +5699,10 @@ CREATE TABLE IF NOT EXISTS products (
   description TEXT,
   category VARCHAR(255),
   subcategory VARCHAR(255),
+  category_id UUID REFERENCES com_product_categories(id) ON DELETE SET NULL,
+  subcategory_id UUID REFERENCES com_product_categories(id) ON DELETE SET NULL,
+  channel_id UUID REFERENCES com_product_channels(id) ON DELETE SET NULL,
+  region_id UUID REFERENCES com_product_regions(id) ON DELETE SET NULL,
   unit VARCHAR(20) DEFAULT 'un',
   image_url TEXT,
   status VARCHAR(20) NOT NULL DEFAULT 'active',    -- active | inactive

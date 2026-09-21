@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useUpload } from '@/hooks/use-upload';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -31,7 +32,7 @@ import {
 interface OrgMember { id: string; name: string; email: string; is_active: boolean }
 
 const emptyProductForm = {
-  sku: '', name: '', description: '', category: '', subcategory: '', unit: 'un',
+  sku: '', name: '', description: '', category: '', subcategory: '', category_id: '', subcategory_id: '', channel_id: '', region_id: '', unit: 'un',
   cost_price: '', base_price: '', image_url: '',
   potencia: '', temperatura_cor: '', dimensao: '', modelo: '', garantia: '',
 };
@@ -59,6 +60,9 @@ export default function AdminComercialPortal() {
   const [teams, setTeams] = useState<ComercialTeam[]>([]);
   const [orgMembers, setOrgMembers] = useState<OrgMember[]>([]);
   const [products, setProducts] = useState<ComercialAdminProduct[]>([]);
+  const [productCategories, setProductCategories] = useState<Array<{ id: string; name: string; parent_id?: string | null }>>([]);
+  const [productChannels, setProductChannels] = useState<Array<{ id: string; name: string }>>([]);
+  const [productRegions, setProductRegions] = useState<Array<{ id: string; name: string }>>([]);
   const [transferRequests, setTransferRequests] = useState<ComercialTransferRequest[]>([]);
   const [quoteApprovals, setQuoteApprovals] = useState<ComercialQuoteApproval[]>([]);
   const [loading, setLoading] = useState(true);
@@ -93,6 +97,7 @@ export default function AdminComercialPortal() {
   const [importing, setImporting] = useState(false);
 
   const { toast } = useToast();
+  const { uploadFile, isUploading } = useUpload();
 
   const load = () => {
     setLoading(true);
@@ -104,8 +109,11 @@ export default function AdminComercialPortal() {
       comercialAdminApi.listTransferRequests(),
       comercialAdminApi.listQuoteApprovals(),
       comercialAdminApi.listPriceLists(),
+      comercialAdminApi.listProductCategories(),
+      comercialAdminApi.listProductChannels(),
+      comercialAdminApi.listProductRegions(),
     ])
-      .then(([actorsRes, teamsRes, members, productsRes, transfersRes, approvalsRes, priceListsRes]) => {
+      .then(([actorsRes, teamsRes, members, productsRes, transfersRes, approvalsRes, priceListsRes, categoriesRes, channelsRes, regionsRes]) => {
         setActors(actorsRes.actors);
         setTeams(teamsRes.teams);
         setOrgMembers(members);
@@ -113,6 +121,9 @@ export default function AdminComercialPortal() {
         setTransferRequests(transfersRes.transfer_requests);
         setQuoteApprovals(approvalsRes.approvals);
         setPriceLists(priceListsRes.price_lists);
+        setProductCategories(categoriesRes.categories);
+        setProductChannels(channelsRes.channels);
+        setProductRegions(regionsRes.regions);
       })
       .catch((error) => toast({ title: 'Erro ao carregar Portal Comercial', description: error?.message, variant: 'destructive' }))
       .finally(() => setLoading(false));
@@ -256,11 +267,21 @@ export default function AdminComercialPortal() {
     setProductForm({
       sku: p.sku || '', name: p.name, description: p.description || '', category: p.category || '',
       subcategory: p.subcategory || '', unit: p.unit, cost_price: String(p.cost_price ?? ''), base_price: String(p.base_price ?? ''),
-      image_url: p.image_url || '',
+      image_url: p.image_url || '', category_id: p.category_id || '', subcategory_id: p.subcategory_id || '', channel_id: p.channel_id || '', region_id: p.region_id || '',
       potencia: specs.potencia || '', temperatura_cor: specs.temperatura_cor || '', dimensao: specs.dimensao || '',
       modelo: specs.modelo || '', garantia: specs.garantia || '',
     });
     setProductDialogOpen(true);
+  };
+
+  const handleProductImageUpload = async (file: File) => {
+    try {
+      if (!file.type.startsWith('image/')) throw new Error('Selecione um arquivo de imagem');
+      const url = await uploadFile(file);
+      if (url) setProductForm((current) => ({ ...current, image_url: url }));
+    } catch (error) {
+      toast({ title: 'Erro ao enviar imagem', description: error instanceof Error ? error.message : 'Tente novamente.', variant: 'destructive' });
+    }
   };
 
   const handleSaveProduct = async () => {
@@ -280,6 +301,10 @@ export default function AdminComercialPortal() {
 
       const body = {
         ...rest,
+        category_id: (productForm as any).category_id || undefined,
+        subcategory_id: (productForm as any).subcategory_id || undefined,
+        channel_id: (productForm as any).channel_id || undefined,
+        region_id: (productForm as any).region_id || undefined,
         cost_price: productForm.cost_price ? Number(productForm.cost_price) : 0,
         base_price: productForm.base_price ? Number(productForm.base_price) : 0,
         specs,
@@ -864,12 +889,22 @@ export default function AdminComercialPortal() {
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
                       <Label>Categoria</Label>
-                      <Input value={productForm.category} onChange={(e) => setProductForm({ ...productForm, category: e.target.value })} />
+                      <Select value={(productForm as any).category_id || 'legacy'} onValueChange={(v) => setProductForm({ ...productForm, category_id: v === 'legacy' ? '' : v, category: productCategories.find((item) => item.id === v)?.name || productForm.category })}>
+                        <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                        <SelectContent><SelectItem value="legacy">Sem cadastro</SelectItem>{productCategories.filter((item) => !item.parent_id).map((item) => <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>)}</SelectContent>
+                      </Select>
                     </div>
                     <div className="space-y-1">
                       <Label>Subcategoria</Label>
-                      <Input value={productForm.subcategory} onChange={(e) => setProductForm({ ...productForm, subcategory: e.target.value })} />
+                      <Select value={(productForm as any).subcategory_id || 'legacy'} onValueChange={(v) => setProductForm({ ...productForm, subcategory_id: v === 'legacy' ? '' : v, subcategory: productCategories.find((item) => item.id === v)?.name || productForm.subcategory })}>
+                        <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                        <SelectContent><SelectItem value="legacy">Sem cadastro</SelectItem>{productCategories.filter((item) => !!item.parent_id).map((item) => <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>)}</SelectContent>
+                      </Select>
                     </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1"><Label>Canal</Label><Select value={(productForm as any).channel_id || 'none'} onValueChange={(v) => setProductForm({ ...productForm, channel_id: v === 'none' ? '' : v })}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent><SelectItem value="none">Sem canal</SelectItem>{productChannels.map((item) => <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>)}</SelectContent></Select></div>
+                    <div className="space-y-1"><Label>Região</Label><Select value={(productForm as any).region_id || 'none'} onValueChange={(v) => setProductForm({ ...productForm, region_id: v === 'none' ? '' : v })}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent><SelectItem value="none">Sem região</SelectItem>{productRegions.map((item) => <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>)}</SelectContent></Select></div>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
@@ -882,9 +917,10 @@ export default function AdminComercialPortal() {
                     </div>
                   </div>
                   <div className="space-y-1">
-                    <Label>URL da imagem</Label>
+                    <Label>Imagem do produto</Label>
                     <div className="flex items-center gap-3">
-                      <Input value={productForm.image_url} onChange={(e) => setProductForm({ ...productForm, image_url: e.target.value })} placeholder="https://..." className="flex-1" />
+                      <Input value={productForm.image_url} onChange={(e) => setProductForm({ ...productForm, image_url: e.target.value })} placeholder="https://... ou envie um arquivo" className="flex-1" />
+                      <label><Button type="button" variant="outline" asChild disabled={isUploading}><span><Upload className="h-4 w-4 mr-1" />{isUploading ? 'Enviando...' : 'Enviar'}</span></Button><input type="file" accept="image/*" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) void handleProductImageUpload(file); e.target.value = ''; }} /></label>
                       {productForm.image_url && (
                         <img src={productForm.image_url} alt="" className="h-12 w-12 rounded object-cover border" onError={(e) => { (e.target as HTMLImageElement).style.visibility = 'hidden'; }} />
                       )}
