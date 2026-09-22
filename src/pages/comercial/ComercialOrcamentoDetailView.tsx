@@ -296,6 +296,26 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
       </div>
 
       <div className="grid md:grid-cols-3 gap-4">
+        <div className="md:col-span-3 grid md:grid-cols-2 gap-4 order-first">
+          <Card>
+            <CardHeader className="pb-2"><CardTitle className="text-base">Cliente</CardTitle></CardHeader>
+            <CardContent className="space-y-1 text-sm">
+              <p className="font-medium">{quote.client_name}</p>
+              {quote.client_document && <p className="text-muted-foreground">{quote.client_document}</p>}
+              {quote.client_email && <p className="text-muted-foreground">{quote.client_email}</p>}
+              {quote.client_phone && <p className="text-muted-foreground">{quote.client_phone}</p>}
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2"><CardTitle className="text-base">Totais</CardTitle></CardHeader>
+            <CardContent className="space-y-1 text-sm">
+              <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span>{formatCurrency(quote.subtotal_value)}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Desconto</span><span>-{formatCurrency(quote.discount_value)}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Frete</span><span>{formatCurrency(quote.freight_value)}</span></div>
+              <div className="flex justify-between font-semibold text-base pt-1 border-t"><span>Total</span><span>{formatCurrency(quote.total_value)}</span></div>
+            </CardContent>
+          </Card>
+        </div>
         <div className="md:col-span-3 space-y-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -346,8 +366,9 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
                         <TableHead className="w-[38%] min-w-[220px]">Produto</TableHead>
                         <TableHead className="w-[7%] text-right">Qtd</TableHead>
                         <TableHead className="w-[18%] text-right">Unitário</TableHead>
-                        <TableHead className="w-[24%] text-right">Desc.</TableHead>
-                        <TableHead className="w-[16%] text-right">Total</TableHead>
+                        <TableHead className="w-[18%] text-right">Desc.</TableHead>
+                        <TableHead className="w-[14%] text-right">Total</TableHead>
+                        {editable && <TableHead className="w-10" />}
                         {editable && <TableHead />}
                       </TableRow>
                     </TableHeader>
@@ -361,11 +382,11 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
                           <TableCell className="text-right">
                             {editable ? <Input className="w-full min-w-[7rem] ml-auto text-right" type="text" inputMode="decimal" defaultValue={String(item.unit_price).replace('.', ',')} title="Preço deste orçamento; não altera a tabela de produtos" onBlur={(e) => { const raw = e.target.value.trim().replace(/\./g, '').replace(',', '.'); handleUpdateItem(item.id, { unit_price: Number(raw) }); }} /> : formatCurrency(item.unit_price)}
                           </TableCell>
-                          <TableCell className="text-right min-w-[11rem]">
+                          <TableCell className="text-right min-w-[8.5rem]">
                             {editable ? (() => {
                               const mode = discountModes[item.id] || 'percent';
-                              return <div className="flex w-full min-w-[10rem] items-center justify-end gap-1">
-                                <Input key={`${item.id}-${item.discount_percent}-${item.unit_price}-${mode}`} className="w-full min-w-[4.5rem] text-right" type="number" min="0" step="0.01" defaultValue={mode === 'percent' ? item.discount_percent : (Number(item.quantity) * Number(item.unit_price) * Number(item.discount_percent) / 100)} onBlur={(e) => {
+                              return <div className="flex w-full min-w-0 items-center justify-end gap-1">
+                                <Input key={`${item.id}-${item.discount_percent}-${item.unit_price}-${mode}`} className="w-full min-w-0 px-1 text-right" type="number" min="0" step="0.01" defaultValue={mode === 'percent' ? item.discount_percent : (Number(item.quantity) * Number(item.unit_price) * Number(item.discount_percent) / 100)} onBlur={(e) => {
                                   const value = Number(e.target.value);
                                   const base = Number(item.quantity) * Number(item.unit_price);
                                   const percent = mode === 'value' ? (base > 0 ? (value / base) * 100 : 0) : value;
@@ -445,7 +466,7 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
           </Card>
         </div>
 
-        <div className="space-y-4">
+        <div className="hidden">
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-base">Cliente</CardTitle>
@@ -473,7 +494,7 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
             </CardContent>
           </Card>
 
-          {history.length > 0 && (
+          {false && history.length > 0 && (
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-base">Histórico</CardTitle>
