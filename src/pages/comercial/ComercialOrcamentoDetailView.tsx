@@ -296,7 +296,7 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
       </div>
 
       <div className="grid md:grid-cols-3 gap-4">
-        <div className="md:col-span-2 space-y-4">
+        <div className="md:col-span-3 space-y-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-base">Itens</CardTitle>
@@ -339,12 +339,12 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
               {items.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-8">Nenhum item adicionado ainda.</p>
               ) : (
-                <div className="overflow-x-auto">
-                  <Table>
+                <div className="w-full overflow-visible">
+                  <Table className="w-full table-fixed">
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="min-w-[160px]">Produto</TableHead>
-                        <TableHead className="text-right">Qtd</TableHead>
+                        <TableHead className="w-[38%] min-w-[220px]">Produto</TableHead>
+                        <TableHead className="w-[12%] text-right">Qtd</TableHead>
                         <TableHead className="text-right">Unitário</TableHead>
                         <TableHead className="text-right">Desc.</TableHead>
                         <TableHead className="text-right">Total</TableHead>
@@ -359,7 +359,7 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
                             {editable ? <Input className="w-24 ml-auto text-right" type="number" min="0.001" step="0.001" defaultValue={item.quantity} onBlur={(e) => handleUpdateItem(item.id, { quantity: Number(e.target.value) })} /> : item.quantity}
                           </TableCell>
                           <TableCell className="text-right">
-                            {editable ? <div className="space-y-1"><Input className="w-32 ml-auto text-right" type="text" inputMode="decimal" defaultValue={String(item.unit_price).replace('.', ',')} disabled={actor.profile !== 'admin' && !actor.can_edit_price_manually} title={actor.profile !== 'admin' && !actor.can_edit_price_manually ? 'Solicite ao administrador a permissão para editar preços' : 'Digite um valor igual ou maior que o preço da tabela'} onBlur={(e) => { const raw = e.target.value.trim().replace(/\./g, '').replace(',', '.'); handleUpdateItem(item.id, { unit_price: Number(raw) }); }} />{actor.profile !== 'admin' && !actor.can_edit_price_manually && <span className="block text-[10px] text-muted-foreground">Sem permissão</span>}</div> : formatCurrency(item.unit_price)}
+                            {editable ? <Input className="w-36 ml-auto text-right" type="text" inputMode="decimal" defaultValue={String(item.unit_price).replace('.', ',')} title="Preço deste orçamento; não altera a tabela de produtos" onBlur={(e) => { const raw = e.target.value.trim().replace(/\./g, '').replace(',', '.'); handleUpdateItem(item.id, { unit_price: Number(raw) }); }} /> : formatCurrency(item.unit_price)}
                           </TableCell>
                           <TableCell className="text-right">
                             {editable ? (() => {

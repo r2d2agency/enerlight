@@ -738,7 +738,6 @@ async function updateQuoteItemHandler(req, res) {
     }
     let unitPrice = Number(item.unit_price);
     if (req.body?.unit_price !== undefined) {
-      if (req.actor.profile !== 'admin' && !req.actor.can_edit_price_manually) return res.status(403).json({ error: 'Você não tem permissão para alterar o preço', code: 'PRICE_EDIT_NOT_ALLOWED' });
       unitPrice = Number(req.body.unit_price);
       if (!Number.isFinite(unitPrice) || unitPrice <= 0) return res.status(400).json({ error: 'Preço deve ser maior que zero', code: 'INVALID_PRICE' });
       if (unitPrice < Number(item.unit_price)) return res.status(400).json({ error: 'O preço não pode ser menor que o valor atual da tabela', code: 'PRICE_BELOW_TABLE' });
