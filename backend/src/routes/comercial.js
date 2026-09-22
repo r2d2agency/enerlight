@@ -1852,6 +1852,8 @@ adminRouter.post('/actors/:id/generate-temporary-password', gate('can_manage_com
     if (actor.status === 'blocked') return res.status(400).json({ error: 'Desbloqueie o usuário antes de gerar a senha' });
     const temporaryPassword = generateTemporaryPassword();
     const hash = await bcrypt.hash(temporaryPassword, 10);
+    // Compatibilidade com instalações que ainda não executaram a migração do portal.
+    await query(`ALTER TABLE com_actors ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN NOT NULL DEFAULT false; ALTER TABLE com_actors ADD COLUMN IF NOT EXISTS temp_password_expires_at TIMESTAMPTZ; ALTER TABLE com_actors ADD COLUMN IF NOT EXISTS password_changed_at TIMESTAMPTZ`);
     await query(`UPDATE com_actors SET password_hash=$1, must_change_password=true, temp_password_expires_at=NOW()+INTERVAL '1 hour', password_changed_at=NOW(), status='active', invite_token_hash=NULL, invite_token_expires_at=NULL, invite_token_purpose=NULL, activated_at=COALESCE(activated_at,NOW()), updated_at=NOW() WHERE id=$2 AND organization_id=$3`, [hash, actor.id, org.organization_id]);
     await logAudit(req, { action: 'actor_temporary_password_generated', entityType: 'com_actor', entityId: actor.id });
     res.json({ actor: { id: actor.id, name: actor.name, email: actor.email }, temporary_password: temporaryPassword });
