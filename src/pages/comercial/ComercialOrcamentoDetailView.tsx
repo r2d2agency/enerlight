@@ -359,7 +359,7 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
                             {editable ? <Input className="w-24 ml-auto text-right" type="number" min="0.001" step="0.001" defaultValue={item.quantity} onBlur={(e) => handleUpdateItem(item.id, { quantity: Number(e.target.value) })} /> : item.quantity}
                           </TableCell>
                           <TableCell className="text-right">
-                            {editable && (actor.profile === 'admin' || actor.can_edit_price_manually) ? <Input className="w-28 ml-auto text-right" type="number" min="0" step="0.01" defaultValue={item.unit_price} onBlur={(e) => handleUpdateItem(item.id, { unit_price: Number(e.target.value.replace(',', '.')) })} /> : formatCurrency(item.unit_price)}
+                            {editable ? <div className="space-y-1"><Input className="w-32 ml-auto text-right" type="text" inputMode="decimal" defaultValue={String(item.unit_price).replace('.', ',')} disabled={actor.profile !== 'admin' && !actor.can_edit_price_manually} title={actor.profile !== 'admin' && !actor.can_edit_price_manually ? 'Solicite ao administrador a permissão para editar preços' : 'Digite um valor igual ou maior que o preço da tabela'} onBlur={(e) => { const raw = e.target.value.trim().replace(/\./g, '').replace(',', '.'); handleUpdateItem(item.id, { unit_price: Number(raw) }); }} />{actor.profile !== 'admin' && !actor.can_edit_price_manually && <span className="block text-[10px] text-muted-foreground">Sem permissão</span>}</div> : formatCurrency(item.unit_price)}
                           </TableCell>
                           <TableCell className="text-right">
                             {editable ? (() => {
