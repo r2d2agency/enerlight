@@ -219,7 +219,7 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
     toast({ title: 'Link copiado' });
   };
 
-  const handleDownloadPdf = () => {
+  const handleDownloadPdf = (layout: 'classic-landscape' | 'modern-portrait' = 'modern-portrait') => {
     generateQuotePDF(
       {
         id: quote.id,
@@ -244,7 +244,8 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
           image_url: i.image_url,
         })),
       },
-      { name: quote.organization_name, logo_url: quote.organization_logo_url }
+      { name: quote.organization_name, logo_url: quote.organization_logo_url },
+      { layout }
     );
   };
 
@@ -270,9 +271,13 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
 
       <div className="flex flex-wrap gap-2 border-y py-3 -mx-1 px-1 sm:border-none sm:py-0 sm:mx-0 sm:px-0">
         {items.length > 0 && (
-          <Button variant="outline" size="sm" onClick={handleDownloadPdf} className="flex-1 sm:flex-none min-w-[9rem] sm:min-w-0">
+          <Button variant="outline" size="sm" onClick={() => handleDownloadPdf('modern-portrait')} className="flex-1 sm:flex-none min-w-[9rem] sm:min-w-0">
             <Download className="h-4 w-4 mr-1" />
-            Baixar PDF
+            PDF vertical
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => handleDownloadPdf('classic-landscape')} className="flex-1 sm:flex-none min-w-[9rem] sm:min-w-0">
+            <Download className="h-4 w-4 mr-1" />
+            PDF horizontal
           </Button>
         )}
         {quote.public_token && (

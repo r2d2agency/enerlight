@@ -20,9 +20,50 @@ const loadRemoteImage = (url: string): Promise<string> => {
   });
 };
 
-export const generateQuotePDF = async (quote: any, organization: any) => {
+const generateModernPortraitPDF = async (quote: any, organization: any) => {
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const margin = 16;
+  const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+  const coverUrl = quote.template?.cover_url || quote.template_cover || quote.cover_image_url;
+  if (coverUrl) {
+    try {
+      const image = await loadRemoteImage(coverUrl);
+      doc.addImage(image, 'PNG', 0, 0, pageWidth, pageHeight);
+      doc.addPage();
+    } catch (_) { /* continue without cover */ }
+  }
+  doc.setFillColor(32, 45, 61); doc.rect(0, 0, pageWidth, 38, 'F');
+  doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(22); doc.text('PROPOSTA', margin, 18);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.text(`CÓDIGO ${String(quote.id || '').split('-')[0].toUpperCase()}`, margin, 27);
+  doc.text(format(new Date(), 'dd/MM/yyyy'), pageWidth - margin, 27, { align: 'right' });
+  if (organization?.logo_url) { try { const logo = await loadRemoteImage(organization.logo_url); doc.addImage(logo, 'PNG', pageWidth - 45, 6, 25, 20, undefined, 'FAST'); } catch (_) {} }
+  let y = 50;
+  doc.setTextColor(32, 45, 61); doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.text('CLIENTE', margin, y);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(10); y += 7; doc.text(quote.client_name || 'Não informado', margin, y);
+  const clientExtra = [quote.client_document, quote.client_email, quote.client_phone].filter(Boolean).join(' · ');
+  if (clientExtra) { y += 5; doc.setTextColor(90, 100, 110); doc.setFontSize(8); doc.text(clientExtra, margin, y); }
+  y += 13; doc.setTextColor(32, 45, 61); doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.text('CONDIÇÕES COMERCIAIS', margin, y);
+  y += 7; doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(70, 80, 90);
+  const conditions = [`Pagamento: ${quote.payment_terms || 'A definir'}`, `Frete: ${(quote.shipping_type || 'cif').toUpperCase()} · ${currency.format(Number(quote.shipping_value || 0))}`, `Validade: ${quote.valid_until ? format(parseISO(quote.valid_until), 'dd/MM/yyyy') : 'A definir'}`];
+  doc.text(conditions, margin, y, { lineHeightFactor: 1.5 }); y += conditions.length * 5 + 7;
+  doc.setTextColor(32, 45, 61);
+  autoTable(doc, { startY: y, margin: { left: margin, right: margin }, head: [['Produto', 'Qtd', 'Unitário', 'Desc.', 'Total']], body: (quote.items || []).map((item: any) => [item.product_name || 'Produto', item.quantity || 0, currency.format(item.unit_price || 0), `${Number(item.discount_value || item.discount_percent || 0).toFixed(2)}%`, currency.format(item.total_price || 0)]), theme: 'striped', headStyles: { fillColor: [32, 45, 61], textColor: 255, fontSize: 8 }, bodyStyles: { fontSize: 8, cellPadding: 3 }, columnStyles: { 0: { cellWidth: 67 }, 1: { halign: 'center', cellWidth: 18 }, 2: { halign: 'right', cellWidth: 31 }, 3: { halign: 'right', cellWidth: 22 }, 4: { halign: 'right', cellWidth: 35 } }, foot: [[{ content: 'TOTAL', colSpan: 4, styles: { halign: 'right', fontStyle: 'bold', fillColor: [230, 235, 240] } }, { content: currency.format(Number(quote.total_value || 0)), styles: { halign: 'right', fontStyle: 'bold', fillColor: [32, 45, 61], textColor: 255 } }]], showHead: 'everyPage' });
+  y = (doc as any).lastAutoTable.finalY + 12;
+  const notes = [quote.notes, quote.fiscal_info || quote.template_fiscal_info].filter(Boolean).join('\n');
+  if (notes) { doc.setFontSize(9); doc.setFont('helvetica', 'bold'); doc.text('OBSERVAÇÕES', margin, y); y += 6; doc.setFont('helvetica', 'normal'); doc.setTextColor(80, 90, 100); doc.text(doc.splitTextToSize(String(notes).replace(/<[^>]*>/g, ''), pageWidth - margin * 2), margin, y); }
+  for (let page = 1; page <= doc.getNumberOfPages(); page += 1) { doc.setPage(page); doc.setDrawColor(210, 215, 220); doc.line(margin, pageHeight - 14, pageWidth - margin, pageHeight - 14); doc.setFontSize(7); doc.setTextColor(120, 130, 140); doc.text(String(quote.template_footer || quote.footer_text || organization?.name || ''), pageWidth / 2, pageHeight - 8, { align: 'center' }); }
+  const fileName = (quote.client_name || 'proposta').replace(/\s+/g, '-').toLowerCase(); doc.save(`proposta-${fileName}-vertical.pdf`);
+};
+
+export const generateQuotePDF = async (quote: any, organization: any, options: { layout?: 'classic-landscape' | 'modern-portrait' } = {}) => {
   if (!quote) {
     console.error("No quote data provided to generateQuotePDF");
+    return;
+  }
+  if (options.layout === 'modern-portrait' || quote.pdf_layout === 'modern-portrait' || quote.template?.pdf_layout === 'modern-portrait') {
+    await generateModernPortraitPDF(quote, organization);
     return;
   }
 
