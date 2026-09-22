@@ -1710,6 +1710,55 @@ adminRouter.put('/settings', gate('can_manage_comercial_portal'), async (req, re
   res.json({ settings: result.rows[0] });
 });
 
+adminRouter.get('/quote-templates', gate('can_manage_comercial_portal'), async (req, res) => {
+  const org = await getUserOrg(req.userId);
+  if (!org) return res.status(403).json({ error: 'Sem organização' });
+  const result = await query('SELECT * FROM online_quote_templates WHERE organization_id = $1 ORDER BY is_default DESC, name ASC', [org.organization_id]);
+  res.json({ templates: result.rows });
+});
+
+adminRouter.post('/quote-templates', gate('can_manage_comercial_portal'), async (req, res) => {
+  const org = await getUserOrg(req.userId);
+  if (!org) return res.status(403).json({ error: 'Sem organização' });
+  const { name, description, cover_url, header_text, footer_text, footer_config, is_default } = req.body || {};
+  if (!String(name || '').trim()) return res.status(400).json({ error: 'Nome do template é obrigatório' });
+  if (is_default) await query('UPDATE online_quote_templates SET is_default = false WHERE organization_id = $1', [org.organization_id]);
+  const result = await query(`INSERT INTO online_quote_templates (organization_id, name, description, cover_url, header_text, footer_text, footer_config, is_default) VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8) RETURNING *`, [org.organization_id, name.trim(), description || null, cover_url || null, header_text || null, footer_text || null, JSON.stringify(footer_config || {}), !!is_default]);
+  res.status(201).json({ template: result.rows[0] });
+});
+
+adminRouter.put('/quote-templates/:id', gate('can_manage_comercial_portal'), async (req, res) => {
+  const org = await getUserOrg(req.userId);
+  if (!org) return res.status(403).json({ error: 'Sem organização' });
+  const current = await query('SELECT * FROM online_quote_templates WHERE id = $1 AND organization_id = $2', [req.params.id, org.organization_id]);
+  if (!current.rows[0]) return res.status(404).json({ error: 'Template não encontrado' });
+  const b = req.body || {};
+  if (b.is_default) await query('UPDATE online_quote_templates SET is_default = false WHERE organization_id = $1', [org.organization_id]);
+  const result = await query(`UPDATE online_quote_templates SET name = COALESCE($1,name), description=$2, cover_url=$3, header_text=$4, footer_text=$5, footer_config=$6::jsonb, is_default=COALESCE($7,is_default), updated_at=NOW() WHERE id=$8 AND organization_id=$9 RETURNING *`, [b.name?.trim() || null, b.description || null, b.cover_url || null, b.header_text || null, b.footer_text || null, JSON.stringify(b.footer_config || {}), b.is_default === undefined ? null : !!b.is_default, req.params.id, org.organization_id]);
+  res.json({ template: result.rows[0] });
+});
+
+adminRouter.delete('/quote-templates/:id', gate('can_manage_comercial_portal'), async (req, res) => {
+  const org = await getUserOrg(req.userId);
+  if (!org) return res.status(403).json({ error: 'Sem organização' });
+  const used = await query('SELECT 1 FROM online_quotes WHERE template_id = $1 LIMIT 1', [req.params.id]);
+  if (used.rows[0]) return res.status(409).json({ error: 'Template usado por orçamento; edite ou desative em vez de excluir' });
+  const result = await query('DELETE FROM online_quote_templates WHERE id = $1 AND organization_id = $2 RETURNING id', [req.params.id, org.organization_id]);
+  if (!result.rows[0]) return res.status(404).json({ error: 'Template não encontrado' });
+  res.json({ message: 'Template excluído' });
+});
+
+adminRouter.put('/price-lists/:id/templates', gate('can_manage_comercial_portal'), async (req, res) => {
+  const org = await getUserOrg(req.userId);
+  if (!org) return res.status(403).json({ error: 'Sem organização' });
+  const ids = Array.isArray(req.body?.template_ids) ? req.body.template_ids : [];
+  const valid = (await query('SELECT id FROM online_quote_templates WHERE organization_id = $1 AND id = ANY($2)', [org.organization_id, ids])).rows.map((r) => r.id);
+  const defaultId = valid.includes(req.body?.default_template_id) ? req.body.default_template_id : null;
+  const result = await query('UPDATE price_lists SET allowed_templates=$1::jsonb, default_template_id=$2, updated_at=NOW() WHERE id=$3 AND organization_id=$4 RETURNING *', [JSON.stringify(valid), defaultId, req.params.id, org.organization_id]);
+  if (!result.rows[0]) return res.status(404).json({ error: 'Tabela não encontrada' });
+  res.json({ price_list: result.rows[0] });
+});
+
 adminRouter.get('/actors', gate('can_manage_comercial_portal'), async (req, res) => {
   const org = await getUserOrg(req.userId);
   if (!org) return res.status(403).json({ error: 'Sem organização' });
@@ -2193,7 +2242,8 @@ adminRouter.get('/price-lists', gate('can_manage_comercial_portal'), async (req,
 
   const result = await query(
     `SELECT pl.id, pl.name, pl.description, pl.is_active,
-            (SELECT COUNT(*) FROM price_list_items pli WHERE pli.price_list_id = pl.id) as items_count
+            (SELECT COUNT(*) FROM price_list_items pli WHERE pli.price_list_id = pl.id) as items_count,
+            pl.default_template_id, pl.allowed_templates
      FROM price_lists pl WHERE pl.organization_id = $1 ORDER BY pl.name ASC`,
     [org.organization_id]
   );

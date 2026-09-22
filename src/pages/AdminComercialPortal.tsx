@@ -15,7 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import {
   comercialAdminApi, ComercialAdminActor, ComercialTeam, ComercialProfile,
   ComercialAdminProduct, ComercialActorPriceListEntry, ComercialTransferRequest, ComercialQuoteApproval,
-  ComercialAdminPriceList, ComercialPriceListItem,
+  ComercialAdminPriceList, ComercialPriceListItem, ComercialQuoteTemplate,
 } from '@/lib/comercial-api';
 import { api } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
@@ -97,6 +97,9 @@ export default function AdminComercialPortal() {
   const [importPreview, setImportPreview] = useState<Array<ImportRow & { found: boolean; product_name?: string; base_price?: number }>>([]);
   const [importing, setImporting] = useState(false);
   const [commercialSettings, setCommercialSettings] = useState({ delivery_terms: '', payment_terms_options: '', default_shipping_type: 'cif' as 'fob' | 'cif' });
+  const [quoteTemplates, setQuoteTemplates] = useState<ComercialQuoteTemplate[]>([]);
+  const [templateForm, setTemplateForm] = useState({ name: '', description: '', cover_url: '', header_text: '', footer_text: '' });
+  const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
 
   const { toast } = useToast();
   const { uploadFile, isUploading } = useUpload();
@@ -115,8 +118,9 @@ export default function AdminComercialPortal() {
       comercialAdminApi.listProductChannels(),
       comercialAdminApi.listProductRegions(),
       comercialAdminApi.getSettings(),
+      comercialAdminApi.listQuoteTemplates(),
     ])
-      .then(([actorsRes, teamsRes, members, productsRes, transfersRes, approvalsRes, priceListsRes, categoriesRes, channelsRes, regionsRes, settingsRes]) => {
+      .then(([actorsRes, teamsRes, members, productsRes, transfersRes, approvalsRes, priceListsRes, categoriesRes, channelsRes, regionsRes, settingsRes, templatesRes]) => {
         setActors(actorsRes.actors);
         setTeams(teamsRes.teams);
         setOrgMembers(members);
@@ -128,6 +132,7 @@ export default function AdminComercialPortal() {
         setProductChannels(channelsRes.channels);
         setProductRegions(regionsRes.regions);
         setCommercialSettings({ delivery_terms: settingsRes.settings.delivery_terms.join('\n'), payment_terms_options: settingsRes.settings.payment_terms_options.join('\n'), default_shipping_type: settingsRes.settings.default_shipping_type });
+        setQuoteTemplates(templatesRes.templates);
       })
       .catch((error) => toast({ title: 'Erro ao carregar Portal Comercial', description: error?.message, variant: 'destructive' }))
       .finally(() => setLoading(false));
@@ -634,7 +639,14 @@ export default function AdminComercialPortal() {
           </TabsTrigger>
           <TabsTrigger value="auditoria">Auditoria</TabsTrigger>
           <TabsTrigger value="configuracoes">Configurações</TabsTrigger>
+          <TabsTrigger value="templates">Templates</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="templates" className="space-y-4 mt-4">
+          <div className="flex justify-end"><Button onClick={() => { setTemplateForm({ name: '', description: '', cover_url: '', header_text: '', footer_text: '' }); setTemplateDialogOpen(true); }}><Plus className="h-4 w-4 mr-1" />Novo template</Button></div>
+          <div className="grid gap-3 md:grid-cols-2">{quoteTemplates.map((template) => <Card key={template.id}><CardContent className="pt-5"><div className="flex items-start justify-between gap-3"><div><p className="font-medium">{template.name}</p><p className="text-sm text-muted-foreground">{template.description || 'Sem descrição'}</p></div>{template.is_default && <Badge>Padrão</Badge>}</div><div className="mt-3 flex gap-2"><Button size="sm" variant="outline" onClick={() => { setTemplateForm({ name: template.name, description: template.description || '', cover_url: template.cover_url || '', header_text: template.header_text || '', footer_text: template.footer_text || '' }); setTemplateDialogOpen(true); }}>Editar</Button><Button size="sm" variant="destructive" onClick={async () => { try { await comercialAdminApi.deleteQuoteTemplate(template.id); setQuoteTemplates((current) => current.filter((item) => item.id !== template.id)); toast({ title: 'Template excluído' }); } catch (error) { toast({ title: 'Não foi possível excluir', description: error instanceof Error ? error.message : 'Template em uso', variant: 'destructive' }); } }}>Excluir</Button></div></CardContent></Card>)}</div>
+          <Dialog open={templateDialogOpen} onOpenChange={setTemplateDialogOpen}><DialogContent><DialogHeader><DialogTitle>Template de proposta</DialogTitle></DialogHeader><div className="space-y-3"><Input placeholder="Nome" value={templateForm.name} onChange={(e) => setTemplateForm({ ...templateForm, name: e.target.value })} /><Input placeholder="Descrição" value={templateForm.description} onChange={(e) => setTemplateForm({ ...templateForm, description: e.target.value })} /><Input placeholder="URL da capa" value={templateForm.cover_url} onChange={(e) => setTemplateForm({ ...templateForm, cover_url: e.target.value })} /><Textarea placeholder="Cabeçalho" value={templateForm.header_text} onChange={(e) => setTemplateForm({ ...templateForm, header_text: e.target.value })} /><Textarea placeholder="Rodapé" value={templateForm.footer_text} onChange={(e) => setTemplateForm({ ...templateForm, footer_text: e.target.value })} /></div><DialogFooter><Button onClick={async () => { try { const response = await comercialAdminApi.createQuoteTemplate(templateForm); setQuoteTemplates((current) => [...current, response.template]); setTemplateDialogOpen(false); toast({ title: 'Template criado' }); } catch (error) { toast({ title: 'Erro ao criar template', description: error instanceof Error ? error.message : 'Tente novamente', variant: 'destructive' }); } }}>Salvar</Button></DialogFooter></DialogContent></Dialog>
+        </TabsContent>
 
         <TabsContent value="configuracoes" className="space-y-4 mt-4">
           <Card><CardContent className="space-y-4 pt-6">

@@ -548,12 +548,26 @@ export interface ComercialQuoteApproval {
   created_at: string;
 }
 
+export interface ComercialQuoteTemplate {
+  id: string;
+  organization_id: string;
+  name: string;
+  description?: string | null;
+  cover_url?: string | null;
+  header_text?: string | null;
+  footer_text?: string | null;
+  footer_config?: Record<string, unknown> | null;
+  is_default: boolean;
+}
+
 export interface ComercialAdminPriceList {
   id: string;
   name: string;
   description?: string | null;
   is_active: boolean;
   items_count: number;
+  default_template_id?: string | null;
+  allowed_templates?: string[];
 }
 
 export interface ComercialPriceListItem {
@@ -631,6 +645,11 @@ export interface ComercialAuditLog {
 
 // Administração — usa a mesma sessão do CRM (auth_token), não o token isolado do portal
 export const comercialAdminApi = {
+  listQuoteTemplates: () => api<{ templates: ComercialQuoteTemplate[] }>('/api/comercial/admin/quote-templates'),
+  createQuoteTemplate: (body: Partial<ComercialQuoteTemplate>) => api<{ template: ComercialQuoteTemplate }>('/api/comercial/admin/quote-templates', { method: 'POST', body }),
+  updateQuoteTemplate: (id: string, body: Partial<ComercialQuoteTemplate>) => api<{ template: ComercialQuoteTemplate }>(`/api/comercial/admin/quote-templates/${id}`, { method: 'PUT', body }),
+  deleteQuoteTemplate: (id: string) => api<{ message: string }>(`/api/comercial/admin/quote-templates/${id}`, { method: 'DELETE' }),
+  setPriceListTemplates: (id: string, body: { template_ids: string[]; default_template_id?: string | null }) => api<{ price_list: ComercialAdminPriceList }>(`/api/comercial/admin/price-lists/${id}/templates`, { method: 'PUT', body }),
   getSettings: () => api<{ settings: { delivery_terms: string[]; payment_terms_options: string[]; default_shipping_type: 'fob' | 'cif' } }>('/api/comercial/admin/settings'),
   updateSettings: (body: { delivery_terms: string[]; payment_terms_options: string[]; default_shipping_type: 'fob' | 'cif' }) => api<{ settings: { delivery_terms: string[]; payment_terms_options: string[]; default_shipping_type: 'fob' | 'cif' } }>('/api/comercial/admin/settings', { method: 'PUT', body }),
   listActors: () => api<{ actors: ComercialAdminActor[] }>('/api/comercial/admin/actors'),
