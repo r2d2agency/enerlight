@@ -782,13 +782,7 @@ export default function AdminComercialPortal() {
                               <Tag className="h-4 w-4 mr-1" />
                               Tabelas de preço
                             </Button>
-                            {!actor.user_id && actor.status === 'pending' && (
-                              <Button variant="ghost" size="sm" disabled={isBusy} onClick={() => handleResendInvite(actor)}>
-                                <Send className="h-4 w-4 mr-1" />
-                                Reenviar convite
-                              </Button>
-                            )}
-                            {actor.status === 'active' && (
+                            {!actor.user_id && actor.status !== 'blocked' && (
                               <Button variant="ghost" size="sm" disabled={isBusy} onClick={() => handleGenerateTemporaryPassword(actor)}>
                                 <KeyRound className="h-4 w-4 mr-1" />Gerar senha temporária
                               </Button>
