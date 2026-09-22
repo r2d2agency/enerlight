@@ -11,9 +11,11 @@ export function useEstoque() {
   const movimento = useMutation({ mutationFn: estoqueApi.registrarMovimento, onSuccess: invalidate });
   const produto = useMutation({ mutationFn: estoqueApi.criarProduto, onSuccess: invalidate });
   const atualizarProduto = useMutation({ mutationFn: ({ id, body }: { id: string; body: Parameters<typeof estoqueApi.atualizarProduto>[1] }) => estoqueApi.atualizarProduto(id, body), onSuccess: invalidate });
+  const importarProdutos = useMutation({ mutationFn: estoqueApi.importarProdutos, onSuccess: invalidate });
+  const excluirProdutos = useMutation({ mutationFn: estoqueApi.excluirProdutos, onSuccess: invalidate });
   const excluirImportacao = useMutation({ mutationFn: estoqueApi.excluirImportacao, onSuccess: invalidate });
   const bom = useMutation({ mutationFn: ({ productId, items }: { productId: string; items: Array<{ component_id: string; quantity: number }> }) => estoqueApi.salvarBOM(productId, items), onSuccess: invalidate });
   const consumirComposto = useMutation({ mutationFn: ({ product_id, quantity, notes }: { product_id: string; quantity: number; notes?: string }) => estoqueApi.consumirComposto(product_id, quantity, notes), onSuccess: invalidate });
   const produzir = useMutation({ mutationFn: ({ product_id, quantity, notes }: { product_id: string; quantity: number; notes?: string }) => estoqueApi.produzir(product_id, quantity, notes), onSuccess: invalidate });
-  return { produtos, movimentos, alertas, importacoes, movimento, produto, atualizarProduto, excluirImportacao, bom, consumirComposto, produzir, recarregar: invalidate };
+  return { produtos, movimentos, alertas, importacoes, movimento, produto, atualizarProduto, importarProdutos, excluirProdutos, excluirImportacao, bom, consumirComposto, produzir, recarregar: invalidate };
 }
