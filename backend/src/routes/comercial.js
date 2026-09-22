@@ -415,7 +415,7 @@ async function listQuoteAvailableProductsHandler(req, res) {
     if (!priceListId) return res.json({ products: [] });
 
     const result = await query(
-      `SELECT id, product_code as sku, product_name as name, description, category, subcategory, unit, image_url, sale_price as base_price
+      `SELECT id, id as price_list_item_id, product_code as sku, product_name as name, description, category, subcategory, unit, image_url, sale_price as base_price
        FROM price_list_items WHERE price_list_id = $1 ORDER BY product_name ASC`,
       [priceListId]
     );
@@ -672,10 +672,13 @@ async function addQuoteItemHandler(req, res) {
     if (QUOTE_LOCKED_STATUSES.includes(quote.status)) return res.status(400).json({ error: 'Este orçamento não pode mais ser editado' });
 
     const { price_list_item_id, quantity, discount_percent } = req.body || {};
-    if (!price_list_item_id || !quantity || Number(quantity) <= 0) {
-      return res.status(400).json({ error: 'Produto e quantidade são obrigatórios' });
+    if (!price_list_item_id || !quantity || !Number.isFinite(Number(quantity)) || Number(quantity) <= 0) {
+      return res.status(400).json({ error: 'Produto e quantidade são obrigatórios', code: 'INVALID_QUOTE_ITEM' });
     }
-    const discount = Math.min(Math.max(Number(discount_percent) || 0, 0), 100);
+    if (!quote.price_list_id) return res.status(400).json({ error: 'Este orçamento não possui tabela de preço', code: 'QUOTE_WITHOUT_PRICE_LIST' });
+    const rawDiscount = Number(discount_percent);
+    if (!Number.isFinite(rawDiscount) || rawDiscount < 0) return res.status(400).json({ error: 'Desconto inválido', code: 'INVALID_DISCOUNT' });
+    const discount = Math.min(rawDiscount || 0, 100);
 
     // O preço é sempre o da própria tabela de preço do orçamento — o item
     // escolhido precisa pertencer a ela.

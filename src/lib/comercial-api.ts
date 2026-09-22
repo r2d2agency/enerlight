@@ -63,6 +63,7 @@ export interface ComercialCustomer {
 
 export interface ComercialCatalogProduct {
   id: string;
+  price_list_item_id?: string;
   sku?: string | null;
   name: string;
   description?: string | null;

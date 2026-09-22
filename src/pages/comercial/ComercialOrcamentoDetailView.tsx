@@ -15,7 +15,7 @@ import {
 } from '@/lib/comercial-api';
 import { quoteStatusConfig, formatCurrency } from './ComercialOrcamentosView';
 import { generateQuotePDF } from '@/lib/pdf-generator';
-import { Loader2, ArrowLeft, Plus, Trash2, Send, Copy, Download, ShoppingCart } from 'lucide-react';
+import { Loader2, ArrowLeft, Plus, Trash2, Send, Copy, Download, ShoppingCart, Search } from 'lucide-react';
 
 interface QuoteApiBundle {
   getQuote: (id: string) => Promise<ComercialQuoteDetail>;
@@ -57,6 +57,7 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
   const [products, setProducts] = useState<ComercialCatalogProduct[]>([]);
   const [itemDialogOpen, setItemDialogOpen] = useState(false);
   const [itemForm, setItemForm] = useState({ product_id: '', quantity: '1', discount_percent: '0' });
+  const [productSearch, setProductSearch] = useState('');
   const [savingItem, setSavingItem] = useState(false);
 
   const load = () => {
@@ -116,6 +117,7 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
 
   const openItemDialog = () => {
     setItemForm({ product_id: '', quantity: '1', discount_percent: '0' });
+    setProductSearch('');
     setItemDialogOpen(true);
     if (id && products.length === 0) {
       api.listQuoteProducts(id).then((res) => setProducts(res.products)).catch(() => {});
@@ -289,16 +291,21 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
                       <DialogTitle>Adicionar produto</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-3">
-                      <div className="space-y-1">
+                      <div className="space-y-2">
                         <Label>Produto</Label>
-                        <Select value={itemForm.product_id} onValueChange={(v) => setItemForm({ ...itemForm, product_id: v })}>
-                          <SelectTrigger><SelectValue placeholder="Selecione um produto" /></SelectTrigger>
-                          <SelectContent>
-                            {products.map((p) => (
-                              <SelectItem key={p.id} value={p.id}>{p.name}{p.sku ? ` (${p.sku})` : ''}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <div className="flex gap-2">
+                          <Input placeholder="Código ou nome" value={productSearch} onChange={(e) => setProductSearch(e.target.value)} />
+                          <Button type="button" variant="outline" title="Pesquisar produtos"><Search className="h-4 w-4" /></Button>
+                        </div>
+                        <div className="max-h-64 overflow-auto rounded border">
+                          {products.filter((p) => `${p.sku || ''} ${p.name} ${p.description || ''}`.toLowerCase().includes(productSearch.toLowerCase())).map((p) => (
+                            <button type="button" key={p.id} className={`w-full flex items-center gap-3 p-2 text-left hover:bg-muted ${itemForm.product_id === p.id ? 'bg-muted' : ''}`} onClick={() => setItemForm({ ...itemForm, product_id: p.price_list_item_id || p.id })}>
+                              {p.image_url ? <img src={p.image_url} alt="" className="h-10 w-10 rounded object-cover" /> : <div className="h-10 w-10 rounded bg-muted" />}
+                              <span className="min-w-0 flex-1"><strong className="block truncate">{p.name}</strong><small className="text-muted-foreground">{p.sku || 'Sem código'} · {p.description || 'Sem descrição'}</small></span>
+                              <span className="font-medium">{formatCurrency(p.base_price)}</span>
+                            </button>
+                          ))}
+                        </div>
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1">
