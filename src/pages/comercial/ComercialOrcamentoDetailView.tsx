@@ -274,12 +274,11 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
           <Button variant="outline" size="sm" onClick={() => handleDownloadPdf('modern-portrait')} className="flex-1 sm:flex-none min-w-[9rem] sm:min-w-0">
             <Download className="h-4 w-4 mr-1" />
             PDF vertical
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => handleDownloadPdf('classic-landscape')} className="flex-1 sm:flex-none min-w-[9rem] sm:min-w-0">
+          </Button>)}
+          {items.length > 0 && <Button variant="outline" size="sm" onClick={() => handleDownloadPdf('classic-landscape')} className="flex-1 sm:flex-none min-w-[9rem] sm:min-w-0">
             <Download className="h-4 w-4 mr-1" />
             PDF horizontal
-          </Button>
-        )}
+          </Button>}
         {quote.public_token && (
           <Button variant="outline" size="sm" onClick={handleCopyLink} className="flex-1 sm:flex-none min-w-[9rem] sm:min-w-0">
             <Copy className="h-4 w-4 mr-1" />
