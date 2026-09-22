@@ -344,10 +344,10 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
                     <TableHeader>
                       <TableRow>
                         <TableHead className="w-[38%] min-w-[220px]">Produto</TableHead>
-                        <TableHead className="w-[12%] text-right">Qtd</TableHead>
-                        <TableHead className="text-right">Unitário</TableHead>
-                        <TableHead className="text-right">Desc.</TableHead>
-                        <TableHead className="text-right">Total</TableHead>
+                        <TableHead className="w-[7%] text-right">Qtd</TableHead>
+                        <TableHead className="w-[18%] text-right">Unitário</TableHead>
+                        <TableHead className="w-[24%] text-right">Desc.</TableHead>
+                        <TableHead className="w-[16%] text-right">Total</TableHead>
                         {editable && <TableHead />}
                       </TableRow>
                     </TableHeader>
@@ -356,16 +356,16 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
                         <TableRow key={item.id}>
                           <TableCell className="font-medium">{item.product_name}</TableCell>
                           <TableCell className="text-right">
-                            {editable ? <Input className="w-24 ml-auto text-right" type="number" min="0.001" step="0.001" defaultValue={item.quantity} onBlur={(e) => handleUpdateItem(item.id, { quantity: Number(e.target.value) })} /> : item.quantity}
+                            {editable ? <Input className="w-16 ml-auto px-1 text-right" type="number" min="0.001" step="0.001" defaultValue={item.quantity} onBlur={(e) => handleUpdateItem(item.id, { quantity: Number(e.target.value) })} /> : item.quantity}
                           </TableCell>
                           <TableCell className="text-right">
-                            {editable ? <Input className="w-36 ml-auto text-right" type="text" inputMode="decimal" defaultValue={String(item.unit_price).replace('.', ',')} title="Preço deste orçamento; não altera a tabela de produtos" onBlur={(e) => { const raw = e.target.value.trim().replace(/\./g, '').replace(',', '.'); handleUpdateItem(item.id, { unit_price: Number(raw) }); }} /> : formatCurrency(item.unit_price)}
+                            {editable ? <Input className="w-full min-w-[7rem] ml-auto text-right" type="text" inputMode="decimal" defaultValue={String(item.unit_price).replace('.', ',')} title="Preço deste orçamento; não altera a tabela de produtos" onBlur={(e) => { const raw = e.target.value.trim().replace(/\./g, '').replace(',', '.'); handleUpdateItem(item.id, { unit_price: Number(raw) }); }} /> : formatCurrency(item.unit_price)}
                           </TableCell>
-                          <TableCell className="text-right">
+                          <TableCell className="text-right min-w-[11rem]">
                             {editable ? (() => {
                               const mode = discountModes[item.id] || 'percent';
-                              return <div className="flex items-center justify-end gap-1">
-                                <Input key={`${item.id}-${item.discount_percent}-${item.unit_price}-${mode}`} className="w-20 text-right" type="number" min="0" step="0.01" defaultValue={mode === 'percent' ? item.discount_percent : (Number(item.quantity) * Number(item.unit_price) * Number(item.discount_percent) / 100)} onBlur={(e) => {
+                              return <div className="flex w-full min-w-[10rem] items-center justify-end gap-1">
+                                <Input key={`${item.id}-${item.discount_percent}-${item.unit_price}-${mode}`} className="w-full min-w-[4.5rem] text-right" type="number" min="0" step="0.01" defaultValue={mode === 'percent' ? item.discount_percent : (Number(item.quantity) * Number(item.unit_price) * Number(item.discount_percent) / 100)} onBlur={(e) => {
                                   const value = Number(e.target.value);
                                   const base = Number(item.quantity) * Number(item.unit_price);
                                   const percent = mode === 'value' ? (base > 0 ? (value / base) * 100 : 0) : value;

@@ -128,7 +128,8 @@ export const generateQuotePDF = async (quote: any, organization: any) => {
 
 
   // 5. Items Table
-  const includeImages = quote.include_images !== false;
+  // Reserve image space only when the proposal explicitly requests images and at least one item has one.
+  const includeImages = quote.include_images === true && Boolean(quote.items?.some((item: any) => item.image_url));
   
   const headers = includeImages 
     ? [['Foto', 'Produto', 'Qtd', 'Unitário', 'Desc.', 'Total']]
