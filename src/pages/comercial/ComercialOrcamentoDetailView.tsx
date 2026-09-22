@@ -60,6 +60,7 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
   const [productSearch, setProductSearch] = useState('');
   const [savingItem, setSavingItem] = useState(false);
   const [savingItemId, setSavingItemId] = useState<string | null>(null);
+  const [discountModes, setDiscountModes] = useState<Record<string, 'percent' | 'value'>>({});
 
   const load = () => {
     if (!id) return;
@@ -355,7 +356,21 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
                             {editable && (actor.profile === 'admin' || actor.can_edit_price_manually) ? <Input className="w-28 ml-auto text-right" type="number" min="0.01" step="0.01" defaultValue={item.unit_price} onBlur={(e) => handleUpdateItem(item.id, { unit_price: Number(e.target.value) })} /> : formatCurrency(item.unit_price)}
                           </TableCell>
                           <TableCell className="text-right">
-                            {editable ? <Input className="w-20 ml-auto text-right" type="number" min="0" max={actor.profile === 'admin' ? 100 : actor.max_discount_percent ?? 100} step="0.01" defaultValue={item.discount_percent} onBlur={(e) => handleUpdateItem(item.id, { discount_percent: Number(e.target.value) })} /> : `${item.discount_percent}%`}
+                            {editable ? (() => {
+                              const mode = discountModes[item.id] || 'percent';
+                              return <div className="flex items-center justify-end gap-1">
+                                <Input className="w-20 text-right" type="number" min="0" step="0.01" defaultValue={mode === 'percent' ? item.discount_percent : 0} onBlur={(e) => {
+                                  const value = Number(e.target.value);
+                                  const base = Number(item.quantity) * Number(item.unit_price);
+                                  const percent = mode === 'value' ? (base > 0 ? (value / base) * 100 : 0) : value;
+                                  handleUpdateItem(item.id, { discount_percent: percent });
+                                }} />
+                                <Select value={mode} onValueChange={(value: 'percent' | 'value') => setDiscountModes((current) => ({ ...current, [item.id]: value }))}>
+                                  <SelectTrigger className="h-9 w-14 px-2"><SelectValue /></SelectTrigger>
+                                  <SelectContent><SelectItem value="percent">%</SelectItem><SelectItem value="value">R$</SelectItem></SelectContent>
+                                </Select>
+                              </div>;
+                            })() : `${item.discount_percent}%`}
                           </TableCell>
                           <TableCell className="text-right font-medium">{formatCurrency(item.total_price)}</TableCell>
                           {editable && (
