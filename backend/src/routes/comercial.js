@@ -1853,7 +1853,7 @@ adminRouter.post('/actors/:id/generate-temporary-password', gate('can_manage_com
     const temporaryPassword = generateTemporaryPassword();
     const hash = await bcrypt.hash(temporaryPassword, 10);
     await query(`UPDATE com_actors SET password_hash=$1, must_change_password=true, temp_password_expires_at=NOW()+INTERVAL '1 hour', password_changed_at=NOW(), status='active', invite_token_hash=NULL, invite_token_expires_at=NULL, invite_token_purpose=NULL, activated_at=COALESCE(activated_at,NOW()), updated_at=NOW() WHERE id=$2 AND organization_id=$3`, [hash, actor.id, org.organization_id]);
-    await auditLog({ organizationId: org.organization_id, userId: req.userId, action: 'actor_temporary_password_generated', entityType: 'com_actor', entityId: actor.id });
+    await logAudit(req, { action: 'actor_temporary_password_generated', entityType: 'com_actor', entityId: actor.id });
     res.json({ actor: { id: actor.id, name: actor.name, email: actor.email }, temporary_password: temporaryPassword });
   } catch (error) {
     console.error('[comercial] generate temporary password error:', error);
