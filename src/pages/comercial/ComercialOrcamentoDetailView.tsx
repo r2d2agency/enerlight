@@ -286,7 +286,7 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
                       Adicionar item
                     </Button>
                   </DialogTrigger>
-                  <DialogContent>
+                  <DialogContent className="max-h-[90vh] w-[calc(100vw-2rem)] max-w-3xl overflow-hidden">
                     <DialogHeader>
                       <DialogTitle>Adicionar produto</DialogTitle>
                     </DialogHeader>
@@ -297,7 +297,7 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
                           <Input placeholder="Código ou nome" value={productSearch} onChange={(e) => setProductSearch(e.target.value)} />
                           <Button type="button" variant="outline" title="Pesquisar produtos"><Search className="h-4 w-4" /></Button>
                         </div>
-                        <div className="max-h-64 overflow-auto rounded border">
+                        <div className="max-h-[45vh] overflow-y-auto overflow-x-hidden rounded border">
                           {products.filter((p) => `${p.sku || ''} ${p.name} ${p.description || ''}`.toLowerCase().includes(productSearch.toLowerCase())).map((p) => (
                             <button type="button" key={p.id} className={`w-full flex items-center gap-3 p-2 text-left hover:bg-muted ${itemForm.product_id === p.id ? 'bg-muted' : ''}`} onClick={() => setItemForm({ ...itemForm, product_id: p.price_list_item_id || p.id })}>
                               {p.image_url ? <img src={p.image_url} alt="" className="h-10 w-10 rounded object-cover" /> : <div className="h-10 w-10 rounded bg-muted" />}

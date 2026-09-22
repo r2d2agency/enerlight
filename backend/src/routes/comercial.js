@@ -689,6 +689,9 @@ async function addQuoteItemHandler(req, res) {
     if (pli.rows.length === 0) return res.status(404).json({ error: 'Produto não encontrado nesta tabela de preço' });
     const r = pli.rows[0];
     const productId = r.product_id;
+    // Bases antigas podem não ter recebido as colunas adicionadas ao snapshot.
+    await query(`ALTER TABLE online_quote_items ADD COLUMN IF NOT EXISTS product_id UUID; ALTER TABLE online_quote_items ADD COLUMN IF NOT EXISTS description TEXT; ALTER TABLE online_quote_items ADD COLUMN IF NOT EXISTS image_url TEXT`);
+
     const name = r.product_name, code = r.product_code, description = r.description;
     const unitPrice = Number(r.sale_price), costPrice = Number(r.cost_price) || 0, imageUrl = r.image_url;
 
