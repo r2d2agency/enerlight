@@ -726,14 +726,25 @@ async function updateQuoteItemHandler(req, res) {
     if (QUOTE_LOCKED_STATUSES.includes(item.status)) return res.status(400).json({ error: 'Este orçamento não pode mais ser editado' });
 
     const quantity = req.body?.quantity !== undefined ? Number(req.body.quantity) : Number(item.quantity);
+    if (!Number.isFinite(quantity) || quantity <= 0) return res.status(400).json({ error: 'Quantidade deve ser maior que zero', code: 'INVALID_QUANTITY' });
     const discount = req.body?.discount_percent !== undefined
-      ? Math.min(Math.max(Number(req.body.discount_percent), 0), 100)
+      ? Number(req.body.discount_percent)
       : Number(item.discount_percent);
-    const totalPrice = Math.round(quantity * Number(item.unit_price) * (1 - discount / 100) * 100) / 100;
+    if (!Number.isFinite(discount) || discount < 0 || discount > 100) return res.status(400).json({ error: 'Desconto inválido', code: 'INVALID_DISCOUNT' });
+    if (req.actor.profile !== 'admin' && req.actor.max_discount_percent != null && discount > Number(req.actor.max_discount_percent)) {
+      return res.status(400).json({ error: `Desconto máximo permitido: ${req.actor.max_discount_percent}%`, code: 'DISCOUNT_LIMIT_EXCEEDED' });
+    }
+    let unitPrice = Number(item.unit_price);
+    if (req.body?.unit_price !== undefined) {
+      if (req.actor.profile !== 'admin' && !req.actor.can_edit_price_manually) return res.status(403).json({ error: 'Você não tem permissão para alterar o preço', code: 'PRICE_EDIT_NOT_ALLOWED' });
+      unitPrice = Number(req.body.unit_price);
+      if (!Number.isFinite(unitPrice) || unitPrice <= 0) return res.status(400).json({ error: 'Preço deve ser maior que zero', code: 'INVALID_PRICE' });
+    }
+    const totalPrice = Math.round(quantity * unitPrice * (1 - discount / 100) * 100) / 100;
 
     const updated = await query(
-      `UPDATE online_quote_items SET quantity = $1, discount_percent = $2, total_price = $3 WHERE id = $4 RETURNING *`,
-      [quantity, discount, totalPrice, item.id]
+      `UPDATE online_quote_items SET quantity = $1, unit_price = $2, discount_percent = $3, total_price = $4 WHERE id = $5 RETURNING *`,
+      [quantity, unitPrice, discount, totalPrice, item.id]
     );
     await recalculateQuoteTotals(item.quote_id);
     const updatedQuote = await query('SELECT * FROM online_quotes WHERE id = $1', [item.quote_id]);

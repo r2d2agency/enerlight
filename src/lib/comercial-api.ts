@@ -378,7 +378,7 @@ export const comercialExternalApi = {
   listQuoteProducts: (id: string) => call<{ products: ComercialCatalogProduct[] }>(`/api/comercial/orcamentos/${id}/produtos-disponiveis`),
   addQuoteItem: (id: string, body: { price_list_item_id: string; quantity: number; discount_percent?: number }) =>
     call<{ item: ComercialQuoteItem; quote: ComercialQuote }>(`/api/comercial/orcamentos/${id}/itens`, { method: 'POST', body }),
-  updateQuoteItem: (id: string, itemId: string, body: { quantity?: number; discount_percent?: number }) =>
+  updateQuoteItem: (id: string, itemId: string, body: { quantity?: number; unit_price?: number; discount_percent?: number }) =>
     call<{ item: ComercialQuoteItem; quote: ComercialQuote }>(`/api/comercial/orcamentos/${id}/itens/${itemId}`, { method: 'PUT', body }),
   deleteQuoteItem: (id: string, itemId: string) =>
     call<{ message: string }>(`/api/comercial/orcamentos/${id}/itens/${itemId}`, { method: 'DELETE' }),
@@ -433,7 +433,7 @@ export const comercialInternalApi = {
   listQuoteProducts: (id: string) => api<{ products: ComercialCatalogProduct[] }>(`/api/comercial/interno/orcamentos/${id}/produtos-disponiveis`),
   addQuoteItem: (id: string, body: { price_list_item_id: string; quantity: number; discount_percent?: number }) =>
     api<{ item: ComercialQuoteItem; quote: ComercialQuote }>(`/api/comercial/interno/orcamentos/${id}/itens`, { method: 'POST', body }),
-  updateQuoteItem: (id: string, itemId: string, body: { quantity?: number; discount_percent?: number }) =>
+  updateQuoteItem: (id: string, itemId: string, body: { quantity?: number; unit_price?: number; discount_percent?: number }) =>
     api<{ item: ComercialQuoteItem; quote: ComercialQuote }>(`/api/comercial/interno/orcamentos/${id}/itens/${itemId}`, { method: 'PUT', body }),
   deleteQuoteItem: (id: string, itemId: string) =>
     api<{ message: string }>(`/api/comercial/interno/orcamentos/${id}/itens/${itemId}`, { method: 'DELETE' }),

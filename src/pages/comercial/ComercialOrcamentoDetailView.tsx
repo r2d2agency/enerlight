@@ -21,7 +21,7 @@ interface QuoteApiBundle {
   getQuote: (id: string) => Promise<ComercialQuoteDetail>;
   updateQuote: (id: string, body: Partial<ComercialQuote>) => Promise<{ quote: ComercialQuote }>;
   addQuoteItem: (id: string, body: { price_list_item_id: string; quantity: number; discount_percent?: number }) => Promise<{ item: ComercialQuoteItem; quote: ComercialQuote }>;
-  updateQuoteItem: (id: string, itemId: string, body: { quantity?: number; discount_percent?: number }) => Promise<{ item: ComercialQuoteItem; quote: ComercialQuote }>;
+  updateQuoteItem: (id: string, itemId: string, body: { quantity?: number; unit_price?: number; discount_percent?: number }) => Promise<{ item: ComercialQuoteItem; quote: ComercialQuote }>;
   deleteQuoteItem: (id: string, itemId: string) => Promise<{ message: string }>;
   sendQuote: (id: string) => Promise<{ message: string; status: string; public_token?: string }>;
   convertQuoteToSale: (id: string) => Promise<{ sale: ComercialSale }>;
@@ -56,9 +56,10 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
 
   const [products, setProducts] = useState<ComercialCatalogProduct[]>([]);
   const [itemDialogOpen, setItemDialogOpen] = useState(false);
-  const [itemForm, setItemForm] = useState({ product_id: '', quantity: '1', discount_percent: '0' });
+  const [itemForm, setItemForm] = useState({ product_id: '' });
   const [productSearch, setProductSearch] = useState('');
   const [savingItem, setSavingItem] = useState(false);
+  const [savingItemId, setSavingItemId] = useState<string | null>(null);
 
   const load = () => {
     if (!id) return;
@@ -116,7 +117,7 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
   };
 
   const openItemDialog = () => {
-    setItemForm({ product_id: '', quantity: '1', discount_percent: '0' });
+    setItemForm({ product_id: '' });
     setProductSearch('');
     setItemDialogOpen(true);
     if (id && products.length === 0) {
@@ -124,17 +125,17 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
     }
   };
 
-  const handleAddItem = async () => {
-    if (!id || !itemForm.product_id) {
+  const handleAddItem = async (productId = itemForm.product_id) => {
+    if (!id || !productId) {
       toast({ title: 'Selecione um produto', variant: 'destructive' });
       return;
     }
     setSavingItem(true);
     try {
       await api.addQuoteItem(id, {
-        price_list_item_id: itemForm.product_id,
-        quantity: Number(itemForm.quantity) || 1,
-        discount_percent: Number(itemForm.discount_percent) || 0,
+        price_list_item_id: productId,
+        quantity: 1,
+        discount_percent: 0,
       });
       setItemDialogOpen(false);
       load();
@@ -143,6 +144,20 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
       toast({ title: 'Erro ao adicionar item', description: message, variant: 'destructive' });
     } finally {
       setSavingItem(false);
+    }
+  };
+
+  const handleUpdateItem = async (itemId: string, body: { quantity?: number; unit_price?: number; discount_percent?: number }) => {
+    if (!id || Object.values(body).some((value) => !Number.isFinite(value))) return;
+    setSavingItemId(itemId);
+    try {
+      await api.updateQuoteItem(id, itemId, body);
+      load();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Tente novamente.';
+      toast({ title: 'Erro ao atualizar item', description: message, variant: 'destructive' });
+    } finally {
+      setSavingItemId(null);
     }
   };
 
@@ -286,7 +301,7 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
                       Adicionar item
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="max-h-[90vh] w-[calc(100vw-2rem)] max-w-3xl overflow-hidden">
+                  <DialogContent className="max-h-[90vh] w-[calc(100vw-2rem)] max-w-5xl overflow-hidden">
                     <DialogHeader>
                       <DialogTitle>Adicionar produto</DialogTitle>
                     </DialogHeader>
@@ -299,7 +314,7 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
                         </div>
                         <div className="max-h-[45vh] overflow-y-auto overflow-x-hidden rounded border">
                           {products.filter((p) => `${p.sku || ''} ${p.name} ${p.description || ''}`.toLowerCase().includes(productSearch.toLowerCase())).map((p) => (
-                            <button type="button" key={p.id} className={`w-full flex items-center gap-3 p-2 text-left hover:bg-muted ${itemForm.product_id === p.id ? 'bg-muted' : ''}`} onClick={() => setItemForm({ ...itemForm, product_id: p.price_list_item_id || p.id })}>
+                            <button type="button" key={p.id} className={`w-full flex items-center gap-3 p-2 text-left hover:bg-muted ${itemForm.product_id === p.id ? 'bg-muted' : ''}`} onClick={() => { const selectedId = p.price_list_item_id || p.id; setItemForm({ product_id: selectedId }); void handleAddItem(selectedId); }}>
                               {p.image_url ? <img src={p.image_url} alt="" className="h-10 w-10 rounded object-cover" /> : <div className="h-10 w-10 rounded bg-muted" />}
                               <span className="min-w-0 flex-1"><strong className="block truncate">{p.name}</strong><small className="text-muted-foreground">{p.sku || 'Sem código'} · {p.description || 'Sem descrição'}</small></span>
                               <span className="font-medium">{formatCurrency(p.base_price)}</span>
@@ -307,28 +322,8 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
                           ))}
                         </div>
                       </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1">
-                          <Label>Quantidade</Label>
-                          <Input type="number" min="0.001" step="0.001" value={itemForm.quantity} onChange={(e) => setItemForm({ ...itemForm, quantity: e.target.value })} />
-                        </div>
-                        <div className="space-y-1">
-                          <Label>Desconto (%)</Label>
-                          <Input type="number" min="0" max="100" step="0.01" value={itemForm.discount_percent} onChange={(e) => setItemForm({ ...itemForm, discount_percent: e.target.value })} />
-                        </div>
-                      </div>
-                      {actor.max_discount_percent != null && actor.profile !== 'admin' && (
-                        <p className="text-xs text-muted-foreground">
-                          Seu desconto máximo autorizado é {actor.max_discount_percent}%. Acima disso, o orçamento vai para aprovação ao ser enviado.
-                        </p>
-                      )}
+                      <p className="text-xs text-muted-foreground">Selecione um produto para adicioná-lo ao orçamento. Quantidade, preço e desconto podem ser ajustados na tabela.</p>
                     </div>
-                    <DialogFooter>
-                      <Button onClick={handleAddItem} disabled={savingItem}>
-                        {savingItem && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
-                        Adicionar
-                      </Button>
-                    </DialogFooter>
                   </DialogContent>
                 </Dialog>
               )}
@@ -353,9 +348,15 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
                       {items.map((item) => (
                         <TableRow key={item.id}>
                           <TableCell className="font-medium">{item.product_name}</TableCell>
-                          <TableCell className="text-right">{item.quantity}</TableCell>
-                          <TableCell className="text-right">{formatCurrency(item.unit_price)}</TableCell>
-                          <TableCell className="text-right">{item.discount_percent}%</TableCell>
+                          <TableCell className="text-right">
+                            {editable ? <Input className="w-24 ml-auto text-right" type="number" min="0.001" step="0.001" defaultValue={item.quantity} onBlur={(e) => handleUpdateItem(item.id, { quantity: Number(e.target.value) })} /> : item.quantity}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {editable && (actor.profile === 'admin' || actor.can_edit_price_manually) ? <Input className="w-28 ml-auto text-right" type="number" min="0.01" step="0.01" defaultValue={item.unit_price} onBlur={(e) => handleUpdateItem(item.id, { unit_price: Number(e.target.value) })} /> : formatCurrency(item.unit_price)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {editable ? <Input className="w-20 ml-auto text-right" type="number" min="0" max={actor.profile === 'admin' ? 100 : actor.max_discount_percent ?? 100} step="0.01" defaultValue={item.discount_percent} onBlur={(e) => handleUpdateItem(item.id, { discount_percent: Number(e.target.value) })} /> : `${item.discount_percent}%`}
+                          </TableCell>
                           <TableCell className="text-right font-medium">{formatCurrency(item.total_price)}</TableCell>
                           {editable && (
                             <TableCell>
