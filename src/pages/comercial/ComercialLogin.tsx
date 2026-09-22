@@ -40,9 +40,9 @@ const ComercialLogin = () => {
 
     setIsLoading(true);
     try {
-      const { token } = await comercialExternalApi.login(result.data.email, result.data.password);
+      const { token, must_change_password } = await comercialExternalApi.login(result.data.email, result.data.password);
       comercialToken.set(token);
-      navigate('/comercial/dashboard', { replace: true });
+      navigate(must_change_password ? '/comercial/trocar-senha' : '/comercial/dashboard', { replace: true });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Não foi possível entrar. Tente novamente.';
       toast({ title: 'Credenciais inválidas', description: message, variant: 'destructive' });

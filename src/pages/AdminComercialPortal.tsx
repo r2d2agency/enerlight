@@ -25,7 +25,7 @@ import AdminComercialCommissionsTab from './comercial/AdminComercialCommissionsT
 import AdminComercialAuditTab from './comercial/AdminComercialAuditTab';
 import * as XLSX from 'xlsx';
 import {
-  Loader2, Plus, Briefcase, Send, Lock, Unlock, UserPlus, Users2, Package, Tag, ArrowRightLeft, Check, X,
+  Loader2, Plus, Briefcase, Send, Lock, Unlock, UserPlus, Users2, Package, Tag, ArrowRightLeft, Check, X, KeyRound,
   ShieldAlert, Upload, Trash2, List,
 } from 'lucide-react';
 
@@ -77,6 +77,7 @@ export default function AdminComercialPortal() {
   const [selectedPriceListIds, setSelectedPriceListIds] = useState<Set<string>>(new Set());
   const [defaultPriceListId, setDefaultPriceListId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [temporaryPassword, setTemporaryPassword] = useState<{ actorName: string; email: string; password: string } | null>(null);
 
   const [linkForm, setLinkForm] = useState<{ user_id: string; profile: ComercialProfile }>({ user_id: '', profile: 'vendedor' });
   const [inviteForm, setInviteForm] = useState<{ name: string; email: string; phone: string; profile: ComercialProfile }>({
@@ -207,6 +208,19 @@ export default function AdminComercialPortal() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleGenerateTemporaryPassword = async (actor: ComercialAdminActor) => {
+    if (!window.confirm(`Gerar uma nova senha temporária para ${actor.name}? A senha atual será substituída.`)) return;
+    setActionLoadingId(actor.id);
+    try {
+      const result = await comercialAdminApi.generateTemporaryPassword(actor.id);
+      setTemporaryPassword({ actorName: result.actor.name, email: result.actor.email, password: result.temporary_password });
+      toast({ title: 'Senha temporária gerada', description: 'Copie a senha agora; ela não será exibida novamente.' });
+      load();
+    } catch (error) {
+      toast({ title: 'Erro ao gerar senha temporária', description: error instanceof Error ? error.message : 'Tente novamente.', variant: 'destructive' });
+    } finally { setActionLoadingId(null); }
   };
 
   const handleResendInvite = async (actor: ComercialAdminActor) => {
@@ -772,6 +786,11 @@ export default function AdminComercialPortal() {
                               <Button variant="ghost" size="sm" disabled={isBusy} onClick={() => handleResendInvite(actor)}>
                                 <Send className="h-4 w-4 mr-1" />
                                 Reenviar convite
+                              </Button>
+                            )}
+                            {actor.status === 'active' && (
+                              <Button variant="ghost" size="sm" disabled={isBusy} onClick={() => handleGenerateTemporaryPassword(actor)}>
+                                <KeyRound className="h-4 w-4 mr-1" />Gerar senha temporária
                               </Button>
                             )}
                             {actor.status !== 'pending' && (
@@ -1409,6 +1428,12 @@ export default function AdminComercialPortal() {
               Salvar
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={!!temporaryPassword} onOpenChange={open => { if (!open) setTemporaryPassword(null); }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Senha temporária gerada</DialogTitle></DialogHeader>
+          {temporaryPassword && <div className="space-y-4"><p className="text-sm">Usuário: <strong>{temporaryPassword.actorName}</strong> ({temporaryPassword.email})</p><Input readOnly value={temporaryPassword.password} className="font-mono" /><p className="text-xs text-muted-foreground">Copie agora. Por segurança, esta senha não será exibida novamente. O usuário deverá trocá-la no primeiro acesso.</p><Button onClick={async () => { await navigator.clipboard.writeText(temporaryPassword.password); toast({ title: 'Senha copiada' }); }}>Copiar senha</Button></div>}
         </DialogContent>
       </Dialog>
     </MainLayout>

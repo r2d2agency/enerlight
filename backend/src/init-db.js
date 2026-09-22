@@ -5624,6 +5624,9 @@ CREATE TABLE IF NOT EXISTS com_actors (
   email VARCHAR(200) NOT NULL,
   phone VARCHAR(40),
   password_hash TEXT,                                          -- externo: NULL até ativar via link de convite
+  must_change_password BOOLEAN NOT NULL DEFAULT false,
+  temp_password_expires_at TIMESTAMPTZ,
+  password_changed_at TIMESTAMPTZ,
   profile VARCHAR(20) NOT NULL DEFAULT 'vendedor',              -- admin | gerente | vendedor | parceiro
   team_id UUID REFERENCES com_teams(id) ON DELETE SET NULL,
   default_price_list_id UUID REFERENCES price_lists(id) ON DELETE SET NULL,
@@ -5649,6 +5652,9 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_com_actors_user_unique ON com_actors(user_
 CREATE INDEX IF NOT EXISTS idx_com_actors_email ON com_actors(lower(email));
 CREATE INDEX IF NOT EXISTS idx_com_actors_team ON com_actors(team_id);
 CREATE INDEX IF NOT EXISTS idx_com_actors_invite_token ON com_actors(invite_token_hash) WHERE invite_token_hash IS NOT NULL;
+ALTER TABLE com_actors ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE com_actors ADD COLUMN IF NOT EXISTS temp_password_expires_at TIMESTAMPTZ;
+ALTER TABLE com_actors ADD COLUMN IF NOT EXISTS password_changed_at TIMESTAMPTZ;
 
 DO $$ BEGIN
   ALTER TABLE com_teams ADD COLUMN manager_actor_id UUID REFERENCES com_actors(id) ON DELETE SET NULL;

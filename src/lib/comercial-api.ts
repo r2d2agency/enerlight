@@ -337,9 +337,11 @@ export interface ComercialMyCommission {
 // Portal externo — login isolado, fora do app principal (sem AuthContext)
 export const comercialExternalApi = {
   login: (email: string, password: string) =>
-    call<{ actor: { id: string; email: string; name: string }; token: string }>(
+    call<{ actor: { id: string; email: string; name: string }; token: string; must_change_password: boolean }>(
       '/api/comercial/login', { method: 'POST', body: { email, password }, auth: false }
     ),
+  changePassword: (newPassword: string) =>
+    call<{ message: string }>('/api/comercial/me/change-password', { method: 'POST', body: { new_password: newPassword } }),
 
   me: () => call<{ actor: ComercialActor }>('/api/comercial/me'),
 
@@ -638,6 +640,8 @@ export const comercialAdminApi = {
     api<{ actor: ComercialAdminActor }>(`/api/comercial/admin/actors/${id}`, { method: 'PUT', body }),
   resendInvite: (id: string) =>
     api<{ message: string }>(`/api/comercial/admin/actors/${id}/resend-invite`, { method: 'POST' }),
+  generateTemporaryPassword: (id: string) =>
+    api<{ actor: { id: string; name: string; email: string }; temporary_password: string }>(`/api/comercial/admin/actors/${id}/generate-temporary-password`, { method: 'POST' }),
   block: (id: string) =>
     api<{ actor: ComercialAdminActor }>(`/api/comercial/admin/actors/${id}/block`, { method: 'POST' }),
   unblock: (id: string) =>

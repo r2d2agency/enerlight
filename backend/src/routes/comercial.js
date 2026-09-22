@@ -31,6 +31,12 @@ function genToken() {
   return crypto.randomBytes(32).toString('hex');
 }
 
+function generateTemporaryPassword() {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%';
+  const bytes = crypto.randomBytes(14);
+  return Array.from(bytes, byte => alphabet[byte % alphabet.length]).join('');
+}
+
 function hashToken(token) {
   return crypto.createHash('sha256').update(token).digest('hex');
 }
@@ -68,6 +74,9 @@ async function externalActorAuth(req, res, next) {
   const actor = result.rows[0];
   if (!actor || actor.status !== 'active') {
     return res.status(401).json({ error: 'Acesso não autorizado' });
+  }
+  if (actor.must_change_password) {
+    return res.status(403).json({ error: 'Altere sua senha temporária para continuar.', code: 'PASSWORD_CHANGE_REQUIRED' });
   }
 
   req.actor = actor;
@@ -1353,7 +1362,7 @@ router.post('/login', async (req, res) => {
     }
 
     const result = await query(
-      'SELECT id, email, name, password_hash, status FROM com_actors WHERE lower(email) = lower(trim($1)) LIMIT 1',
+      'SELECT id, email, name, password_hash, status, must_change_password, temp_password_expires_at FROM com_actors WHERE lower(email) = lower(trim($1)) LIMIT 1',
       [email]
     );
 
@@ -1368,6 +1377,9 @@ router.post('/login', async (req, res) => {
       registerLoginFailure(rateLimitKey);
       return res.status(401).json({ error: 'Credenciais inválidas' });
     }
+    if (actor.must_change_password && actor.temp_password_expires_at && new Date(actor.temp_password_expires_at) < new Date()) {
+      return res.status(401).json({ error: 'Senha temporária expirada. Solicite uma nova ao administrador.' });
+    }
     clearLoginAttempts(rateLimitKey);
 
     await query('UPDATE com_actors SET last_login_at = NOW() WHERE id = $1', [actor.id]);
@@ -1375,6 +1387,7 @@ router.post('/login', async (req, res) => {
     res.json({
       actor: { id: actor.id, email: actor.email, name: actor.name },
       token: signExternalActor(actor),
+      must_change_password: actor.must_change_password === true,
     });
   } catch (error) {
     console.error('[comercial] login error:', error);
@@ -1495,6 +1508,23 @@ router.post('/esqueci-senha', async (req, res) => {
 // ---------------------------------------------------------------------------
 // Ator externo autenticado
 // ---------------------------------------------------------------------------
+
+router.post('/me/change-password', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader?.startsWith('Bearer ')) return res.status(401).json({ error: 'Token não fornecido' });
+    const decoded = jwt.verify(authHeader.slice(7), SECRET());
+    if (decoded.type !== 'com_actor_external') return res.status(401).json({ error: 'Token inválido' });
+    const newPassword = typeof req.body.new_password === 'string' ? req.body.new_password : '';
+    if (newPassword.length < 6) return res.status(400).json({ error: 'Nova senha deve ter pelo menos 6 caracteres' });
+    const hash = await bcrypt.hash(newPassword, 10);
+    const result = await query(`UPDATE com_actors SET password_hash=$1, must_change_password=false, temp_password_expires_at=NULL, password_changed_at=NOW(), updated_at=NOW() WHERE id=$2 AND status='active' RETURNING id`, [hash, decoded.actorId]);
+    if (!result.rows[0]) return res.status(404).json({ error: 'Ator não encontrado' });
+    res.json({ message: 'Senha atualizada com sucesso' });
+  } catch (error) {
+    res.status(401).json({ error: 'Sessão inválida ou expirada' });
+  }
+});
 
 router.get('/me', externalActorAuth, async (req, res) => {
   const result = await query(
@@ -1809,6 +1839,25 @@ adminRouter.put('/actors/:id', gate('can_manage_comercial_portal'), async (req, 
   } catch (error) {
     console.error('[comercial] update actor error:', error);
     res.status(500).json({ error: 'Erro ao atualizar ator' });
+  }
+});
+
+adminRouter.post('/actors/:id/generate-temporary-password', gate('can_manage_comercial_portal'), async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'Sem organização' });
+    const actor = (await query('SELECT id, name, email, user_id, status FROM com_actors WHERE id=$1 AND organization_id=$2', [req.params.id, org.organization_id])).rows[0];
+    if (!actor) return res.status(404).json({ error: 'Ator não encontrado' });
+    if (actor.user_id) return res.status(400).json({ error: 'Usuário interno deve usar a senha temporária do CRM' });
+    if (actor.status === 'blocked') return res.status(400).json({ error: 'Desbloqueie o usuário antes de gerar a senha' });
+    const temporaryPassword = generateTemporaryPassword();
+    const hash = await bcrypt.hash(temporaryPassword, 10);
+    await query(`UPDATE com_actors SET password_hash=$1, must_change_password=true, temp_password_expires_at=NOW()+INTERVAL '1 hour', password_changed_at=NOW(), status='active', invite_token_hash=NULL, invite_token_expires_at=NULL, invite_token_purpose=NULL, activated_at=COALESCE(activated_at,NOW()), updated_at=NOW() WHERE id=$2 AND organization_id=$3`, [hash, actor.id, org.organization_id]);
+    await auditLog({ organizationId: org.organization_id, userId: req.userId, action: 'actor_temporary_password_generated', entityType: 'com_actor', entityId: actor.id });
+    res.json({ actor: { id: actor.id, name: actor.name, email: actor.email }, temporary_password: temporaryPassword });
+  } catch (error) {
+    console.error('[comercial] generate temporary password error:', error);
+    res.status(500).json({ error: 'Erro ao gerar senha temporária' });
   }
 });
 
