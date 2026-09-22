@@ -51,7 +51,7 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
   const [converting, setConverting] = useState(false);
 
   const [form, setForm] = useState({
-    payment_terms: '', delivery_time: '', valid_until: '', freight_value: '0', notes: '', internal_notes: '',
+    payment_terms: '', delivery_time: '', shipping_type: 'cif' as 'fob' | 'cif', valid_until: '', freight_value: '0', notes: '', internal_notes: '',
   });
 
   const [products, setProducts] = useState<ComercialCatalogProduct[]>([]);
@@ -71,6 +71,7 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
         setForm({
           payment_terms: res.quote.payment_terms || '',
           delivery_time: res.quote.delivery_time || '',
+          shipping_type: res.quote.shipping_type || 'cif',
           valid_until: res.quote.valid_until ? res.quote.valid_until.slice(0, 10) : '',
           freight_value: String(res.quote.freight_value ?? 0),
           notes: res.quote.notes || '',
@@ -102,6 +103,7 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
       await api.updateQuote(id, {
         payment_terms: form.payment_terms || undefined,
         delivery_time: form.delivery_time || undefined,
+        shipping_type: form.shipping_type,
         valid_until: form.valid_until || undefined,
         freight_value: Number(form.freight_value) || 0,
         notes: form.notes || undefined,
@@ -152,8 +154,12 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
     if (!id || Object.values(body).some((value) => !Number.isFinite(value))) return;
     setSavingItemId(itemId);
     try {
-      await api.updateQuoteItem(id, itemId, body);
-      load();
+      const response = await api.updateQuoteItem(id, itemId, body);
+      setDetail((current) => current ? {
+        ...current,
+        quote: response.quote,
+        items: current.items.map((item) => item.id === itemId ? response.item : item),
+      } : current);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Tente novamente.';
       toast({ title: 'Erro ao atualizar item', description: message, variant: 'destructive' });
@@ -223,7 +229,7 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
         client_phone: quote.client_phone,
         valid_until: quote.valid_until,
         payment_terms: quote.payment_terms,
-        shipping_type: 'cif',
+        shipping_type: quote.shipping_type || 'cif',
         shipping_value: quote.freight_value,
         notes: quote.notes,
         total_value: quote.total_value,
@@ -353,7 +359,7 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
                             {editable ? <Input className="w-24 ml-auto text-right" type="number" min="0.001" step="0.001" defaultValue={item.quantity} onBlur={(e) => handleUpdateItem(item.id, { quantity: Number(e.target.value) })} /> : item.quantity}
                           </TableCell>
                           <TableCell className="text-right">
-                            {editable && (actor.profile === 'admin' || actor.can_edit_price_manually) ? <Input className="w-28 ml-auto text-right" type="number" min={item.unit_price} step="0.01" defaultValue={item.unit_price} onBlur={(e) => handleUpdateItem(item.id, { unit_price: Number(e.target.value) })} /> : formatCurrency(item.unit_price)}
+                            {editable && (actor.profile === 'admin' || actor.can_edit_price_manually) ? <Input className="w-28 ml-auto text-right" type="number" min="0" step="0.01" defaultValue={item.unit_price} onBlur={(e) => handleUpdateItem(item.id, { unit_price: Number(e.target.value.replace(',', '.')) })} /> : formatCurrency(item.unit_price)}
                           </TableCell>
                           <TableCell className="text-right">
                             {editable ? (() => {
@@ -403,6 +409,13 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
                   <Label>Prazo de entrega</Label>
                   <Input disabled={!editable} value={form.delivery_time} onChange={(e) => setForm({ ...form, delivery_time: e.target.value })} placeholder="Ex: 15 dias úteis" />
                 </div>
+                <div className="space-y-1">
+                  <Label>Modalidade do frete</Label>
+                  <Select disabled={!editable} value={form.shipping_type} onValueChange={(value: 'fob' | 'cif') => setForm({ ...form, shipping_type: value })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent><SelectItem value="cif">CIF (remetente)</SelectItem><SelectItem value="fob">FOB (destinatário)</SelectItem></SelectContent>
+                  </Select>
+                </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
@@ -410,8 +423,8 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
                   <Input disabled={!editable} type="date" value={form.valid_until} onChange={(e) => setForm({ ...form, valid_until: e.target.value })} />
                 </div>
                 <div className="space-y-1">
-                  <Label>Frete</Label>
-                  <Input disabled={!editable} type="number" step="0.01" value={form.freight_value} onChange={(e) => setForm({ ...form, freight_value: e.target.value })} />
+                  <Label>Frete ({form.shipping_type.toUpperCase()})</Label>
+                  <Input disabled={!editable} type="number" min="0" step="0.01" value={form.freight_value} onChange={(e) => setForm({ ...form, freight_value: e.target.value })} />
                 </div>
               </div>
               <div className="space-y-1">

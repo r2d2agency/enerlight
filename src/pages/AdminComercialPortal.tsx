@@ -96,6 +96,7 @@ export default function AdminComercialPortal() {
   const [addItemForm, setAddItemForm] = useState({ product_id: '', sale_price: '', cost_price: '' });
   const [importPreview, setImportPreview] = useState<Array<ImportRow & { found: boolean; product_name?: string; base_price?: number }>>([]);
   const [importing, setImporting] = useState(false);
+  const [commercialSettings, setCommercialSettings] = useState({ delivery_terms: '', payment_terms_options: '', default_shipping_type: 'cif' as 'fob' | 'cif' });
 
   const { toast } = useToast();
   const { uploadFile, isUploading } = useUpload();
@@ -113,8 +114,9 @@ export default function AdminComercialPortal() {
       comercialAdminApi.listProductCategories(),
       comercialAdminApi.listProductChannels(),
       comercialAdminApi.listProductRegions(),
+      comercialAdminApi.getSettings(),
     ])
-      .then(([actorsRes, teamsRes, members, productsRes, transfersRes, approvalsRes, priceListsRes, categoriesRes, channelsRes, regionsRes]) => {
+      .then(([actorsRes, teamsRes, members, productsRes, transfersRes, approvalsRes, priceListsRes, categoriesRes, channelsRes, regionsRes, settingsRes]) => {
         setActors(actorsRes.actors);
         setTeams(teamsRes.teams);
         setOrgMembers(members);
@@ -125,6 +127,7 @@ export default function AdminComercialPortal() {
         setProductCategories(categoriesRes.categories);
         setProductChannels(channelsRes.channels);
         setProductRegions(regionsRes.regions);
+        setCommercialSettings({ delivery_terms: settingsRes.settings.delivery_terms.join('\n'), payment_terms_options: settingsRes.settings.payment_terms_options.join('\n'), default_shipping_type: settingsRes.settings.default_shipping_type });
       })
       .catch((error) => toast({ title: 'Erro ao carregar Portal Comercial', description: error?.message, variant: 'destructive' }))
       .finally(() => setLoading(false));
@@ -630,7 +633,17 @@ export default function AdminComercialPortal() {
             Aprovações de Desconto{quoteApprovals.length > 0 ? ` (${quoteApprovals.length})` : ''}
           </TabsTrigger>
           <TabsTrigger value="auditoria">Auditoria</TabsTrigger>
+          <TabsTrigger value="configuracoes">Configurações</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="configuracoes" className="space-y-4 mt-4">
+          <Card><CardContent className="space-y-4 pt-6">
+            <div><Label>Prazos de entrega</Label><Textarea value={commercialSettings.delivery_terms} onChange={(e) => setCommercialSettings({ ...commercialSettings, delivery_terms: e.target.value })} placeholder="Uma opção por linha" /></div>
+            <div><Label>Condições de pagamento</Label><Textarea value={commercialSettings.payment_terms_options} onChange={(e) => setCommercialSettings({ ...commercialSettings, payment_terms_options: e.target.value })} placeholder="Uma opção por linha" /></div>
+            <div className="space-y-1"><Label>Frete padrão</Label><Select value={commercialSettings.default_shipping_type} onValueChange={(value: 'fob' | 'cif') => setCommercialSettings({ ...commercialSettings, default_shipping_type: value })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="cif">CIF (remetente)</SelectItem><SelectItem value="fob">FOB (destinatário)</SelectItem></SelectContent></Select></div>
+            <Button onClick={async () => { try { await comercialAdminApi.updateSettings({ delivery_terms: commercialSettings.delivery_terms.split('\n').map((v) => v.trim()).filter(Boolean), payment_terms_options: commercialSettings.payment_terms_options.split('\n').map((v) => v.trim()).filter(Boolean), default_shipping_type: commercialSettings.default_shipping_type }); toast({ title: 'Configurações salvas' }); } catch (error) { toast({ title: 'Erro ao salvar configurações', description: error instanceof Error ? error.message : 'Tente novamente', variant: 'destructive' }); } }}>Salvar configurações</Button>
+          </CardContent></Card>
+        </TabsContent>
 
         <TabsContent value="dashboard" className="mt-4">
           <AdminComercialDashboardTab actors={actors} />

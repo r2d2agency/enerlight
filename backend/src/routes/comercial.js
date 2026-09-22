@@ -637,7 +637,9 @@ async function updateQuoteHandler(req, res) {
     if (QUOTE_LOCKED_STATUSES.includes(quote.status)) return res.status(400).json({ error: 'Este orçamento não pode mais ser editado' });
 
     const b = req.body || {};
-    const fields = ['payment_terms', 'delivery_time', 'valid_until', 'freight_value', 'notes', 'internal_notes'];
+    const fields = ['payment_terms', 'delivery_time', 'shipping_type', 'valid_until', 'freight_value', 'notes', 'internal_notes'];
+    if (b.shipping_type !== undefined && !['fob', 'cif'].includes(b.shipping_type)) return res.status(400).json({ error: 'Modalidade de frete inválida', code: 'INVALID_SHIPPING_TYPE' });
+    if (b.freight_value !== undefined && (!Number.isFinite(Number(b.freight_value)) || Number(b.freight_value) < 0)) return res.status(400).json({ error: 'Valor de frete inválido', code: 'INVALID_FREIGHT' });
     const sets = [];
     const params = [];
     let idx = 1;
@@ -1688,6 +1690,26 @@ router.use('/interno', internalRouter);
 // ---------------------------------------------------------------------------
 
 adminRouter.use(authenticate);
+
+adminRouter.get('/settings', gate('can_manage_comercial_portal'), async (req, res) => {
+  const org = await getUserOrg(req.userId);
+  if (!org) return res.status(403).json({ error: 'Sem organização' });
+  const result = await query('SELECT * FROM online_quotes_config WHERE organization_id = $1', [org.organization_id]);
+  const settings = result.rows[0] || { delivery_terms: [], payment_terms_options: [], default_shipping_type: 'cif' };
+  res.json({ settings });
+});
+
+adminRouter.put('/settings', gate('can_manage_comercial_portal'), async (req, res) => {
+  const org = await getUserOrg(req.userId);
+  if (!org) return res.status(403).json({ error: 'Sem organização' });
+  const deliveryTerms = Array.isArray(req.body?.delivery_terms) ? req.body.delivery_terms.filter((v) => typeof v === 'string' && v.trim()) : [];
+  const paymentTerms = Array.isArray(req.body?.payment_terms_options) ? req.body.payment_terms_options.filter((v) => typeof v === 'string' && v.trim()) : [];
+  const shippingType = ['fob', 'cif'].includes(req.body?.default_shipping_type) ? req.body.default_shipping_type : 'cif';
+  const result = await query(`INSERT INTO online_quotes_config (organization_id, delivery_terms, payment_terms_options, default_shipping_type)
+    VALUES ($1, $2::jsonb, $3::jsonb, $4) ON CONFLICT (organization_id) DO UPDATE SET delivery_terms = EXCLUDED.delivery_terms, payment_terms_options = EXCLUDED.payment_terms_options, default_shipping_type = EXCLUDED.default_shipping_type, updated_at = NOW() RETURNING *`,
+    [org.organization_id, JSON.stringify(deliveryTerms), JSON.stringify(paymentTerms), shippingType]);
+  res.json({ settings: result.rows[0] });
+});
 
 adminRouter.get('/actors', gate('can_manage_comercial_portal'), async (req, res) => {
   const org = await getUserOrg(req.userId);

@@ -122,6 +122,7 @@ export interface ComercialQuote {
   total_cost?: number;
   margin_percent?: number;
   freight_value: number;
+  shipping_type?: 'fob' | 'cif' | null;
   payment_terms?: string | null;
   delivery_time?: string | null;
   valid_until?: string | null;
@@ -630,6 +631,8 @@ export interface ComercialAuditLog {
 
 // Administração — usa a mesma sessão do CRM (auth_token), não o token isolado do portal
 export const comercialAdminApi = {
+  getSettings: () => api<{ settings: { delivery_terms: string[]; payment_terms_options: string[]; default_shipping_type: 'fob' | 'cif' } }>('/api/comercial/admin/settings'),
+  updateSettings: (body: { delivery_terms: string[]; payment_terms_options: string[]; default_shipping_type: 'fob' | 'cif' }) => api<{ settings: { delivery_terms: string[]; payment_terms_options: string[]; default_shipping_type: 'fob' | 'cif' } }>('/api/comercial/admin/settings', { method: 'PUT', body }),
   listActors: () => api<{ actors: ComercialAdminActor[] }>('/api/comercial/admin/actors'),
   getActor: (id: string) => api<{ actor: ComercialAdminActor }>(`/api/comercial/admin/actors/${id}`),
   linkInternal: (body: { user_id: string; profile?: ComercialProfile; team_id?: string }) =>

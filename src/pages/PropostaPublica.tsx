@@ -50,7 +50,7 @@ export default function PropostaPublica() {
         client_phone: quote.client_phone,
         valid_until: quote.valid_until,
         payment_terms: quote.payment_terms,
-        shipping_type: 'cif',
+        shipping_type: quote.shipping_type || 'cif',
         shipping_value: quote.freight_value,
         notes: quote.notes,
         total_value: quote.total_value,

@@ -4995,6 +4995,9 @@ CREATE TABLE IF NOT EXISTS online_quotes_config (
     default_cover_image TEXT,
     default_footer TEXT,
     show_cost_to_roles VARCHAR[] DEFAULT ARRAY['admin', 'manager'],
+    delivery_terms JSONB DEFAULT '[]'::jsonb,
+    payment_terms_options JSONB DEFAULT '[]'::jsonb,
+    default_shipping_type VARCHAR(3) DEFAULT 'cif',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -5809,6 +5812,14 @@ DO $$ BEGIN
 EXCEPTION WHEN duplicate_column THEN NULL; END $$;
 DO $$ BEGIN
   ALTER TABLE online_quotes ADD COLUMN freight_value NUMERIC(15,2) DEFAULT 0;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE online_quotes ADD COLUMN shipping_type VARCHAR(3) DEFAULT 'cif';
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE online_quotes_config ADD COLUMN delivery_terms JSONB DEFAULT '[]'::jsonb;
+  ALTER TABLE online_quotes_config ADD COLUMN payment_terms_options JSONB DEFAULT '[]'::jsonb;
+  ALTER TABLE online_quotes_config ADD COLUMN default_shipping_type VARCHAR(3) DEFAULT 'cif';
 EXCEPTION WHEN duplicate_column THEN NULL; END $$;
 DO $$ BEGIN
   ALTER TABLE online_quotes ADD COLUMN internal_notes TEXT;
