@@ -26,7 +26,7 @@ import AdminComercialAuditTab from './comercial/AdminComercialAuditTab';
 import * as XLSX from 'xlsx';
 import {
   Loader2, Plus, Briefcase, Send, Lock, Unlock, UserPlus, Users2, Package, Tag, ArrowRightLeft, Check, X, KeyRound,
-  ShieldAlert, Upload, Trash2, List,
+  ShieldAlert, Upload, Trash2, List, Copy,
 } from 'lucide-react';
 
 interface OrgMember { id: string; name: string; email: string; is_active: boolean }
@@ -149,6 +149,16 @@ export default function AdminComercialPortal() {
 
   const linkedUserIds = new Set(actors.filter((a) => a.user_id).map((a) => a.user_id));
   const availableMembers = orgMembers.filter((m) => m.is_active && !linkedUserIds.has(m.id));
+
+  const comercialLoginUrl = `${window.location.origin}/comercial/login`;
+  const copyComercialLoginUrl = async () => {
+    try {
+      await navigator.clipboard.writeText(comercialLoginUrl);
+      toast({ title: 'Link de acesso copiado', description: comercialLoginUrl });
+    } catch {
+      toast({ title: 'Não foi possível copiar o link', description: comercialLoginUrl, variant: 'destructive' });
+    }
+  };
 
   const handleLinkInternal = async () => {
     if (!linkForm.user_id) {
@@ -627,6 +637,13 @@ export default function AdminComercialPortal() {
         </TabsContent>
 
         <TabsContent value="atores" className="space-y-4 mt-4">
+          <div className="flex items-center justify-between gap-3 flex-wrap rounded-lg border bg-muted/30 p-3">
+            <div>
+              <p className="text-sm font-medium">Link de acesso do Portal Comercial</p>
+              <p className="text-xs text-muted-foreground break-all">{comercialLoginUrl}</p>
+            </div>
+            <Button variant="outline" onClick={copyComercialLoginUrl}><Copy className="h-4 w-4 mr-1" />Copiar link</Button>
+          </div>
           <div className="flex justify-end gap-2 flex-wrap">
             <Dialog open={linkDialogOpen} onOpenChange={setLinkDialogOpen}>
               <DialogTrigger asChild>
