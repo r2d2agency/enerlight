@@ -1,226 +1,53 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { ComercialActor, ComercialDashboard, ComercialMyCommission } from '@/lib/comercial-api';
+import { cn } from '@/lib/utils';
 import {
-  Loader2, TrendingUp, FileText, Clock, Users, Handshake, AlertTriangle,
-  UserPlus, ShoppingCart, CheckCircle2, Wallet,
+  AlertTriangle, ArrowRight, BarChart3, CheckCircle2, Clock3, FileText, Loader2,
+  Percent, Plus, ShoppingCart, Trophy, UserPlus, Users, Wallet,
 } from 'lucide-react';
 
-const formatCurrency = (value: number) =>
-  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value) || 0);
+const formatCurrency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value) || 0);
+const PROFILE_LABEL: Record<string, string> = { admin: 'Administrador', gerente: 'Gerente Comercial', vendedor: 'Vendedor', parceiro: 'Parceiro Comercial' };
+const ACTIVITY_LABEL: Record<string, string> = { cliente_cadastrado: 'Cliente cadastrado', orcamento_criado: 'Orçamento criado', venda_registrada: 'Venda registrada' };
+const ACTIVITY_ICON: Record<string, typeof FileText> = { cliente_cadastrado: Users, orcamento_criado: FileText, venda_registrada: ShoppingCart };
 
-const PROFILE_LABEL: Record<string, string> = {
-  admin: 'Administrador',
-  gerente: 'Gerente Comercial',
-  vendedor: 'Vendedor',
-  parceiro: 'Parceiro Comercial',
-};
+type Props = { actor: ComercialActor; getDashboard: () => Promise<ComercialDashboard>; listMyCommissions?: () => Promise<{ commissions: ComercialMyCommission[] }> };
 
-const ACTIVITY_LABEL: Record<string, string> = {
-  cliente_cadastrado: 'Cliente cadastrado',
-  orcamento_criado: 'Orçamento criado',
-  venda_registrada: 'Venda registrada',
-};
-
-const ACTIVITY_ICON: Record<string, typeof Users> = {
-  cliente_cadastrado: UserPlus,
-  orcamento_criado: FileText,
-  venda_registrada: ShoppingCart,
-};
-
-interface Props {
-  actor: ComercialActor;
-  getDashboard: () => Promise<ComercialDashboard>;
-  listMyCommissions?: () => Promise<{ commissions: ComercialMyCommission[] }>;
+function MetricCard({ label, value, description, icon: Icon, tone, href }: { label: string; value: string; description: string; icon: typeof FileText; tone: 'blue' | 'green' | 'amber'; href: string }) {
+  return <Link to={href} className="group block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1677FF] rounded-xl"><Card className="h-full border-[#223047] bg-[#101925] shadow-[0_12px_28px_rgba(0,0,0,.16)] transition-colors group-hover:bg-[#152133]"><CardContent className="p-5"><div className="mb-5 flex items-start justify-between"><div><p className="text-sm text-[#8DA0BB]">{label}</p><p className="mt-2 text-[30px] font-bold leading-none tracking-tight text-[#F4F8FF]">{value}</p></div><span className={cn('rounded-lg p-2.5', tone === 'green' ? 'bg-[#123D31] text-[#32D583]' : tone === 'amber' ? 'bg-[#493717] text-[#F5A524]' : 'bg-[#123968] text-[#58A6FF]')}><Icon className="h-5 w-5" /></span></div><p className="text-xs text-[#64748B]">{description}</p></CardContent></Card></Link>;
 }
 
+function SectionHeader({ title, subtitle, href, action = 'Ver todas' }: { title: string; subtitle: string; href?: string; action?: string }) {
+  return <div className="mb-5 flex items-start justify-between gap-3"><div><h2 className="text-lg font-bold text-[#F4F8FF]">{title}</h2><p className="mt-1 text-sm text-[#8DA0BB]">{subtitle}</p></div>{href && <Link to={href} className="shrink-0 text-xs font-medium text-[#58A6FF] hover:text-white">{action} <ArrowRight className="ml-1 inline h-3.5 w-3.5" /></Link>}</div>;
+}
+
+function LoadingState() { return <div className="space-y-5"><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-36 rounded-xl bg-[#101925]" />)}</div><div className="grid gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(360px,1fr)]"><Skeleton className="h-[360px] rounded-xl bg-[#101925]" /><Skeleton className="h-[360px] rounded-xl bg-[#101925]" /></div></div>; }
+
 export default function ComercialDashboardView({ actor, getDashboard, listMyCommissions }: Props) {
-  const [data, setData] = useState<ComercialDashboard | null>(null);
-  const [commissions, setCommissions] = useState<ComercialMyCommission[]>([]);
-  const [loading, setLoading] = useState(true);
-  const { toast } = useToast();
-
-  useEffect(() => {
-    getDashboard()
-      .then(setData)
-      .catch((error) => toast({ title: 'Erro ao carregar dashboard', description: error?.message, variant: 'destructive' }))
-      .finally(() => setLoading(false));
-    listMyCommissions?.().then((res) => setCommissions(res.commissions)).catch(() => {});
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const commissionByStatus = commissions.reduce(
-    (acc, c) => { acc[c.status] = (acc[c.status] || 0) + Number(c.amount); return acc; },
-    {} as Record<string, number>
-  );
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <div>
-          <h1 className="text-xl font-semibold">Olá, {actor.name}</h1>
-          <p className="text-sm text-muted-foreground">
-            {PROFILE_LABEL[actor.profile] || actor.profile}
-            {actor.team_name ? ` · Equipe ${actor.team_name}` : ''}
-          </p>
-        </div>
-        <Badge variant="secondary">{actor.status === 'active' ? 'Acesso ativo' : actor.status}</Badge>
-      </div>
-
-      {loading || !data ? (
-        <div className="flex justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      ) : (
-        <>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-                <CardTitle className="text-xs font-medium text-muted-foreground">Vendas no mês</CardTitle>
-                <TrendingUp className="h-4 w-4 text-primary" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-xl font-bold">{formatCurrency(data.sales_this_month.total)}</div>
-                <p className="text-xs text-muted-foreground">{data.sales_this_month.count} venda(s)</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-                <CardTitle className="text-xs font-medium text-muted-foreground">Orçamentos enviados</CardTitle>
-                <FileText className="h-4 w-4 text-primary" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-xl font-bold">{data.quotes.sent_count}</div>
-                <p className="text-xs text-muted-foreground">{data.quotes.conversion_rate}% de conversão</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-                <CardTitle className="text-xs font-medium text-muted-foreground">Aguardando resposta</CardTitle>
-                <Clock className="h-4 w-4 text-primary" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-xl font-bold">{data.quotes.awaiting_count}</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-                <CardTitle className="text-xs font-medium text-muted-foreground">Convertidos em venda</CardTitle>
-                <CheckCircle2 className="h-4 w-4 text-primary" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-xl font-bold">{data.quotes.converted_count}</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-                <CardTitle className="text-xs font-medium text-muted-foreground">Clientes ativos</CardTitle>
-                <Users className="h-4 w-4 text-primary" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-xl font-bold">{data.customers.active_count}</div>
-                <p className="text-xs text-muted-foreground">{data.customers.new_this_month} novo(s) no mês</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-                <CardTitle className="text-xs font-medium text-muted-foreground">Oportunidades abertas</CardTitle>
-                <Handshake className="h-4 w-4 text-primary" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-xl font-bold">{data.opportunities_open}</div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {data.quotes_near_expiry.length > 0 && (
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4 text-amber-500" />
-                  Propostas perto de vencer
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {data.quotes_near_expiry.map((q) => (
-                  <div key={q.id} className="flex items-center justify-between text-sm border-b last:border-0 pb-2 last:pb-0">
-                    <div>
-                      <p className="font-medium">{q.quote_number || 'Orçamento'} · {q.client_name}</p>
-                      <p className="text-xs text-muted-foreground">Válido até {new Date(q.valid_until).toLocaleDateString('pt-BR')}</p>
-                    </div>
-                    <span className="font-medium">{formatCurrency(q.total_value)}</span>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          )}
-
-          {commissions.length > 0 && (
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base flex items-center gap-2"><Wallet className="h-4 w-4" /> Comissão</CardTitle>
-              </CardHeader>
-              <CardContent className="grid grid-cols-3 gap-3 text-sm">
-                <div>
-                  <p className="text-muted-foreground text-xs">Prevista</p>
-                  <p className="font-semibold">{formatCurrency(commissionByStatus.previsto || 0)}</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground text-xs">Liberada</p>
-                  <p className="font-semibold">{formatCurrency(commissionByStatus.liberado || 0)}</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground text-xs">Paga</p>
-                  <p className="font-semibold">{formatCurrency(commissionByStatus.pago || 0)}</p>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          <div className="grid md:grid-cols-2 gap-4">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">Funil comercial</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {data.funnel.every((s) => s.count === 0) ? (
-                  <p className="text-sm text-muted-foreground">Nenhuma oportunidade criada ainda.</p>
-                ) : (
-                  data.funnel.map((stage) => (
-                    <div key={stage.id} className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">{stage.name}</span>
-                      <span>{stage.count} · {formatCurrency(stage.value)}</span>
-                    </div>
-                  ))
-                )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">Atividades recentes</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {data.recent_activity.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Nenhuma atividade ainda.</p>
-                ) : (
-                  data.recent_activity.map((a) => {
-                    const Icon = ACTIVITY_ICON[a.type] || FileText;
-                    return (
-                      <div key={`${a.type}-${a.id}`} className="flex items-center gap-2 text-sm">
-                        <Icon className="h-4 w-4 text-muted-foreground shrink-0" />
-                        <span className="flex-1 truncate">{ACTIVITY_LABEL[a.type] || a.type}: {a.label}</span>
-                        <span className="text-xs text-muted-foreground shrink-0">{new Date(a.created_at).toLocaleDateString('pt-BR')}</span>
-                      </div>
-                    );
-                  })
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </>
-      )}
-    </div>
-  );
+  const [data, setData] = useState<ComercialDashboard | null>(null); const [commissions, setCommissions] = useState<ComercialMyCommission[]>([]); const [loading, setLoading] = useState(true); const [error, setError] = useState(false); const { toast } = useToast();
+  const load = () => { setLoading(true); setError(false); Promise.all([getDashboard(), listMyCommissions?.() || Promise.resolve({ commissions: [] })]).then(([dashboard, commissionResponse]) => { setData(dashboard); setCommissions(commissionResponse.commissions); }).catch((err) => { setError(true); toast({ title: 'Erro ao carregar dashboard', description: err?.message || 'Tente novamente.', variant: 'destructive' }); }).finally(() => setLoading(false)); };
+  useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const commissionByStatus = useMemo(() => commissions.reduce((acc, c) => { acc[c.status] = (acc[c.status] || 0) + Number(c.amount); return acc; }, {} as Record<string, number>), [commissions]);
+  const priorities = data ? [
+    data.quotes.awaiting_count > 0 && { title: 'Responder orçamentos', description: `${data.quotes.awaiting_count} orçamento(s) aguardando resposta`, icon: FileText, tone: 'blue', href: '/comercial/orcamentos?status=aguardando_resposta' },
+    data.customers.active_count > 0 && { title: 'Entrar em contato com clientes', description: `${data.customers.active_count} cliente(s) ativo(s) no mês`, icon: Users, tone: 'green', href: '/comercial/clientes' },
+    data.opportunities_open > 0 && { title: 'Avançar oportunidades', description: `${data.opportunities_open} oportunidade(s) em aberto`, icon: Trophy, tone: 'amber', href: '/comercial/oportunidades' },
+  ].filter(Boolean) as Array<{ title: string; description: string; icon: typeof FileText; tone: string; href: string }> : [];
+  if (loading && !data) return <LoadingState />;
+  if (error && !data) return <Card className="border-[#223047] bg-[#101925] p-10 text-center"><AlertTriangle className="mx-auto mb-3 h-8 w-8 text-[#F5A524]" /><p className="text-[#F4F8FF]">Não foi possível carregar os dados do dashboard.</p><Button onClick={load} className="mt-4 bg-[#1677FF] hover:bg-[#2F8BFF]">Tentar novamente</Button></Card>;
+  if (!data) return null;
+  return <div className="space-y-6">
+    <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><p className="mb-2 text-xs font-semibold uppercase tracking-[.16em] text-[#58A6FF]">Visão geral comercial</p><h1 className="text-3xl font-bold tracking-tight text-[#F4F8FF]">Bom dia, {actor.name.split(' ')[0]}</h1><p className="mt-2 text-sm text-[#8DA0BB]">Acompanhe suas vendas, orçamentos e oportunidades em um só lugar.</p></div><Button asChild className="w-fit rounded-lg bg-[#1677FF] text-white hover:bg-[#2F8BFF]"><Link to="/comercial/orcamentos"><Plus className="mr-2 h-4 w-4" />Novo orçamento</Link></Button></div>
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"><MetricCard label="Vendas no mês" value={formatCurrency(data.sales_this_month.total)} description={`${data.sales_this_month.count} venda(s)`} icon={BarChart3} tone="green" href="/comercial/vendas" /><MetricCard label="Orçamentos enviados" value={String(data.quotes.sent_count)} description={`${data.quotes.conversion_rate}% de conversão`} icon={FileText} tone="blue" href="/comercial/orcamentos?status=enviado" /><MetricCard label="Aguardando resposta" value={String(data.quotes.awaiting_count)} description="Orçamentos pendentes de retorno" icon={Clock3} tone="amber" href="/comercial/orcamentos?status=aguardando_resposta" /><MetricCard label="Conversão" value={`${data.quotes.conversion_rate}%`} description="Orçamentos convertidos em venda" icon={Percent} tone="blue" href="/comercial/orcamentos" /></div>
+    <div className="grid gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(360px,1fr)]"><Card className="border-[#223047] bg-[#101925] shadow-[0_12px_28px_rgba(0,0,0,.16)]"><CardContent className="p-6"><SectionHeader title="Funil de vendas" subtitle="Acompanhe o progresso das suas oportunidades em cada etapa." href="/comercial/oportunidades" action="Ver oportunidades" /><div className="space-y-3 overflow-x-auto">{data.funnel.length === 0 || data.funnel.every((stage) => stage.count === 0) ? <div className="rounded-lg border border-dashed border-[#223047] p-10 text-center text-sm text-[#8DA0BB]">Nenhuma oportunidade ativa no momento.<br /><Link className="mt-2 inline-block text-[#58A6FF]" to="/comercial/oportunidades">Criar oportunidade</Link></div> : data.funnel.map((stage, index) => <Link key={stage.id} to={`/comercial/oportunidades?etapa=${encodeURIComponent(stage.id)}`} className="group flex min-w-[420px] items-center gap-4 rounded-lg border border-transparent p-2 transition-colors hover:border-[#223047] hover:bg-[#152133]"><span className="w-28 shrink-0 text-sm text-[#8DA0BB]">{stage.name}</span><span className="h-2 flex-1 rounded-full bg-[#223047]"><span className={cn('block h-full rounded-full', index === 0 ? 'bg-[#1677FF]' : 'bg-[#42617F]')} style={{ width: `${data.funnel[0]?.count ? Math.max(4, (stage.count / data.funnel[0].count) * 100) : 0}%` }} /></span><span className="w-20 shrink-0 text-right text-sm font-medium text-[#F4F8FF]">{stage.count} · {formatCurrency(stage.value)}</span></Link>)}</div></CardContent></Card>
+      <Card className="border-[#223047] bg-[#101925] shadow-[0_12px_28px_rgba(0,0,0,.16)]"><CardContent className="p-6"><SectionHeader title="Prioridades de hoje" subtitle="Foque no que mais importa para avançar suas vendas." href="/comercial/oportunidades" />{priorities.length === 0 ? <div className="py-10 text-center text-sm text-[#8DA0BB]"><CheckCircle2 className="mx-auto mb-3 h-8 w-8 text-[#32D583]" />Tudo em dia. Você não possui prioridades pendentes agora.</div> : <div className="space-y-2">{priorities.map((item) => { const Icon = item.icon; return <Link key={item.title} to={item.href} className="flex items-center gap-3 rounded-lg border border-transparent p-3 hover:border-[#223047] hover:bg-[#152133]"><span className={cn('rounded-lg p-2', item.tone === 'green' ? 'bg-[#123D31] text-[#32D583]' : item.tone === 'amber' ? 'bg-[#493717] text-[#F5A524]' : 'bg-[#123968] text-[#58A6FF]')}><Icon className="h-4 w-4" /></span><span className="min-w-0 flex-1"><strong className="block text-sm text-[#F4F8FF]">{item.title}</strong><small className="text-xs text-[#8DA0BB]">{item.description}</small></span><ArrowRight className="h-4 w-4 text-[#64748B]" /></Link>; })}</div>}</CardContent></Card></div>
+    <div className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]"><Card className="border-[#223047] bg-[#101925]"><CardContent className="p-6"><SectionHeader title="Atividades recentes" subtitle="Acompanhe as últimas movimentações da sua conta." href="/comercial/dashboard" />{data.recent_activity.length === 0 ? <p className="py-8 text-center text-sm text-[#8DA0BB]">Ainda não há atividades registradas.</p> : <div className="space-y-4">{data.recent_activity.slice(0, 6).map((activity) => { const Icon = ACTIVITY_ICON[activity.type] || FileText; return <div key={`${activity.type}-${activity.id}`} className="flex gap-3"><span className="rounded-lg bg-[#123968] p-2 text-[#58A6FF]"><Icon className="h-4 w-4" /></span><div className="min-w-0 flex-1"><p className="text-sm text-[#F4F8FF]">{ACTIVITY_LABEL[activity.type] || activity.type}: {activity.label}</p><time className="text-xs text-[#64748B]">{new Date(activity.created_at).toLocaleString('pt-BR')}</time></div></div>; })}</div>}</CardContent></Card><Card className="border-[#223047] bg-[#101925]"><CardContent className="p-6"><SectionHeader title="Meus próximos passos" subtitle="Organize suas atividades e mantenha seu ritmo de vendas." href="/comercial/orcamentos" />{data.quotes_near_expiry.length === 0 ? <p className="py-8 text-center text-sm text-[#8DA0BB]">Nenhum próximo passo pendente.</p> : <div className="space-y-3">{data.quotes_near_expiry.slice(0, 4).map((quote) => <Link key={quote.id} to={`/comercial/orcamentos/${quote.id}`} className="flex items-center gap-3 rounded-lg border border-[#223047] p-3 hover:bg-[#152133]"><span className="rounded-lg bg-[#493717] p-2 text-[#F5A524]"><Clock3 className="h-4 w-4" /></span><span className="min-w-0 flex-1"><strong className="block truncate text-sm text-[#F4F8FF]">Responder orçamento {quote.quote_number || quote.id.slice(0, 8)}</strong><small className="text-xs text-[#8DA0BB]">{quote.client_name} · válido até {new Date(quote.valid_until).toLocaleDateString('pt-BR')}</small></span><span className="text-sm font-medium text-[#F4F8FF]">{formatCurrency(quote.total_value)}</span></Link>)}</div>}</CardContent></Card></div>
+    {commissions.length > 0 && <Card className="border-[#223047] bg-[#101925]"><CardHeader><CardTitle className="flex items-center gap-2 text-base text-[#F4F8FF]"><Wallet className="h-4 w-4 text-[#58A6FF]" />Comissões</CardTitle></CardHeader><CardContent className="grid grid-cols-3 gap-3 text-sm"><div><p className="text-xs text-[#8DA0BB]">Prevista</p><p className="mt-1 font-semibold text-[#F4F8FF]">{formatCurrency(commissionByStatus.previsto || 0)}</p></div><div><p className="text-xs text-[#8DA0BB]">Liberada</p><p className="mt-1 font-semibold text-[#F4F8FF]">{formatCurrency(commissionByStatus.liberado || 0)}</p></div><div><p className="text-xs text-[#8DA0BB]">Paga</p><p className="mt-1 font-semibold text-[#F4F8FF]">{formatCurrency(commissionByStatus.pago || 0)}</p></div></CardContent></Card>}
+  </div>;
 }
