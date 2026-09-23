@@ -152,6 +152,7 @@ const ComercialOportunidades = lazyRetry(() => import("./pages/comercial/Comerci
 const ComercialOportunidadeDetail = lazyRetry(() => import("./pages/comercial/ComercialOportunidadeDetail"));
 const ComercialVendas = lazyRetry(() => import("./pages/comercial/ComercialVendas"));
 const ComercialVendaDetail = lazyRetry(() => import("./pages/comercial/ComercialVendaDetail"));
+const ComercialMarketing = lazyRetry(() => import("./pages/comercial/ComercialMarketing"));
 const PortalComercialDashboard = lazyRetry(() => import("./pages/PortalComercialDashboard"));
 const PortalComercialClientes = lazyRetry(() => import("./pages/PortalComercialClientes"));
 const PortalComercialCatalogo = lazyRetry(() => import("./pages/PortalComercialCatalogo"));
@@ -296,6 +297,8 @@ const App = () => (
               <Route path="/comercial/oportunidades/:id" element={<ComercialOportunidadeDetail />} />
               <Route path="/comercial/vendas" element={<ComercialVendas />} />
               <Route path="/comercial/vendas/:id" element={<ComercialVendaDetail />} />
+              <Route path="/comercial/marketing" element={<ComercialMarketing />} />
+              <Route path="/portal-comercial/marketing" element={<ProtectedRoute permissionKey="can_access_comercial_portal"><ComercialMarketing internal /></ProtectedRoute>} />
               {/* Portal Comercial — acesso interno, mesma conta do CRM, área restrita */}
               <Route path="/portal-comercial/dashboard" element={<ProtectedRoute permissionKey="can_access_comercial_portal"><PortalComercialDashboard /></ProtectedRoute>} />
               <Route path="/portal-comercial/clientes" element={<ProtectedRoute permissionKey="can_access_comercial_portal"><PortalComercialClientes /></ProtectedRoute>} />

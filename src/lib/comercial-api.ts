@@ -84,6 +84,12 @@ export interface ComercialMyPriceList {
   is_default: boolean;
 }
 
+export interface ComercialPdfCatalog {
+  id: string; title: string; description?: string | null; file_url: string; original_name?: string | null;
+  mime_type: string; is_active: boolean; is_published: boolean; is_org_wide: boolean;
+  valid_from?: string | null; valid_until?: string | null; download_count?: number;
+}
+
 export type ComercialQuoteStatus =
   | 'draft' | 'em_elaboracao' | 'enviado' | 'visualizado' | 'em_negociacao'
   | 'aguardando_aprovacao' | 'aprovado' | 'recusado'
@@ -323,6 +329,19 @@ export interface ComercialDashboard {
   recent_activity: ComercialDashboardActivity[];
 }
 
+export interface ComercialMarketingMaterial {
+  id: string;
+  title: string;
+  description?: string | null;
+  material_type?: string | null;
+  file_url: string;
+  download_url?: string;
+  thumbnail_url?: string | null;
+  category?: { id: string; name: string } | string | null;
+  download_url?: string;
+  position?: number;
+}
+
 export interface ComercialMyCommission {
   id: string;
   sale_id: string;
@@ -346,6 +365,10 @@ export const comercialExternalApi = {
     call<{ message: string }>('/api/comercial/me/change-password', { method: 'POST', body: { new_password: newPassword } }),
 
   me: () => call<{ actor: ComercialActor }>('/api/comercial/me'),
+  listMarketingMaterials: () => call<{ materials: ComercialMarketingMaterial[] }>('/api/comercial/marketing/materiais'),
+  listCatalogs: () => call<{ catalogs: ComercialPdfCatalog[] }>('/api/comercial/catalogos'),
+  downloadCatalog: (id: string) => call<{ url: string; filename: string }>(`/api/comercial/catalogos/${id}/download`),
+  downloadMarketingMaterial: (id: string) => call<{ url?: string; file_url?: string; filename?: string }>(`/api/comercial/marketing/materiais/${id}/download`),
 
   esqueciSenha: (email: string) =>
     call<{ message: string }>('/api/comercial/esqueci-senha', { method: 'POST', body: { email }, auth: false }),
@@ -411,6 +434,10 @@ export const comercialPublicApi = {
 
 // Portal interno — mesmo login/token do CRM (usa o helper api() principal)
 export const comercialInternalApi = {
+  listCatalogs: () => api<{ catalogs: ComercialPdfCatalog[] }>('/api/comercial/interno/catalogos'),
+  downloadCatalog: (id: string) => api<{ url: string; filename: string }>(`/api/comercial/interno/catalogos/${id}/download`),
+  listMarketingMaterials: () => api<{ materials: ComercialMarketingMaterial[] }>('/api/comercial/interno/marketing/materiais'),
+  downloadMarketingMaterial: (id: string) => api<{ url?: string; file_url?: string; filename?: string }>(`/api/comercial/interno/marketing/materiais/${id}/download`),
   me: () => api<{ actor: ComercialActor }>('/api/comercial/interno/me'),
 
   listCustomers: () => api<{ customers: ComercialCustomer[] }>('/api/comercial/interno/clientes'),

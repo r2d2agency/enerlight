@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { comercialExternalApi, comercialToken, ComercialActor } from '@/lib/comercial-api';
 import {
   Loader2, Briefcase, LayoutDashboard, Users, Handshake, FileText,
-  ShoppingCart, Package, UserCog, LogOut,
+  ShoppingCart, Package, UserCog, LogOut, Megaphone,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -16,6 +16,7 @@ const NAV_ITEMS = [
   { name: 'Orçamentos', href: '/comercial/orcamentos', icon: FileText, enabled: true },
   { name: 'Vendas', href: '/comercial/vendas', icon: ShoppingCart, enabled: true },
   { name: 'Catálogo', href: '/comercial/catalogo', icon: Package, enabled: true },
+  { name: 'Marketing', href: '/comercial/marketing', icon: Megaphone, enabled: true },
   { name: 'Minha Conta', href: '/comercial/conta', icon: UserCog, enabled: false },
 ];
 

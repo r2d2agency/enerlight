@@ -23,6 +23,7 @@ import { useToast } from '@/hooks/use-toast';
 import AdminComercialDashboardTab from './comercial/AdminComercialDashboardTab';
 import AdminComercialCommissionsTab from './comercial/AdminComercialCommissionsTab';
 import AdminComercialAuditTab from './comercial/AdminComercialAuditTab';
+import AdminComercialMarketingTab from './comercial/AdminComercialMarketingTab';
 import * as XLSX from 'xlsx';
 import {
   Loader2, Plus, Briefcase, Send, Lock, Unlock, UserPlus, Users2, Package, Tag, ArrowRightLeft, Check, X, KeyRound,
@@ -99,6 +100,8 @@ export default function AdminComercialPortal() {
   const [commercialSettings, setCommercialSettings] = useState({ delivery_terms: '', payment_terms_options: '', default_shipping_type: 'cif' as 'fob' | 'cif' });
   const [quoteTemplates, setQuoteTemplates] = useState<ComercialQuoteTemplate[]>([]);
   const [templateForm, setTemplateForm] = useState({ name: '', description: '', cover_url: '', header_text: '', footer_text: '' });
+  const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
+  const [templatePriceListIds, setTemplatePriceListIds] = useState<string[]>([]);
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
 
   const { toast } = useToast();
@@ -613,18 +616,31 @@ export default function AdminComercialPortal() {
 
   return (
     <MainLayout>
-      <div className="flex items-center gap-3 mb-6">
-        <Briefcase className="h-7 w-7 text-primary" />
-        <div>
-          <h1 className="text-2xl font-bold">Portal Comercial</h1>
-          <p className="text-muted-foreground text-sm">
-            Gerencie usuários, equipes e permissões do módulo comercial.
-          </p>
+      <div className="mx-auto w-full max-w-[1600px] space-y-6">
+        <div className="relative overflow-hidden rounded-2xl border bg-gradient-to-br from-primary/10 via-background to-background px-6 py-7 shadow-sm sm:px-8">
+          <div className="absolute -right-16 -top-20 h-56 w-56 rounded-full bg-primary/10 blur-3xl" />
+          <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-4">
+              <div className="rounded-xl bg-primary p-3 text-primary-foreground shadow-sm">
+                <Briefcase className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="mb-1 text-xs font-semibold uppercase tracking-[0.18em] text-primary">Gestão comercial</p>
+                <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Portal Comercial</h1>
+                <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+                  Gerencie usuários, equipes, produtos, preços e conteúdos do módulo comercial.
+                </p>
+              </div>
+            </div>
+            <Badge variant="secondary" className="w-fit gap-2 px-3 py-1.5">
+              <span className="h-2 w-2 rounded-full bg-emerald-500" /> Operação ativa
+            </Badge>
+          </div>
         </div>
-      </div>
 
-      <Tabs defaultValue="dashboard">
-        <TabsList>
+        <Tabs defaultValue="dashboard" className="space-y-6">
+          <div className="-mx-1 overflow-x-auto px-1 pb-1">
+            <TabsList className="inline-flex h-auto min-w-max gap-1 rounded-xl border bg-muted/50 p-1">
           <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
           <TabsTrigger value="atores">Usuários</TabsTrigger>
           <TabsTrigger value="equipes">Equipes</TabsTrigger>
@@ -640,12 +656,20 @@ export default function AdminComercialPortal() {
           <TabsTrigger value="auditoria">Auditoria</TabsTrigger>
           <TabsTrigger value="configuracoes">Configurações</TabsTrigger>
           <TabsTrigger value="templates">Templates</TabsTrigger>
-        </TabsList>
+          <TabsTrigger value="marketing">Marketing</TabsTrigger>
+            </TabsList>
+          </div>
 
+        <TabsContent value="marketing" className="space-y-4">
+          <AdminComercialMarketingTab />
+        </TabsContent>
         <TabsContent value="templates" className="space-y-4 mt-4">
-          <div className="flex justify-end"><Button onClick={() => { setTemplateForm({ name: '', description: '', cover_url: '', header_text: '', footer_text: '' }); setTemplateDialogOpen(true); }}><Plus className="h-4 w-4 mr-1" />Novo template</Button></div>
-          <div className="grid gap-3 md:grid-cols-2">{quoteTemplates.map((template) => <Card key={template.id}><CardContent className="pt-5"><div className="flex items-start justify-between gap-3"><div><p className="font-medium">{template.name}</p><p className="text-sm text-muted-foreground">{template.description || 'Sem descrição'}</p></div>{template.is_default && <Badge>Padrão</Badge>}</div><div className="mt-3 flex gap-2"><Button size="sm" variant="outline" onClick={() => { setTemplateForm({ name: template.name, description: template.description || '', cover_url: template.cover_url || '', header_text: template.header_text || '', footer_text: template.footer_text || '' }); setTemplateDialogOpen(true); }}>Editar</Button><Button size="sm" variant="destructive" onClick={async () => { try { await comercialAdminApi.deleteQuoteTemplate(template.id); setQuoteTemplates((current) => current.filter((item) => item.id !== template.id)); toast({ title: 'Template excluído' }); } catch (error) { toast({ title: 'Não foi possível excluir', description: error instanceof Error ? error.message : 'Template em uso', variant: 'destructive' }); } }}>Excluir</Button></div></CardContent></Card>)}</div>
-          <Dialog open={templateDialogOpen} onOpenChange={setTemplateDialogOpen}><DialogContent><DialogHeader><DialogTitle>Template de proposta</DialogTitle></DialogHeader><div className="space-y-3"><Input placeholder="Nome" value={templateForm.name} onChange={(e) => setTemplateForm({ ...templateForm, name: e.target.value })} /><Input placeholder="Descrição" value={templateForm.description} onChange={(e) => setTemplateForm({ ...templateForm, description: e.target.value })} /><Input placeholder="URL da capa" value={templateForm.cover_url} onChange={(e) => setTemplateForm({ ...templateForm, cover_url: e.target.value })} /><Textarea placeholder="Cabeçalho" value={templateForm.header_text} onChange={(e) => setTemplateForm({ ...templateForm, header_text: e.target.value })} /><Textarea placeholder="Rodapé" value={templateForm.footer_text} onChange={(e) => setTemplateForm({ ...templateForm, footer_text: e.target.value })} /></div><DialogFooter><Button onClick={async () => { try { const response = await comercialAdminApi.createQuoteTemplate(templateForm); setQuoteTemplates((current) => [...current, response.template]); setTemplateDialogOpen(false); toast({ title: 'Template criado' }); } catch (error) { toast({ title: 'Erro ao criar template', description: error instanceof Error ? error.message : 'Tente novamente', variant: 'destructive' }); } }}>Salvar</Button></DialogFooter></DialogContent></Dialog>
+          <div className="flex justify-end"><Button onClick={() => { setEditingTemplateId(null); setTemplatePriceListIds([]); setTemplateForm({ name: '', description: '', cover_url: '', header_text: '', footer_text: '' }); setTemplateDialogOpen(true); }}><Plus className="h-4 w-4 mr-1" />Novo template</Button></div>
+          <div className="grid gap-3 md:grid-cols-2">{quoteTemplates.map((template) => {
+            const assignedLists = priceLists.filter((list) => (list.allowed_templates || []).includes(template.id));
+            return <Card key={template.id}><CardContent className="pt-5"><div className="flex items-start justify-between gap-3"><div><p className="font-medium">{template.name}</p><p className="text-sm text-muted-foreground">{template.description || 'Sem descrição'}</p>{assignedLists.length > 0 && <p className="mt-2 text-xs text-muted-foreground">Tabelas: {assignedLists.map((list) => list.name).join(', ')}</p>}</div>{template.is_default && <Badge>Padrão</Badge>}</div><div className="mt-3 flex gap-2"><Button size="sm" variant="outline" onClick={() => { setEditingTemplateId(template.id); setTemplatePriceListIds(assignedLists.map((list) => list.id)); setTemplateForm({ name: template.name, description: template.description || '', cover_url: template.cover_url || '', header_text: template.header_text || '', footer_text: template.footer_text || '' }); setTemplateDialogOpen(true); }}>Editar</Button><Button size="sm" variant="destructive" onClick={async () => { try { await comercialAdminApi.deleteQuoteTemplate(template.id); setQuoteTemplates((current) => current.filter((item) => item.id !== template.id)); toast({ title: 'Template excluído' }); load(); } catch (error) { toast({ title: 'Não foi possível excluir', description: error instanceof Error ? error.message : 'Template em uso', variant: 'destructive' }); } }}>Excluir</Button></div></CardContent></Card>;
+          })}</div>
+          <Dialog open={templateDialogOpen} onOpenChange={setTemplateDialogOpen}><DialogContent><DialogHeader><DialogTitle>{editingTemplateId ? 'Editar template de proposta' : 'Novo template de proposta'}</DialogTitle></DialogHeader><div className="max-h-[70vh] space-y-4 overflow-y-auto pr-1"><Input placeholder="Nome" value={templateForm.name} onChange={(e) => setTemplateForm({ ...templateForm, name: e.target.value })} /><Input placeholder="Descrição" value={templateForm.description} onChange={(e) => setTemplateForm({ ...templateForm, description: e.target.value })} /><div className="space-y-2"><Label htmlFor="quote-template-cover">Imagem de capa</Label><Input id="quote-template-cover" type="file" accept="image/*" disabled={isUploading} onChange={async (e) => { const file = e.target.files?.[0]; if (!file) return; try { if (!file.type.startsWith('image/')) throw new Error('Selecione um arquivo de imagem'); const url = await uploadFile(file); if (url) setTemplateForm((current) => ({ ...current, cover_url: url })); } catch (error) { toast({ title: 'Erro ao enviar capa', description: error instanceof Error ? error.message : 'Tente novamente', variant: 'destructive' }); } finally { e.target.value = ''; } }} />{isUploading && <p className="text-sm text-muted-foreground">Enviando imagem…</p>}{templateForm.cover_url && <div className="flex items-center gap-3"><img src={templateForm.cover_url} alt="Prévia da capa" className="h-24 w-20 rounded border object-cover" /><Button type="button" size="sm" variant="outline" onClick={() => setTemplateForm((current) => ({ ...current, cover_url: '' }))}>Remover capa</Button></div>}</div><div className="space-y-2"><Label>Tabelas de preço em que pode ser usado</Label>{priceLists.length === 0 ? <p className="text-sm text-muted-foreground">Nenhuma tabela de preço cadastrada.</p> : priceLists.map((list) => <label key={list.id} className="flex items-center gap-2 text-sm"><Checkbox checked={templatePriceListIds.includes(list.id)} onCheckedChange={(checked) => setTemplatePriceListIds((current) => checked ? [...current, list.id] : current.filter((id) => id !== list.id))} />{list.name}</label>)}</div><Textarea placeholder="Cabeçalho" value={templateForm.header_text} onChange={(e) => setTemplateForm({ ...templateForm, header_text: e.target.value })} /><Textarea placeholder="Rodapé" value={templateForm.footer_text} onChange={(e) => setTemplateForm({ ...templateForm, footer_text: e.target.value })} /></div><DialogFooter><Button disabled={isUploading || saving} onClick={async () => { if (!templateForm.name.trim()) { toast({ title: 'Nome é obrigatório', variant: 'destructive' }); return; } setSaving(true); try { const response = editingTemplateId ? await comercialAdminApi.updateQuoteTemplate(editingTemplateId, templateForm) : await comercialAdminApi.createQuoteTemplate(templateForm); const savedTemplate = response.template; setQuoteTemplates((current) => editingTemplateId ? current.map((item) => item.id === savedTemplate.id ? savedTemplate : item) : [...current, savedTemplate]); try { for (const list of priceLists) { const oldIds = list.allowed_templates || []; const wasAssigned = oldIds.includes(savedTemplate.id); const shouldAssign = templatePriceListIds.includes(list.id); if (wasAssigned === shouldAssign) continue; const templateIds = shouldAssign ? [...new Set([...oldIds, savedTemplate.id])] : oldIds.filter((id) => id !== savedTemplate.id); await comercialAdminApi.setPriceListTemplates(list.id, { template_ids: templateIds, default_template_id: templateIds.includes(list.default_template_id || '') ? list.default_template_id : null }); } } catch (associationError) { load(); toast({ title: 'Template salvo, mas falhou ao atualizar tabelas', description: associationError instanceof Error ? associationError.message : 'Tente novamente', variant: 'destructive' }); return; } setTemplateDialogOpen(false); load(); toast({ title: editingTemplateId ? 'Template atualizado' : 'Template criado' }); } catch (error) { toast({ title: 'Erro ao salvar template', description: error instanceof Error ? error.message : 'Tente novamente', variant: 'destructive' }); } finally { setSaving(false); } }}>Salvar</Button></DialogFooter></DialogContent></Dialog>
         </TabsContent>
 
         <TabsContent value="configuracoes" className="space-y-4 mt-4">
@@ -1472,6 +1496,7 @@ export default function AdminComercialPortal() {
           {temporaryPassword && <div className="space-y-4"><p className="text-sm">Usuário: <strong>{temporaryPassword.actorName}</strong> ({temporaryPassword.email})</p><Input readOnly value={temporaryPassword.password} className="font-mono" /><p className="text-xs text-muted-foreground">Copie agora. Por segurança, esta senha não será exibida novamente. O usuário deverá trocá-la no primeiro acesso.</p><Button onClick={async () => { await navigator.clipboard.writeText(temporaryPassword.password); toast({ title: 'Senha copiada' }); }}>Copiar senha</Button></div>}
         </DialogContent>
       </Dialog>
+      </div>
     </MainLayout>
   );
 }

@@ -6048,6 +6048,64 @@ CREATE INDEX IF NOT EXISTS idx_com_audit_logs_entity ON com_audit_logs(entity_ty
 // migrados automaticamente (não dá pra criar login externo sem decidir
 // e-mail/senha por conta própria) — precisam ser convidados manualmente
 // pelo admin do Portal Comercial depois.
+// Marketing module: organization-scoped campaign content and safe upload references.
+const step80Marketing = `
+CREATE TABLE IF NOT EXISTS com_marketing_categories (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(), organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  name VARCHAR(255) NOT NULL, description TEXT, is_active BOOLEAN NOT NULL DEFAULT true, position INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), UNIQUE (organization_id, name)
+);
+CREATE INDEX IF NOT EXISTS idx_com_marketing_categories_org ON com_marketing_categories(organization_id, position);
+CREATE TABLE IF NOT EXISTS com_marketing_materials (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(), organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  category_id UUID REFERENCES com_marketing_categories(id) ON DELETE SET NULL, title VARCHAR(255) NOT NULL, description TEXT,
+  file_url TEXT NOT NULL, thumbnail_url TEXT, material_type VARCHAR(80), original_name VARCHAR(255), mime_type VARCHAR(120), file_size BIGINT, is_active BOOLEAN NOT NULL DEFAULT true, is_published BOOLEAN NOT NULL DEFAULT false,
+  position INTEGER NOT NULL DEFAULT 0, download_count INTEGER NOT NULL DEFAULT 0, is_org_wide BOOLEAN NOT NULL DEFAULT true, created_by UUID REFERENCES users(id) ON DELETE SET NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+ALTER TABLE com_marketing_materials ADD COLUMN IF NOT EXISTS material_type VARCHAR(80) NOT NULL DEFAULT 'support';
+ALTER TABLE com_marketing_materials ADD COLUMN IF NOT EXISTS is_org_wide BOOLEAN NOT NULL DEFAULT true;
+CREATE INDEX IF NOT EXISTS idx_com_marketing_materials_org ON com_marketing_materials(organization_id, position);
+CREATE TABLE IF NOT EXISTS com_marketing_assets (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(), organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  name VARCHAR(255) NOT NULL, file_name VARCHAR(255) NOT NULL, url TEXT NOT NULL, mime_type VARCHAR(120), size_bytes BIGINT,
+  created_by UUID REFERENCES users(id) ON DELETE SET NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_com_marketing_assets_org ON com_marketing_assets(organization_id, created_at DESC);
+CREATE TABLE IF NOT EXISTS com_marketing_campaigns (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(), organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  name VARCHAR(255) NOT NULL, description TEXT, status VARCHAR(30) NOT NULL DEFAULT 'draft', channel VARCHAR(40) NOT NULL DEFAULT 'email',
+  subject VARCHAR(255), content TEXT, asset_id UUID REFERENCES com_marketing_assets(id) ON DELETE SET NULL,
+  public_token VARCHAR(96) UNIQUE, starts_at TIMESTAMPTZ, ends_at TIMESTAMPTZ,
+  created_by UUID REFERENCES users(id) ON DELETE SET NULL, updated_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_com_marketing_campaigns_org ON com_marketing_campaigns(organization_id, updated_at DESC);
+CREATE TABLE IF NOT EXISTS com_marketing_events (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(), campaign_id UUID NOT NULL REFERENCES com_marketing_campaigns(id) ON DELETE CASCADE,
+  event_type VARCHAR(40) NOT NULL, visitor_key VARCHAR(255), metadata JSONB NOT NULL DEFAULT '{}'::jsonb, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_com_marketing_events_campaign ON com_marketing_events(campaign_id, created_at DESC);
+`;
+
+const step81ComercialPdfCatalogs = `
+CREATE TABLE IF NOT EXISTS com_comercial_catalogs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(), organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  title VARCHAR(255) NOT NULL, description TEXT, file_url TEXT NOT NULL, original_name VARCHAR(255), mime_type VARCHAR(120) NOT NULL DEFAULT 'application/pdf', file_size BIGINT,
+  is_active BOOLEAN NOT NULL DEFAULT true, is_published BOOLEAN NOT NULL DEFAULT false, is_org_wide BOOLEAN NOT NULL DEFAULT true,
+  valid_from DATE, valid_until DATE, position INTEGER NOT NULL DEFAULT 0, download_count INTEGER NOT NULL DEFAULT 0,
+  created_by UUID REFERENCES users(id) ON DELETE SET NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE TABLE IF NOT EXISTS com_comercial_catalog_teams (
+  catalog_id UUID NOT NULL REFERENCES com_comercial_catalogs(id) ON DELETE CASCADE, team_id UUID NOT NULL REFERENCES com_teams(id) ON DELETE CASCADE,
+  PRIMARY KEY (catalog_id, team_id)
+);
+CREATE TABLE IF NOT EXISTS com_comercial_catalog_actors (
+  catalog_id UUID NOT NULL REFERENCES com_comercial_catalogs(id) ON DELETE CASCADE, actor_id UUID NOT NULL REFERENCES com_actors(id) ON DELETE CASCADE,
+  PRIMARY KEY (catalog_id, actor_id)
+);
+CREATE INDEX IF NOT EXISTS idx_com_comercial_catalogs_org ON com_comercial_catalogs(organization_id, is_published, position);
+`;
+
 const step79MigrateRepPortalData = `
 DO $$ BEGIN
   ALTER TABLE com_customers ADD COLUMN legacy_rep_portal_company_id UUID;
@@ -6382,6 +6440,8 @@ const migrationSteps = [
   { name: 'Portal Comercial (Comissão)', sql: step77ComercialCommission, critical: false },
   { name: 'Portal Comercial (Auditoria)', sql: step78ComercialAudit, critical: false },
   { name: 'Portal Comercial (Migração de dados do rep_portal_* antigo)', sql: step79MigrateRepPortalData, critical: false },
+  { name: 'Portal Comercial (Marketing)', sql: step80Marketing, critical: false },
+  { name: 'Portal Comercial (Catálogos PDF)', sql: step81ComercialPdfCatalogs, critical: false },
 ];
 
 
