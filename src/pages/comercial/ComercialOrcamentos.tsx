@@ -10,6 +10,8 @@ const ComercialOrcamentos = () => (
         listQuotes={comercialExternalApi.listQuotes}
         createQuote={comercialExternalApi.createQuote}
         listCustomers={comercialExternalApi.listCustomers}
+        createCustomer={comercialExternalApi.createCustomer}
+        listMyPriceLists={comercialExternalApi.listMyPriceLists}
       />
     )}
   </ComercialLayout>

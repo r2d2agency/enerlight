@@ -57,10 +57,13 @@ const generateModernPortraitPDF = async (quote: any, organization: any) => {
   const fileName = (quote.client_name || 'proposta').replace(/\s+/g, '-').toLowerCase(); doc.save(`proposta-${fileName}-vertical.pdf`);
 };
 
-export const generateQuotePDF = async (quote: any, organization: any, options: { layout?: 'classic-landscape' | 'modern-portrait' } = {}) => {
+export const generateQuotePDF = async (quote: any, organization: any, options: { layout?: 'classic-landscape' | 'modern-portrait'; include_cover?: boolean } = {}) => {
   if (!quote) {
     console.error("No quote data provided to generateQuotePDF");
     return;
+  }
+  if (options.include_cover === false) {
+    quote = { ...quote, template: quote.template ? { ...quote.template, cover_url: undefined } : undefined, template_cover: undefined, cover_image_url: undefined };
   }
   if (options.layout === 'modern-portrait' || quote.pdf_layout === 'modern-portrait' || quote.template?.pdf_layout === 'modern-portrait') {
     await generateModernPortraitPDF(quote, organization);

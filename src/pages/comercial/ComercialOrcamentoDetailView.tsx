@@ -46,6 +46,9 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
 
   const [detail, setDetail] = useState<ComercialQuoteDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [pdfDialogOpen, setPdfDialogOpen] = useState(false);
+  const [pdfLayout, setPdfLayout] = useState<'classic-landscape' | 'modern-portrait'>('modern-portrait');
+  const [includeCover, setIncludeCover] = useState(true);
   const [saving, setSaving] = useState(false);
   const [sending, setSending] = useState(false);
   const [converting, setConverting] = useState(false);
@@ -219,7 +222,7 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
     toast({ title: 'Link copiado' });
   };
 
-  const handleDownloadPdf = (layout: 'classic-landscape' | 'modern-portrait' = 'modern-portrait') => {
+  const handleDownloadPdf = (layout: 'classic-landscape' | 'modern-portrait' = 'modern-portrait', withCover = true) => {
     generateQuotePDF(
       {
         id: quote.id,
@@ -245,9 +248,11 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
         })),
       },
       { name: quote.organization_name, logo_url: quote.organization_logo_url },
-      { layout }
+      { layout, include_cover: withCover }
     );
   };
+
+  const availableCover = quote.template?.cover_url || quote.template_cover || quote.cover_image_url;
 
   return (
     <div className="space-y-4 pb-8">
@@ -270,15 +275,10 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
       </div>
 
       <div className="flex flex-wrap gap-2 border-y py-3 -mx-1 px-1 sm:border-none sm:py-0 sm:mx-0 sm:px-0">
-        {items.length > 0 && (
-          <Button variant="outline" size="sm" onClick={() => handleDownloadPdf('modern-portrait')} className="flex-1 sm:flex-none min-w-[9rem] sm:min-w-0">
-            <Download className="h-4 w-4 mr-1" />
-            PDF vertical
-          </Button>)}
-          {items.length > 0 && <Button variant="outline" size="sm" onClick={() => handleDownloadPdf('classic-landscape')} className="flex-1 sm:flex-none min-w-[9rem] sm:min-w-0">
-            <Download className="h-4 w-4 mr-1" />
-            PDF horizontal
-          </Button>}
+        {items.length > 0 && <>
+          <Button variant="outline" size="sm" onClick={() => { setPdfLayout('modern-portrait'); setIncludeCover(Boolean(availableCover)); setPdfDialogOpen(true); }} className="flex-1 sm:flex-none min-w-[9rem] sm:min-w-0"><Download className="h-4 w-4 mr-1" />PDF vertical</Button>
+          <Button variant="outline" size="sm" onClick={() => { setPdfLayout('classic-landscape'); setIncludeCover(Boolean(availableCover)); setPdfDialogOpen(true); }} className="flex-1 sm:flex-none min-w-[9rem] sm:min-w-0"><Download className="h-4 w-4 mr-1" />PDF horizontal</Button>
+        </>}
         {quote.public_token && (
           <Button variant="outline" size="sm" onClick={handleCopyLink} className="flex-1 sm:flex-none min-w-[9rem] sm:min-w-0">
             <Copy className="h-4 w-4 mr-1" />
@@ -298,6 +298,14 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
           </Button>
         )}
       </div>
+
+      <Dialog open={pdfDialogOpen} onOpenChange={setPdfDialogOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Gerar PDF {pdfLayout === 'modern-portrait' ? 'vertical' : 'horizontal'}</DialogTitle></DialogHeader>
+          <div className="space-y-3 text-sm"><p className="text-muted-foreground">Escolha se deseja incluir a capa vinculada ao template/tabela deste orçamento.</p><label className="flex items-center gap-2"><input type="checkbox" checked={includeCover} disabled={!availableCover} onChange={(event) => setIncludeCover(event.target.checked)} />Incluir capa{!availableCover && ' (nenhuma capa disponível)'}</label>{availableCover && <img src={availableCover} alt="Capa do orçamento" className="max-h-40 w-full rounded border object-cover" />}</div>
+          <DialogFooter><Button onClick={() => { setPdfDialogOpen(false); handleDownloadPdf(pdfLayout, includeCover); }}><Download className="mr-2 h-4 w-4" />Gerar PDF</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <div className="grid md:grid-cols-3 gap-4">
         <div className="md:col-span-3 grid md:grid-cols-2 gap-4 order-first">
@@ -498,7 +506,7 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
             </CardContent>
           </Card>
 
-          {false && history.length > 0 && (
+          {history.length > 0 && (
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-base">Histórico</CardTitle>

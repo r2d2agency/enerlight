@@ -11,6 +11,8 @@ export default function PortalComercialOrcamentos() {
           listQuotes={comercialInternalApi.listQuotes}
           createQuote={comercialInternalApi.createQuote}
           listCustomers={comercialInternalApi.listCustomers}
+          createCustomer={comercialInternalApi.createCustomer}
+          listMyPriceLists={comercialInternalApi.listMyPriceLists}
         />
       )}
     </PortalComercialShell>

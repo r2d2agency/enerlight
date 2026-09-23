@@ -116,6 +116,9 @@ export interface ComercialQuote {
   customer_name?: string | null;
   customer_email?: string | null;
   price_list_id?: string | null;
+  template?: { cover_url?: string | null; pdf_layout?: 'classic-landscape' | 'modern-portrait' | null } | null;
+  template_cover?: string | null;
+  cover_image_url?: string | null;
   quote_number?: string | null;
   status: ComercialQuoteStatus;
   client_name: string;

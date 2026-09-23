@@ -1,14 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { ComercialCustomer, ComercialQuote, ComercialQuoteListItem, ComercialQuoteStatus } from '@/lib/comercial-api';
-import { Loader2, Plus, FileText } from 'lucide-react';
+import { ComercialCustomer, ComercialMyPriceList, ComercialQuote, ComercialQuoteListItem, ComercialQuoteStatus } from '@/lib/comercial-api';
+import { Loader2, Plus, FileText, Search, UserPlus } from 'lucide-react';
 
 const statusConfig: Record<ComercialQuoteStatus, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
   draft: { label: 'Rascunho', variant: 'secondary' },
@@ -30,17 +31,25 @@ const formatCurrency = (value: number) =>
 interface Props {
   basePath: string;
   listQuotes: () => Promise<{ quotes: ComercialQuoteListItem[] }>;
-  createQuote: (body: { customer_id: string }) => Promise<{ quote: ComercialQuote }>;
+  createQuote: (body: { customer_id: string; price_list_id?: string }) => Promise<{ quote: ComercialQuote }>;
   listCustomers: () => Promise<{ customers: ComercialCustomer[] }>;
+  createCustomer: (body: Partial<ComercialCustomer>) => Promise<{ customer: ComercialCustomer }>;
+  listMyPriceLists: () => Promise<{ price_lists: ComercialMyPriceList[] }>;
 }
 
-export default function ComercialOrcamentosView({ basePath, listQuotes, createQuote, listCustomers }: Props) {
+export default function ComercialOrcamentosView({ basePath, listQuotes, createQuote, listCustomers, createCustomer, listMyPriceLists }: Props) {
   const [quotes, setQuotes] = useState<ComercialQuoteListItem[]>([]);
   const [customers, setCustomers] = useState<ComercialCustomer[]>([]);
+  const [priceLists, setPriceLists] = useState<ComercialMyPriceList[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
+  const [selectedPriceListId, setSelectedPriceListId] = useState('');
+  const [customerSearch, setCustomerSearch] = useState('');
+  const [newCustomerOpen, setNewCustomerOpen] = useState(false);
+  const [newCustomer, setNewCustomer] = useState({ company_name: '', cnpj: '', email: '', phone: '' });
   const [creating, setCreating] = useState(false);
+  const [savingCustomer, setSavingCustomer] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -56,10 +65,42 @@ export default function ComercialOrcamentosView({ basePath, listQuotes, createQu
 
   const openDialog = () => {
     setSelectedCustomerId('');
+    setCustomerSearch('');
+    setSelectedPriceListId('');
     setDialogOpen(true);
-    if (customers.length === 0) {
-      listCustomers().then((res) => setCustomers(res.customers)).catch(() => {});
+    Promise.all([
+      customers.length === 0 ? listCustomers() : Promise.resolve({ customers }),
+      priceLists.length === 0 ? listMyPriceLists() : Promise.resolve({ price_lists: priceLists }),
+    ]).then(([customerResponse, priceListResponse]) => {
+      setCustomers(customerResponse.customers);
+      setPriceLists(priceListResponse.price_lists);
+      if (priceListResponse.price_lists.length === 1) setSelectedPriceListId(priceListResponse.price_lists[0].id);
+      else setSelectedPriceListId(priceListResponse.price_lists.find((list) => list.is_default)?.id || '');
+    }).catch(() => {});
+  };
+
+  const filteredCustomers = useMemo(() => {
+    const term = customerSearch.trim().toLowerCase();
+    if (!term) return customers;
+    return customers.filter((customer) => [customer.company_name, customer.trade_name, customer.cnpj, customer.cpf, customer.email].filter(Boolean).some((value) => String(value).toLowerCase().includes(term)));
+  }, [customers, customerSearch]);
+
+  const handleSaveCustomer = async () => {
+    if (!newCustomer.company_name.trim()) {
+      toast({ title: 'Informe o nome do cliente', variant: 'destructive' });
+      return;
     }
+    setSavingCustomer(true);
+    try {
+      const response = await createCustomer({ ...newCustomer, type: 'pj', status: 'active' });
+      setCustomers((current) => [response.customer, ...current]);
+      setSelectedCustomerId(response.customer.id);
+      setNewCustomerOpen(false);
+      setNewCustomer({ company_name: '', cnpj: '', email: '', phone: '' });
+      toast({ title: 'Cliente cadastrado' });
+    } catch (error) {
+      toast({ title: 'Não foi possível cadastrar o cliente', description: error instanceof Error ? error.message : 'Tente novamente.', variant: 'destructive' });
+    } finally { setSavingCustomer(false); }
   };
 
   const handleCreate = async () => {
@@ -69,7 +110,7 @@ export default function ComercialOrcamentosView({ basePath, listQuotes, createQu
     }
     setCreating(true);
     try {
-      const res = await createQuote({ customer_id: selectedCustomerId });
+      const res = await createQuote({ customer_id: selectedCustomerId, price_list_id: selectedPriceListId || undefined });
       setDialogOpen(false);
       navigate(`${basePath}/${res.quote.id}`);
     } catch (error) {
@@ -98,16 +139,17 @@ export default function ComercialOrcamentosView({ basePath, listQuotes, createQu
             <DialogHeader>
               <DialogTitle>Novo orçamento</DialogTitle>
             </DialogHeader>
-            <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">Selecione o cliente para iniciar o orçamento.</p>
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">Pesquise por nome, CNPJ ou e-mail para iniciar o orçamento.</p>
+              <div className="relative"><Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" /><Input className="pl-9" placeholder="Nome, CNPJ ou e-mail" value={customerSearch} onChange={(event) => setCustomerSearch(event.target.value)} /></div>
               <Select value={selectedCustomerId} onValueChange={setSelectedCustomerId}>
                 <SelectTrigger><SelectValue placeholder="Selecione um cliente" /></SelectTrigger>
-                <SelectContent>
-                  {customers.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>{c.company_name}</SelectItem>
-                  ))}
-                </SelectContent>
+                <SelectContent>{filteredCustomers.map((c) => <SelectItem key={c.id} value={c.id}>{c.company_name}{c.cnpj ? ` · ${c.cnpj}` : ''}</SelectItem>)}</SelectContent>
               </Select>
+              {filteredCustomers.length === 0 && <p className="text-xs text-muted-foreground">Nenhum cliente encontrado.</p>}
+              <Button type="button" variant="outline" className="w-full" onClick={() => setNewCustomerOpen(true)}><UserPlus className="mr-2 h-4 w-4" />Cadastrar novo cliente</Button>
+              {priceLists.length > 1 && <Select value={selectedPriceListId} onValueChange={setSelectedPriceListId}><SelectTrigger><SelectValue placeholder="Selecione a tabela de preço" /></SelectTrigger><SelectContent>{priceLists.map((list) => <SelectItem key={list.id} value={list.id}>{list.name}{list.is_default ? ' · padrão' : ''}</SelectItem>)}</SelectContent></Select>}
+              {priceLists.length === 1 && <p className="text-xs text-muted-foreground">Tabela aplicada: {priceLists[0].name}</p>}
             </div>
             <DialogFooter>
               <Button onClick={handleCreate} disabled={creating}>
@@ -115,6 +157,18 @@ export default function ComercialOrcamentosView({ basePath, listQuotes, createQu
                 Continuar
               </Button>
             </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        <Dialog open={newCustomerOpen} onOpenChange={setNewCustomerOpen}>
+          <DialogContent>
+            <DialogHeader><DialogTitle>Cadastrar cliente</DialogTitle></DialogHeader>
+            <div className="space-y-3">
+              <Input placeholder="Nome / razão social" value={newCustomer.company_name} onChange={(event) => setNewCustomer({ ...newCustomer, company_name: event.target.value })} />
+              <Input placeholder="CNPJ" value={newCustomer.cnpj} onChange={(event) => setNewCustomer({ ...newCustomer, cnpj: event.target.value })} />
+              <Input placeholder="E-mail" type="email" value={newCustomer.email} onChange={(event) => setNewCustomer({ ...newCustomer, email: event.target.value })} />
+              <Input placeholder="Telefone" value={newCustomer.phone} onChange={(event) => setNewCustomer({ ...newCustomer, phone: event.target.value })} />
+            </div>
+            <DialogFooter><Button onClick={handleSaveCustomer} disabled={savingCustomer}>{savingCustomer && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Salvar cliente</Button></DialogFooter>
           </DialogContent>
         </Dialog>
       </div>
