@@ -5,7 +5,7 @@ import { comercialExternalApi } from '@/lib/comercial-api';
 const ComercialDashboard = () => (
   <ComercialLayout>
     {(actor) => (
-      <ComercialDashboardView actor={actor} getDashboard={comercialExternalApi.getDashboard} listMyCommissions={comercialExternalApi.listMyCommissions} />
+      <ComercialDashboardView actor={actor} basePath="/comercial" getDashboard={comercialExternalApi.getDashboard} listMyCommissions={comercialExternalApi.listMyCommissions} />
     )}
   </ComercialLayout>
 );

@@ -6,7 +6,7 @@ export default function PortalComercialDashboard() {
   return (
     <PortalComercialShell>
       {(actor) => (
-        <ComercialDashboardView actor={actor} getDashboard={comercialInternalApi.getDashboard} listMyCommissions={comercialInternalApi.listMyCommissions} />
+        <ComercialDashboardView actor={actor} basePath="/portal-comercial" getDashboard={comercialInternalApi.getDashboard} listMyCommissions={comercialInternalApi.listMyCommissions} />
       )}
     </PortalComercialShell>
   );
