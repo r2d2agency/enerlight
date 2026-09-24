@@ -6064,6 +6064,8 @@ CREATE TABLE IF NOT EXISTS com_marketing_materials (
 );
 ALTER TABLE com_marketing_materials ADD COLUMN IF NOT EXISTS material_type VARCHAR(80) NOT NULL DEFAULT 'support';
 ALTER TABLE com_marketing_materials ADD COLUMN IF NOT EXISTS is_org_wide BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE com_marketing_materials ADD COLUMN IF NOT EXISTS copy_text TEXT;
+ALTER TABLE com_marketing_materials ADD COLUMN IF NOT EXISTS tags JSONB NOT NULL DEFAULT '[]'::jsonb;
 CREATE INDEX IF NOT EXISTS idx_com_marketing_materials_org ON com_marketing_materials(organization_id, position);
 CREATE TABLE IF NOT EXISTS com_marketing_assets (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(), organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,

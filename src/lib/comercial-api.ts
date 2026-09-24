@@ -340,8 +340,11 @@ export interface ComercialMarketingMaterial {
   file_url: string;
   download_url?: string;
   thumbnail_url?: string | null;
+  mime_type?: string | null;
   category?: { id: string; name: string } | string | null;
   download_url?: string;
+  copy_text?: string | null;
+  tags?: string[];
   position?: number;
 }
 
