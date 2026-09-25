@@ -3,20 +3,20 @@ import autoTable from "jspdf-autotable";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
-const loadRemoteImage = (url: string): Promise<string> => {
+const numberValue = (value: unknown): number => {
+  const parsed = typeof value === 'number' ? value : Number(String(value ?? '').replace(',', '.'));
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const loadRemoteImage = async (url: string): Promise<string> => {
+  const response = await fetch(url, { credentials: 'include' });
+  if (!response.ok) throw new Error(`Não foi possível carregar a capa (${response.status})`);
+  const blob = await response.blob();
   return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => {
-      const canvas = document.createElement("canvas");
-      canvas.width = img.width;
-      canvas.height = img.height;
-      const ctx = canvas.getContext("2d");
-      ctx?.drawImage(img, 0, 0);
-      resolve(canvas.toDataURL("image/png"));
-    };
-    img.onerror = reject;
-    img.src = url;
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error || new Error('Não foi possível ler a capa'));
+    reader.readAsDataURL(blob);
   });
 };
 
@@ -46,7 +46,10 @@ const generateModernPortraitPDF = async (quote: any, organization: any) => {
   if (clientExtra) { y += 5; doc.setTextColor(90, 100, 110); doc.setFontSize(8); doc.text(clientExtra, margin, y); }
   y += 13; doc.setTextColor(32, 45, 61); doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.text('CONDIÇÕES COMERCIAIS', margin, y);
   y += 7; doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(70, 80, 90);
-  const conditions = [`Pagamento: ${quote.payment_terms || 'A definir'}`, `Frete: ${(quote.shipping_type || 'cif').toUpperCase()} · ${currency.format(Number(quote.shipping_value || 0))}`, `Validade: ${quote.valid_until ? format(parseISO(quote.valid_until), 'dd/MM/yyyy') : 'A definir'}`];
+  const shippingValue = numberValue(quote.shipping_value);
+  const itemSubtotal = (quote.items || []).reduce((acc: number, item: any) => acc + numberValue(item.total_price), 0);
+  const totalValue = numberValue(quote.total_value) || itemSubtotal + shippingValue;
+  const conditions = [`Pagamento: ${quote.payment_terms || 'A definir'}`, `Frete: ${(quote.shipping_type || 'cif').toUpperCase()} · ${currency.format(shippingValue)}`, `Validade: ${quote.valid_until ? format(parseISO(quote.valid_until), 'dd/MM/yyyy') : 'A definir'}`];
   doc.text(conditions, margin, y, { lineHeightFactor: 1.5 }); y += conditions.length * 5 + 7;
   doc.setTextColor(32, 45, 61);
   autoTable(doc, { startY: y, margin: { left: margin, right: margin }, head: [['Produto', 'Qtd', 'Unitário', 'Desc.', 'Total']], body: (quote.items || []).map((item: any) => [item.product_name || 'Produto', item.quantity || 0, currency.format(item.unit_price || 0), `${Number(item.discount_value || item.discount_percent || 0).toFixed(2)}%`, currency.format(item.total_price || 0)]), theme: 'striped', headStyles: { fillColor: [32, 45, 61], textColor: 255, fontSize: 8 }, bodyStyles: { fontSize: 8, cellPadding: 3 }, columnStyles: { 0: { cellWidth: 67 }, 1: { halign: 'center', cellWidth: 18 }, 2: { halign: 'right', cellWidth: 31 }, 3: { halign: 'right', cellWidth: 22 }, 4: { halign: 'right', cellWidth: 35 } }, foot: [[{ content: 'TOTAL', colSpan: 4, styles: { halign: 'right', fontStyle: 'bold', fillColor: [230, 235, 240] } }, { content: currency.format(Number(quote.total_value || 0)), styles: { halign: 'right', fontStyle: 'bold', fillColor: [32, 45, 61], textColor: 255 } }]], showHead: 'everyPage' });
@@ -237,7 +240,7 @@ export const generateQuotePDF = async (quote: any, organization: any, options: {
     foot: [
       [
         { content: 'SUBTOTAL ITENS', colSpan: includeImages ? 5 : 4, styles: { halign: 'right', fontStyle: 'bold' as const, fillColor: [245, 245, 245], textColor: [40, 40, 40] } },
-        { content: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(quote.items?.reduce((acc: number, item: any) => acc + (item.total_price || 0), 0) || 0), styles: { fontStyle: 'bold' as const, fillColor: [245, 245, 245], halign: 'right', textColor: [40, 40, 40] } }
+        { content: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(itemSubtotal), styles: { fontStyle: 'bold' as const, fillColor: [245, 245, 245], halign: 'right', textColor: [40, 40, 40] } }
       ],
       ...(quote.shipping_value > 0 ? [[
         { content: `FRETE (${quote.shipping_type?.toUpperCase() || 'CIF'})`, colSpan: includeImages ? 5 : 4, styles: { halign: 'right', fontStyle: 'bold' as const, fillColor: [245, 245, 245], textColor: [40, 40, 40] } },
@@ -245,7 +248,7 @@ export const generateQuotePDF = async (quote: any, organization: any, options: {
       ]] : []),
       [
         { content: 'VALOR TOTAL', colSpan: includeImages ? 5 : 4, styles: { halign: 'right', fontStyle: 'bold' as const, fillColor: [40, 40, 40], textColor: [255, 255, 255] } },
-        { content: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(quote.total_value || 0), styles: { fontStyle: 'bold' as const, fillColor: [40, 40, 40], halign: 'right', textColor: [255, 255, 255] } }
+        { content: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalValue), styles: { fontStyle: 'bold' as const, fillColor: [40, 40, 40], halign: 'right', textColor: [255, 255, 255] } }
       ]
     ] as any,
   });

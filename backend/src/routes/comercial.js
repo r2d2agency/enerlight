@@ -568,7 +568,13 @@ async function createQuoteHandler(req, res) {
       'SELECT default_template_id FROM price_lists WHERE id = $1 AND organization_id = $2 AND is_active = true',
       [priceListId, req.actor.organization_id]
     );
-    const templateId = templateResult.rows[0]?.default_template_id || null;
+    const templateId = templateResult.rows[0]?.default_template_id || (await query(
+      `SELECT (allowed_templates->>0)::uuid AS id
+       FROM price_lists
+       WHERE id = $1 AND organization_id = $2 AND is_active = true
+         AND jsonb_array_length(COALESCE(allowed_templates, '[]'::jsonb)) > 0`,
+      [priceListId, req.actor.organization_id]
+    )).rows[0]?.id || null;
     const settingsResult = await query(
       'SELECT delivery_terms, payment_terms_options, default_shipping_type FROM online_quotes_config WHERE organization_id = $1',
       [req.actor.organization_id]

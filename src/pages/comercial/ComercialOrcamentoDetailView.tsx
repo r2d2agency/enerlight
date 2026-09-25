@@ -241,6 +241,9 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
         shipping_type: quote.shipping_type || 'cif',
         shipping_value: quote.freight_value,
         notes: quote.notes,
+        template: quote.template ? { ...quote.template, cover_url: resolveMediaUrl(quote.template.cover_url) } : undefined,
+        template_cover: resolveMediaUrl(quote.template_cover),
+        cover_image_url: resolveMediaUrl(quote.cover_image_url),
         total_value: quote.total_value,
         include_images: true,
         items: items.map((i) => ({
