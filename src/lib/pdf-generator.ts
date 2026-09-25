@@ -9,7 +9,7 @@ const numberValue = (value: unknown): number => {
 };
 
 const loadRemoteImage = async (url: string): Promise<string> => {
-  const response = await fetch(url, { credentials: 'include' });
+  const response = await fetch(url, { credentials: 'include', mode: 'cors' });
   if (!response.ok) throw new Error(`Não foi possível carregar a capa (${response.status})`);
   const blob = await response.blob();
   return new Promise((resolve, reject) => {
@@ -86,7 +86,7 @@ export const generateQuotePDF = async (quote: any, organization: any, options: {
   if (coverUrl) {
     try {
       const imgData = await loadRemoteImage(coverUrl);
-      doc.addImage(imgData, 'JPEG', 0, 0, pageWidth, pageHeight);
+      doc.addImage(imgData, 'PNG', 0, 0, pageWidth, pageHeight);
       doc.addPage();
     } catch (e) {
       console.error("Failed to add cover image", e);

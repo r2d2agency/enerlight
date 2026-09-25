@@ -228,8 +228,9 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
     toast({ title: 'Link copiado' });
   };
 
-  const handleDownloadPdf = (layout: 'classic-landscape' | 'modern-portrait' = 'modern-portrait', withCover = true) => {
-    generateQuotePDF(
+  const handleDownloadPdf = async (layout: 'classic-landscape' | 'modern-portrait' = 'modern-portrait', withCover = true) => {
+    try {
+      await generateQuotePDF(
       {
         id: quote.id,
         client_name: quote.client_name,
@@ -258,7 +259,10 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
       },
       { name: quote.organization_name, logo_url: quote.organization_logo_url },
       { layout, include_cover: withCover }
-    );
+      );
+    } catch (error) {
+      toast({ title: 'Erro ao gerar PDF', description: error instanceof Error ? error.message : 'Não foi possível gerar o PDF.', variant: 'destructive' });
+    }
   };
 
   const availableCover = resolveMediaUrl(quote.template?.cover_url || quote.template_cover || quote.cover_image_url);
