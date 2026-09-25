@@ -64,7 +64,13 @@ function MarketingContent({ internal = false }: { internal?: boolean }) {
   };
   const copy = async (text?: string | null) => { if (text) await navigator.clipboard.writeText(text); };
   const icon = (type?: string | null) => type === 'video' ? <Video className="h-5 w-5" /> : type === 'image' ? <Image className="h-5 w-5" /> : type === 'link' ? <LinkIcon className="h-5 w-5" /> : <FileText className="h-5 w-5" />;
-  const previewType = (item: ComercialMarketingMaterial) => item.material_type === 'video' ? 'video' : item.material_type === 'image' || item.mime_type?.startsWith('image/') ? 'image' : item.mime_type === 'application/pdf' ? 'pdf' : 'other';
+  const previewType = (item: ComercialMarketingMaterial) => {
+    const source = `${item.file_url || ''} ${item.mime_type || ''}`.toLowerCase();
+    if (item.material_type === 'video' || item.mime_type?.startsWith('video/')) return 'video';
+    if (item.material_type === 'image' || item.mime_type?.startsWith('image/') || /\.(jpe?g|png|gif|webp|bmp|svg)(\?|$)/.test(source)) return 'image';
+    if (item.mime_type === 'application/pdf' || /\.pdf(\?|$)/.test(source)) return 'pdf';
+    return 'other';
+  };
   const surface = internal ? 'border-[#22314A] bg-[#101927]' : '';
   const muted = internal ? 'text-[#9FB0C9]' : 'text-muted-foreground';
 
