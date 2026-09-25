@@ -564,11 +564,25 @@ async function createQuoteHandler(req, res) {
       return res.status(400).json({ error: 'Nenhuma tabela de preço disponível. Peça ao administrador para vincular uma tabela ao seu usuário.' });
     }
 
+    const templateResult = await query(
+      'SELECT default_template_id FROM price_lists WHERE id = $1 AND organization_id = $2 AND is_active = true',
+      [priceListId, req.actor.organization_id]
+    );
+    const templateId = templateResult.rows[0]?.default_template_id || null;
+    const settingsResult = await query(
+      'SELECT delivery_terms, payment_terms_options, default_shipping_type FROM online_quotes_config WHERE organization_id = $1',
+      [req.actor.organization_id]
+    );
+    const settings = settingsResult.rows[0] || {};
+    const paymentTerms = Array.isArray(settings.payment_terms_options) ? settings.payment_terms_options[0] || null : null;
+    const deliveryTime = Array.isArray(settings.delivery_terms) ? settings.delivery_terms[0] || null : null;
+    const shippingType = ['fob', 'cif'].includes(settings.default_shipping_type) ? settings.default_shipping_type : 'cif';
+
     const insert = await query(
       `INSERT INTO online_quotes
-         (organization_id, actor_id, customer_id, opportunity_id, price_list_id, status, client_name, client_document, client_email, client_phone)
-       VALUES ($1,$2,$3,$4,$5,'draft',$6,$7,$8,$9) RETURNING *`,
-      [req.actor.organization_id, req.actor.id, customer.id, opportunityId, priceListId, customer.company_name,
+         (organization_id, actor_id, customer_id, opportunity_id, price_list_id, template_id, payment_terms, delivery_time, shipping_type, status, client_name, client_document, client_email, client_phone)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'draft',$10,$11,$12,$13) RETURNING *`,
+      [req.actor.organization_id, req.actor.id, customer.id, opportunityId, priceListId, templateId, paymentTerms, deliveryTime, shippingType, customer.company_name,
         customer.cnpj || customer.cpf, customer.email, customer.phone || customer.whatsapp]
     );
     const numbered = await query(
@@ -596,8 +610,12 @@ async function getQuoteHandler(req, res) {
     params.push(req.params.id);
     const result = await query(
       `SELECT q.*, c.company_name as customer_name, c.email as customer_email, a.name as actor_name,
-              o.name as organization_name, o.logo_url as organization_logo_url
+              o.name as organization_name, o.logo_url as organization_logo_url,
+              t.cover_url as template_cover, t.cover_url as cover_image_url,
+              json_build_object('cover_url', t.cover_url, 'pdf_layout', NULL) as template
        FROM online_quotes q
+       LEFT JOIN price_lists pl ON pl.id = q.price_list_id
+       LEFT JOIN online_quote_templates t ON t.id = COALESCE(q.template_id, pl.default_template_id)
        LEFT JOIN com_customers c ON c.id = q.customer_id
        LEFT JOIN com_actors a ON a.id = q.actor_id
        LEFT JOIN organizations o ON o.id = q.organization_id
@@ -1682,6 +1700,14 @@ internalRouter.get('/vendas/:id', getSaleHandler);
 internalRouter.get('/dashboard', dashboardHandler);
 internalRouter.get('/comissoes/minhas', myCommissionsHandler);
 
+const quoteSettingsHandler = async (req, res) => {
+  const org = await marketingOrg(req);
+  if (!org) return res.status(403).json({ error: 'Sem organização' });
+  const result = await query('SELECT delivery_terms, payment_terms_options, default_shipping_type FROM online_quotes_config WHERE organization_id = $1', [org]);
+  res.json({ settings: result.rows[0] || { delivery_terms: [], payment_terms_options: [], default_shipping_type: 'cif' } });
+};
+router.get('/quote-settings', externalActorAuth, quoteSettingsHandler);
+internalRouter.get('/quote-settings', quoteSettingsHandler);
 router.use('/interno', internalRouter);
 
 // ---------------------------------------------------------------------------
@@ -1701,8 +1727,9 @@ adminRouter.get('/settings', gate('can_manage_comercial_portal'), async (req, re
 adminRouter.put('/settings', gate('can_manage_comercial_portal'), async (req, res) => {
   const org = await getUserOrg(req.userId);
   if (!org) return res.status(403).json({ error: 'Sem organização' });
-  const deliveryTerms = Array.isArray(req.body?.delivery_terms) ? req.body.delivery_terms.filter((v) => typeof v === 'string' && v.trim()) : [];
-  const paymentTerms = Array.isArray(req.body?.payment_terms_options) ? req.body.payment_terms_options.filter((v) => typeof v === 'string' && v.trim()) : [];
+  const normalizeOptions = (values) => [...new Set(values.filter((v) => typeof v === 'string').map((v) => v.trim()).filter(Boolean))];
+  const deliveryTerms = Array.isArray(req.body?.delivery_terms) ? normalizeOptions(req.body.delivery_terms) : [];
+  const paymentTerms = Array.isArray(req.body?.payment_terms_options) ? normalizeOptions(req.body.payment_terms_options) : [];
   const shippingType = ['fob', 'cif'].includes(req.body?.default_shipping_type) ? req.body.default_shipping_type : 'cif';
   const result = await query(`INSERT INTO online_quotes_config (organization_id, delivery_terms, payment_terms_options, default_shipping_type)
     VALUES ($1, $2::jsonb, $3::jsonb, $4) ON CONFLICT (organization_id) DO UPDATE SET delivery_terms = EXCLUDED.delivery_terms, payment_terms_options = EXCLUDED.payment_terms_options, default_shipping_type = EXCLUDED.default_shipping_type, updated_at = NOW() RETURNING *`,

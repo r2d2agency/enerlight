@@ -15,6 +15,7 @@ import {
 } from '@/lib/comercial-api';
 import { quoteStatusConfig, formatCurrency } from './ComercialOrcamentosView';
 import { generateQuotePDF } from '@/lib/pdf-generator';
+import { resolveMediaUrl } from '@/lib/media';
 import { Loader2, ArrowLeft, Plus, Trash2, Send, Copy, Download, ShoppingCart, Search } from 'lucide-react';
 
 interface QuoteApiBundle {
@@ -26,6 +27,7 @@ interface QuoteApiBundle {
   sendQuote: (id: string) => Promise<{ message: string; status: string; public_token?: string }>;
   convertQuoteToSale: (id: string) => Promise<{ sale: ComercialSale }>;
   listQuoteProducts: (id: string) => Promise<{ products: ComercialCatalogProduct[] }>;
+  getQuoteSettings?: () => Promise<{ settings: { delivery_terms: string[]; payment_terms_options: string[]; default_shipping_type: 'fob' | 'cif' } }>;
 }
 
 interface Props {
@@ -45,6 +47,9 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
   const { toast } = useToast();
 
   const [detail, setDetail] = useState<ComercialQuoteDetail | null>(null);
+  const [quoteSettings, setQuoteSettings] = useState({ delivery_terms: [] as string[], payment_terms_options: [] as string[], default_shipping_type: 'cif' as 'fob' | 'cif' });
+  const [customPayment, setCustomPayment] = useState(false);
+  const [customDelivery, setCustomDelivery] = useState(false);
   const [loading, setLoading] = useState(true);
   const [pdfDialogOpen, setPdfDialogOpen] = useState(false);
   const [pdfLayout, setPdfLayout] = useState<'classic-landscape' | 'modern-portrait'>('modern-portrait');
@@ -86,6 +91,7 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
   };
 
   useEffect(load, [id]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { api.getQuoteSettings?.().then(({ settings }) => setQuoteSettings({ delivery_terms: settings.delivery_terms || [], payment_terms_options: settings.payment_terms_options || [], default_shipping_type: settings.default_shipping_type || 'cif' })).catch(() => {}); }, [api]);
 
   if (loading || !detail) {
     return (
@@ -252,7 +258,7 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
     );
   };
 
-  const availableCover = quote.template?.cover_url || quote.template_cover || quote.cover_image_url;
+  const availableCover = resolveMediaUrl(quote.template?.cover_url || quote.template_cover || quote.cover_image_url);
 
   return (
     <div className="space-y-4 pb-8">
@@ -436,11 +442,11 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label>Condição de pagamento</Label>
-                  <Input disabled={!editable} value={form.payment_terms} onChange={(e) => setForm({ ...form, payment_terms: e.target.value })} placeholder="Ex: 30/60/90 dias" />
+                  {quoteSettings.payment_terms_options.length > 0 && !customPayment ? <Select disabled={!editable} value={form.payment_terms} onValueChange={(value) => { if (value === '__custom__') setCustomPayment(true); else setForm({ ...form, payment_terms: value }); }}><SelectTrigger><SelectValue placeholder="Selecione uma condição" /></SelectTrigger><SelectContent>{quoteSettings.payment_terms_options.map((option) => <SelectItem key={option} value={option}>{option}</SelectItem>)}<SelectItem value="__custom__">Outro / personalizado</SelectItem></SelectContent></Select> : <Input disabled={!editable} value={form.payment_terms} onChange={(e) => setForm({ ...form, payment_terms: e.target.value })} placeholder="Ex: 30/60/90 dias" />}{quoteSettings.payment_terms_options.length > 0 && customPayment && <Button type="button" size="sm" variant="link" onClick={() => setCustomPayment(false)}>Usar opções cadastradas</Button>}
                 </div>
                 <div className="space-y-1">
                   <Label>Prazo de entrega</Label>
-                  <Input disabled={!editable} value={form.delivery_time} onChange={(e) => setForm({ ...form, delivery_time: e.target.value })} placeholder="Ex: 15 dias úteis" />
+                  {quoteSettings.delivery_terms.length > 0 && !customDelivery ? <Select disabled={!editable} value={form.delivery_time} onValueChange={(value) => { if (value === '__custom__') setCustomDelivery(true); else setForm({ ...form, delivery_time: value }); }}><SelectTrigger><SelectValue placeholder="Selecione um prazo" /></SelectTrigger><SelectContent>{quoteSettings.delivery_terms.map((option) => <SelectItem key={option} value={option}>{option}</SelectItem>)}<SelectItem value="__custom__">Outro / personalizado</SelectItem></SelectContent></Select> : <Input disabled={!editable} value={form.delivery_time} onChange={(e) => setForm({ ...form, delivery_time: e.target.value })} placeholder="Ex: 15 dias úteis" />}{quoteSettings.delivery_terms.length > 0 && customDelivery && <Button type="button" size="sm" variant="link" onClick={() => setCustomDelivery(false)}>Usar opções cadastradas</Button>}
                 </div>
                 <div className="space-y-1">
                   <Label>Modalidade do frete</Label>

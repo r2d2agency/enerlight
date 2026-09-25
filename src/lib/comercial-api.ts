@@ -372,6 +372,7 @@ export const comercialExternalApi = {
 
   me: () => call<{ actor: ComercialActor }>('/api/comercial/me'),
   listMarketingMaterials: () => call<{ materials: ComercialMarketingMaterial[] }>('/api/comercial/marketing/materiais'),
+  getQuoteSettings: () => call<{ settings: { delivery_terms: string[]; payment_terms_options: string[]; default_shipping_type: 'fob' | 'cif' } }>('/api/comercial/quote-settings'),
   listCatalogs: () => call<{ catalogs: ComercialPdfCatalog[] }>('/api/comercial/catalogos'),
   downloadCatalog: (id: string) => call<{ url: string; filename: string }>(`/api/comercial/catalogos/${id}/download`),
   downloadMarketingMaterial: (id: string) => call<{ url?: string; file_url?: string; filename?: string }>(`/api/comercial/marketing/materiais/${id}/download`),
@@ -443,6 +444,7 @@ export const comercialInternalApi = {
   listCatalogs: () => api<{ catalogs: ComercialPdfCatalog[] }>('/api/comercial/interno/catalogos'),
   downloadCatalog: (id: string) => api<{ url: string; filename: string }>(`/api/comercial/interno/catalogos/${id}/download`),
   listMarketingMaterials: () => api<{ materials: ComercialMarketingMaterial[] }>('/api/comercial/interno/marketing/materiais'),
+  getQuoteSettings: () => api<{ settings: { delivery_terms: string[]; payment_terms_options: string[]; default_shipping_type: 'fob' | 'cif' } }>('/api/comercial/interno/quote-settings'),
   downloadMarketingMaterial: (id: string) => api<{ url?: string; file_url?: string; filename?: string }>(`/api/comercial/interno/marketing/materiais/${id}/download`),
   me: () => api<{ actor: ComercialActor }>('/api/comercial/interno/me'),
 
