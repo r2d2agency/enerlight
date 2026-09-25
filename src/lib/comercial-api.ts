@@ -343,7 +343,7 @@ export interface ComercialMarketingMaterial {
   mime_type?: string | null;
   original_name?: string | null;
   file_size?: number | null;
-  category?: { id: string; name: string } | string | null;
+  category?: { id: string; name: string; parent_id?: string | null; parent_name?: string | null } | string | null;
   download_url?: string;
   copy_text?: string | null;
   tags?: string[];

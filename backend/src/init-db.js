@@ -6056,6 +6056,8 @@ CREATE TABLE IF NOT EXISTS com_marketing_categories (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), UNIQUE (organization_id, name)
 );
 CREATE INDEX IF NOT EXISTS idx_com_marketing_categories_org ON com_marketing_categories(organization_id, position);
+ALTER TABLE com_marketing_categories ADD COLUMN IF NOT EXISTS parent_id UUID REFERENCES com_marketing_categories(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS idx_com_marketing_categories_parent ON com_marketing_categories(organization_id, parent_id, position);
 CREATE TABLE IF NOT EXISTS com_marketing_materials (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(), organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
   category_id UUID REFERENCES com_marketing_categories(id) ON DELETE SET NULL, title VARCHAR(255) NOT NULL, description TEXT,
