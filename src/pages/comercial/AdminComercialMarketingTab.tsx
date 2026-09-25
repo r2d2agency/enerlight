@@ -13,9 +13,15 @@ import { useToast } from '@/hooks/use-toast';
 import { ArrowDown, ArrowUp, Loader2, Pencil, Plus, Trash2, Upload } from 'lucide-react';
 
 export interface MarketingCategory { id: string; name: string; description?: string | null; is_active: boolean; position: number }
-export interface MarketingMaterial { id: string; category_id?: string | null; title: string; description?: string | null; file_url: string; thumbnail_url?: string | null; material_type?: string | null; copy_text?: string | null; tags?: string[]; is_active: boolean; is_published: boolean; position: number; category?: MarketingCategory | null }
+export interface MarketingMaterial { id: string; category_id?: string | null; title: string; description?: string | null; file_url: string; thumbnail_url?: string | null; material_type?: string | null; original_name?: string | null; mime_type?: string | null; file_size?: number | null; copy_text?: string | null; tags?: string[]; is_active: boolean; is_published: boolean; position: number; category?: MarketingCategory | null }
 
 const base = '/api/comercial/admin/marketing';
+const formatBytes = (bytes?: number | null) => !bytes ? '' : bytes < 1024 * 1024 ? `${Math.round(bytes / 1024)} KB` : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+const previewable = (material?: Partial<MarketingMaterial>) => {
+  const source = `${material?.file_url || ''} ${material?.original_name || ''} ${material?.mime_type || ''}`.toLowerCase();
+  const extension = source.split(/[?#]/)[0].split('.').pop() || '';
+  return material?.material_type === 'image' || material?.mime_type?.startsWith('image/') || ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'avif'].includes(extension);
+};
 export default function AdminComercialMarketingTab() {
   const { toast } = useToast(); const { uploadFile, isUploading, progress } = useUpload();
   const [categories, setCategories] = useState<MarketingCategory[]>([]); const [materials, setMaterials] = useState<MarketingMaterial[]>([]); const [loading, setLoading] = useState(true);
