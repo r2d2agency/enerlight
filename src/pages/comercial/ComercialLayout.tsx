@@ -31,8 +31,11 @@ const ComercialLayout = ({ children }: { children: (actor: ComercialActor) => Re
   useEffect(() => {
     const token = comercialToken.get();
     if (!token) { navigate('/comercial/login', { replace: true }); return; }
-    comercialExternalApi.me().then((res) => setActor(res.actor)).catch(() => {
-      comercialToken.clear(); navigate('/comercial/login', { replace: true });
+    comercialExternalApi.me().then((res) => setActor(res.actor)).catch((error) => {
+      // Não apagar uma sessão válida por erro transitório ou por rota de API.
+      // O token só é removido quando a API confirma uma sessão inválida (401).
+      if (error?.status === 401 || error?.status === 403) comercialToken.clear();
+      navigate('/comercial/login', { replace: true });
     }).finally(() => setLoading(false));
   }, [navigate]);
 
