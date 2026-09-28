@@ -2121,6 +2121,94 @@ adminRouter.delete('/teams/:id', gate('can_manage_comercial_portal'), async (req
   res.json({ message: 'Equipe removida' });
 });
 
+const TEAM_MEMBER_PROFILES = ['vendedor', 'parceiro'];
+
+async function getTeamForOrg(req, res) {
+  const org = await getUserOrg(req.userId);
+  if (!org) { res.status(403).json({ error: 'Sem organização' }); return null; }
+  const team = await query(
+    'SELECT * FROM com_teams WHERE id = $1 AND organization_id = $2',
+    [req.params.id, org.organization_id]
+  );
+  if (team.rows.length === 0) { res.status(404).json({ error: 'Equipe não encontrada' }); return null; }
+  return team.rows[0];
+}
+
+adminRouter.get('/teams/:id/members', gate('can_manage_comercial_portal'), async (req, res) => {
+  const team = await getTeamForOrg(req, res);
+  if (!team) return;
+  const result = await query(
+    `SELECT a.id, a.name, a.email, a.profile, a.status, a.team_id
+     FROM com_actors a WHERE a.team_id = $1 ORDER BY a.name ASC`,
+    [team.id]
+  );
+  res.json({ members: result.rows });
+});
+
+adminRouter.post('/teams/:id/members', gate('can_manage_comercial_portal'), async (req, res) => {
+  try {
+    const team = await getTeamForOrg(req, res);
+    if (!team) return;
+    const { actor_id } = req.body || {};
+    const actor = await query(
+      `SELECT id FROM com_actors WHERE id = $1 AND organization_id = $2 AND profile = ANY($3::varchar[])`,
+      [actor_id, team.organization_id, TEAM_MEMBER_PROFILES]
+    );
+    if (actor.rows.length === 0) return res.status(400).json({ error: 'Ator inválido para ser membro da equipe' });
+    await query('UPDATE com_actors SET team_id = $1, updated_at = NOW() WHERE id = $2', [team.id, actor_id]);
+    await logAudit(req, { action: 'team_member_added', entityType: 'com_actor', entityId: actor_id, newValue: { team_id: team.id } });
+    res.json({ message: 'Membro adicionado' });
+  } catch (error) {
+    console.error('[comercial] add team member error:', error);
+    res.status(500).json({ error: 'Erro ao adicionar membro' });
+  }
+});
+
+adminRouter.delete('/teams/:id/members/:actorId', gate('can_manage_comercial_portal'), async (req, res) => {
+  try {
+    const team = await getTeamForOrg(req, res);
+    if (!team) return;
+    const result = await query(
+      `UPDATE com_actors SET team_id = NULL, updated_at = NOW() WHERE id = $1 AND team_id = $2 AND profile = ANY($3::varchar[]) RETURNING id`,
+      [req.params.actorId, team.id, TEAM_MEMBER_PROFILES]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Membro não encontrado na equipe' });
+    await logAudit(req, { action: 'team_member_removed', entityType: 'com_actor', entityId: req.params.actorId, newValue: { team_id: team.id } });
+    res.json({ message: 'Membro removido' });
+  } catch (error) {
+    console.error('[comercial] remove team member error:', error);
+    res.status(500).json({ error: 'Erro ao remover membro' });
+  }
+});
+
+adminRouter.put('/teams/:id/supervisors', gate('can_manage_comercial_portal'), async (req, res) => {
+  try {
+    const team = await getTeamForOrg(req, res);
+    if (!team) return;
+    const { supervisor_actor_ids = [] } = req.body || {};
+    if (!Array.isArray(supervisor_actor_ids)) return res.status(400).json({ error: 'supervisor_actor_ids deve ser uma lista' });
+    const supervisorIds = [...new Set(supervisor_actor_ids.filter(Boolean))];
+    if (supervisorIds.length) {
+      const supervisors = await query(
+        `SELECT id FROM com_actors WHERE id = ANY($1::uuid[]) AND organization_id = $2 AND profile = 'gerente' AND status = 'active'`,
+        [supervisorIds, team.organization_id]
+      );
+      if (supervisors.rows.length !== supervisorIds.length) return res.status(400).json({ error: 'Um ou mais supervisores são inválidos' });
+    }
+    await query('DELETE FROM com_team_supervisors WHERE team_id = $1', [team.id]);
+    if (supervisorIds.length) await query(
+      `INSERT INTO com_team_supervisors (team_id, actor_id, created_by)
+       SELECT $1, unnest($2::uuid[]), $3`,
+      [team.id, supervisorIds, req.userId]
+    );
+    await logAudit(req, { action: 'team_supervisors_updated', entityType: 'com_team', entityId: team.id, newValue: { supervisor_actor_ids: supervisorIds } });
+    res.json({ message: 'Supervisores atualizados' });
+  } catch (error) {
+    console.error('[comercial] update team supervisors error:', error);
+    res.status(500).json({ error: 'Erro ao atualizar supervisores' });
+  }
+});
+
 // --- Catálogo de produtos ---
 
 adminRouter.get('/products', gate('can_manage_comercial_portal'), async (req, res) => {

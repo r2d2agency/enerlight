@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import {
-  comercialAdminApi, ComercialAdminActor, ComercialTeam, ComercialProfile,
+  comercialAdminApi, ComercialAdminActor, ComercialTeam, ComercialTeamMember, ComercialProfile,
   ComercialAdminProduct, ComercialActorPriceListEntry, ComercialTransferRequest, ComercialQuoteApproval,
   ComercialAdminPriceList, ComercialPriceListItem, ComercialQuoteTemplate,
 } from '@/lib/comercial-api';
@@ -27,7 +27,7 @@ import AdminComercialMarketingTab from './comercial/AdminComercialMarketingTab';
 import * as XLSX from 'xlsx';
 import {
   Loader2, Plus, Briefcase, Send, Lock, Unlock, UserPlus, Users2, Package, Tag, ArrowRightLeft, Check, X, KeyRound,
-  ShieldAlert, Upload, Trash2, List, Copy,
+  ShieldAlert, Upload, Trash2, List, Copy, Pencil, UserMinus,
 } from 'lucide-react';
 
 interface OrgMember { id: string; name: string; email: string; is_active: boolean }
@@ -72,6 +72,10 @@ export default function AdminComercialPortal() {
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const [teamDialogOpen, setTeamDialogOpen] = useState(false);
+  const [memberDialogTeam, setMemberDialogTeam] = useState<ComercialTeam | null>(null);
+  const [teamMembers, setTeamMembers] = useState<ComercialTeamMember[]>([]);
+  const [memberToAdd, setMemberToAdd] = useState('');
+  const [loadingMembers, setLoadingMembers] = useState(false);
   const [productDialogOpen, setProductDialogOpen] = useState(false);
   const [priceListDialogActor, setPriceListDialogActor] = useState<ComercialAdminActor | null>(null);
   const [actorPriceLists, setActorPriceLists] = useState<ComercialActorPriceListEntry[]>([]);
@@ -209,6 +213,45 @@ export default function AdminComercialPortal() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const openMembersDialog = async (team: ComercialTeam) => {
+    setMemberDialogTeam(team);
+    setMemberToAdd('');
+    setLoadingMembers(true);
+    try {
+      const response = await comercialAdminApi.listTeamMembers(team.id);
+      setTeamMembers(response.members);
+    } catch (error) {
+      toast({ title: 'Erro ao carregar membros', description: error instanceof Error ? error.message : 'Tente novamente.', variant: 'destructive' });
+    } finally { setLoadingMembers(false); }
+  };
+
+  const handleAddMember = async () => {
+    if (!memberDialogTeam || !memberToAdd) return;
+    setSaving(true);
+    try {
+      await comercialAdminApi.addTeamMember(memberDialogTeam.id, memberToAdd);
+      toast({ title: 'Membro adicionado à equipe' });
+      setMemberToAdd('');
+      await openMembersDialog(memberDialogTeam);
+      load();
+    } catch (error) {
+      toast({ title: 'Erro ao adicionar membro', description: error instanceof Error ? error.message : 'Tente novamente.', variant: 'destructive' });
+    } finally { setSaving(false); }
+  };
+
+  const handleRemoveMember = async (member: ComercialTeamMember) => {
+    if (!memberDialogTeam || !confirm(`Remover ${member.name} da equipe?`)) return;
+    setSaving(true);
+    try {
+      await comercialAdminApi.removeTeamMember(memberDialogTeam.id, member.id);
+      toast({ title: 'Membro removido da equipe' });
+      await openMembersDialog(memberDialogTeam);
+      load();
+    } catch (error) {
+      toast({ title: 'Erro ao remover membro', description: error instanceof Error ? error.message : 'Tente novamente.', variant: 'destructive' });
+    } finally { setSaving(false); }
   };
 
   const handleCreateTeam = async () => {
@@ -922,6 +965,7 @@ export default function AdminComercialPortal() {
                       <TableHead>Nome</TableHead>
                       <TableHead>Supervisores</TableHead>
                       <TableHead>Membros</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -930,6 +974,7 @@ export default function AdminComercialPortal() {
                         <TableCell className="font-medium">{team.name}</TableCell>
                         <TableCell><div className="flex flex-wrap gap-1">{(team.supervisors || []).map((supervisor) => <Badge key={supervisor.id} variant="secondary">{supervisor.name}</Badge>)}{!(team.supervisors || []).length && <span className="text-sm text-muted-foreground">Nenhum</span>}</div></TableCell>
                         <TableCell className="text-sm text-muted-foreground">{team.members_count}</TableCell>
+                        <TableCell className="text-right"><Button size="sm" variant="outline" onClick={() => openMembersDialog(team)}><Users2 className="mr-1 h-4 w-4" />Gerenciar membros</Button></TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -937,6 +982,22 @@ export default function AdminComercialPortal() {
               )}
             </CardContent>
           </Card>
+
+          <Dialog open={!!memberDialogTeam} onOpenChange={(open) => { if (!open) setMemberDialogTeam(null); }}>
+            <DialogContent className="max-w-lg">
+              <DialogHeader><DialogTitle>Gerenciar membros — {memberDialogTeam?.name}</DialogTitle></DialogHeader>
+              <div className="space-y-4">
+                <div className="flex gap-2">
+                  <Select value={memberToAdd} onValueChange={setMemberToAdd}>
+                    <SelectTrigger className="flex-1"><SelectValue placeholder="Selecione um representante" /></SelectTrigger>
+                    <SelectContent>{actors.filter((actor) => ['vendedor', 'parceiro'].includes(actor.profile) && actor.status === 'active' && !teamMembers.some((member) => member.id === actor.id)).map((actor) => <SelectItem key={actor.id} value={actor.id}>{actor.name} — {actor.email}{actor.team_id ? ' (será movido)' : ''}</SelectItem>)}</SelectContent>
+                  </Select>
+                  <Button onClick={handleAddMember} disabled={!memberToAdd || saving}>Adicionar</Button>
+                </div>
+                {loadingMembers ? <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin" /></div> : teamMembers.length === 0 ? <p className="py-8 text-center text-sm text-muted-foreground">Nenhum membro nesta equipe.</p> : <div className="space-y-2">{teamMembers.map((member) => <div key={member.id} className="flex items-center justify-between rounded border p-3"><div><p className="font-medium">{member.name}</p><p className="text-xs text-muted-foreground">{member.email} · {member.profile === 'vendedor' ? 'Vendedor' : 'Parceiro'}</p></div><Button size="sm" variant="ghost" disabled={saving} onClick={() => handleRemoveMember(member)}><UserMinus className="mr-1 h-4 w-4" />Remover</Button></div>)}</div>}
+              </div>
+            </DialogContent>
+          </Dialog>
         </TabsContent>
 
         <TabsContent value="produtos" className="space-y-4 mt-4">

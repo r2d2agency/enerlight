@@ -529,6 +529,15 @@ export interface ComercialTeamSupervisor {
   email?: string;
 }
 
+export interface ComercialTeamMember {
+  id: string;
+  name: string;
+  email: string;
+  profile: ComercialProfile;
+  status: 'pending' | 'active' | 'blocked';
+  team_id?: string | null;
+}
+
 export interface ComercialTeam {
   id: string;
   name: string;
@@ -536,6 +545,7 @@ export interface ComercialTeam {
   manager_name?: string | null;
   members_count: number;
   supervisors?: ComercialTeamSupervisor[];
+  members?: ComercialTeamMember[];
 }
 
 export interface ComercialAdminProduct {
@@ -728,6 +738,14 @@ export const comercialAdminApi = {
     api<{ team: ComercialTeam }>(`/api/comercial/admin/teams/${id}`, { method: 'PUT', body }),
   deleteTeam: (id: string) =>
     api<{ message: string }>(`/api/comercial/admin/teams/${id}`, { method: 'DELETE' }),
+  listTeamMembers: (id: string) =>
+    api<{ members: ComercialTeamMember[] }>(`/api/comercial/admin/teams/${id}/members`),
+  addTeamMember: (teamId: string, actorId: string) =>
+    api<{ message: string }>(`/api/comercial/admin/teams/${teamId}/members`, { method: 'POST', body: { actor_id: actorId } }),
+  removeTeamMember: (teamId: string, actorId: string) =>
+    api<{ message: string }>(`/api/comercial/admin/teams/${teamId}/members/${actorId}`, { method: 'DELETE' }),
+  setTeamSupervisors: (teamId: string, supervisor_actor_ids: string[]) =>
+    api<{ message: string }>(`/api/comercial/admin/teams/${teamId}/supervisors`, { method: 'PUT', body: { supervisor_actor_ids } }),
 
   listProducts: () => api<{ products: ComercialAdminProduct[] }>('/api/comercial/admin/products'),
   listProductCategories: () => api<{ categories: ComercialProductClassification[] }>('/api/comercial/admin/categories'),
