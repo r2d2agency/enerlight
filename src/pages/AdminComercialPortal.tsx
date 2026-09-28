@@ -808,12 +808,12 @@ export default function AdminComercialPortal() {
               <DialogTrigger asChild>
                 <Button>
                   <Plus className="h-4 w-4 mr-1" />
-                  Convidar representante/parceiro
+                  Cadastrar representante / parceiro / supervisor
                 </Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Convidar representante/parceiro</DialogTitle>
+                  <DialogTitle>Cadastrar representante, parceiro ou supervisor</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-3">
                   <div className="space-y-1">
@@ -835,6 +835,7 @@ export default function AdminComercialPortal() {
                       <SelectContent>
                         <SelectItem value="vendedor">{profileLabel.vendedor}</SelectItem>
                         <SelectItem value="parceiro">{profileLabel.parceiro}</SelectItem>
+                        <SelectItem value="gerente">Supervisor / Gerente Comercial</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -1007,7 +1008,7 @@ export default function AdminComercialPortal() {
             <DialogContent className="max-w-lg">
               <DialogHeader><DialogTitle>Supervisores — {supervisorDialogTeam?.name}</DialogTitle></DialogHeader>
               <div className="space-y-4">
-                <p className="text-sm text-muted-foreground">Selecione um ou mais usuários cadastrados com o perfil <strong>Gerente Comercial</strong>. Para cadastrar: vá em <strong>Usuários → Vincular usuário interno</strong> e escolha esse perfil.</p>
+                <p className="text-sm text-muted-foreground">Selecione um ou mais supervisores cadastrados com o perfil <strong>Gerente Comercial</strong>. Eles podem ser usuários internos (Vincular usuário interno) ou representantes externos cadastrados aqui com o perfil <strong>Supervisor / Gerente Comercial</strong>. O supervisor só aparece após ativar a conta.</p>
                 <div className="max-h-64 space-y-2 overflow-y-auto rounded border p-3">
                   {actors.filter((actor) => actor.profile === 'gerente' && actor.status === 'active').length === 0 ? <p className="text-sm text-muted-foreground">Nenhum gerente ativo cadastrado. Cadastre um usuário com o perfil Gerente Comercial primeiro.</p> : actors.filter((actor) => actor.profile === 'gerente' && actor.status === 'active').map((actor) => <label key={actor.id} className="flex cursor-pointer items-center gap-3 rounded p-2 hover:bg-muted"><Checkbox checked={selectedSupervisorIds.includes(actor.id)} onCheckedChange={(checked) => setSelectedSupervisorIds((current) => checked ? [...new Set([...current, actor.id])] : current.filter((id) => id !== actor.id))} /><span><strong className="block text-sm">{actor.name}</strong><small className="text-muted-foreground">{actor.email}</small></span></label>)}
                 </div>
