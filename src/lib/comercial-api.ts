@@ -371,6 +371,37 @@ export interface ComercialCommissionSummary {
 }
 
 // Portal externo — login isolado, fora do app principal (sem AuthContext)
+export interface ComercialTeamMemberMetrics {
+  id: string;
+  name: string;
+  email: string;
+  profile: ComercialProfile;
+  sales_count: number;
+  sales_total: number;
+  quotes_count: number;
+  commission_total: number;
+}
+
+export interface ComercialTeamSummary {
+  members: ComercialTeamMemberMetrics[];
+  totals: { sales_count: number; sales_total: number; quotes_count: number; commission_total: number };
+}
+
+export interface ComercialTeamFilters {
+  date_from?: string;
+  date_to?: string;
+  actor_id?: string;
+}
+
+export const comercialTeamApi = {
+  getSummary: (filters?: ComercialTeamFilters) => {
+    const qs = new URLSearchParams(Object.entries(filters || {}).filter(([, v]) => v) as [string, string][]).toString();
+    return api<ComercialTeamSummary>(`/api/comercial/interno/equipe/resumo${qs ? `?${qs}` : ''}`);
+  },
+  generateMemberTemporaryPassword: (memberId: string) =>
+    api<{ actor: { id: string; name: string; email: string }; temporary_password: string }>(`/api/comercial/interno/equipe/membros/${memberId}/senha-temporaria`, { method: 'POST' }),
+};
+
 export const comercialExternalApi = {
   login: (email: string, password: string) =>
     call<{ actor: { id: string; email: string; name: string }; token: string; must_change_password: boolean }>(

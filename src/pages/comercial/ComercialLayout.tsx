@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { comercialExternalApi, comercialToken, ComercialActor } from '@/lib/comercial-api';
 import {
   Loader2, Building2, LayoutDashboard, Users, Handshake, FileText,
-  ShoppingCart, Package, UserCog, LogOut, Megaphone, Search, Bell,
+  ShoppingCart, Package, UserCog, LogOut, Megaphone, Search, Bell, UsersRound,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -17,6 +17,7 @@ const NAV_ITEMS = [
   { name: 'Vendas', href: '/comercial/vendas', icon: ShoppingCart, enabled: true },
   { name: 'Catálogo', href: '/comercial/catalogo', icon: Package, enabled: true },
   { name: 'Marketing', href: '/comercial/marketing', icon: Megaphone, enabled: true },
+  { name: 'Minha equipe', href: '/comercial/equipe', icon: UsersRound, enabled: true },
   { name: 'Minha conta', href: '/comercial/conta', icon: UserCog, enabled: false },
 ];
 

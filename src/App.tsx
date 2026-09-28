@@ -151,6 +151,7 @@ const ComercialOrcamentoDetail = lazyRetry(() => import("./pages/comercial/Comer
 const ComercialOportunidades = lazyRetry(() => import("./pages/comercial/ComercialOportunidades"));
 const ComercialOportunidadeDetail = lazyRetry(() => import("./pages/comercial/ComercialOportunidadeDetail"));
 const ComercialVendas = lazyRetry(() => import("./pages/comercial/ComercialVendas"));
+const ComercialEquipe = lazyRetry(() => import("./pages/comercial/ComercialEquipe"));
 const ComercialVendaDetail = lazyRetry(() => import("./pages/comercial/ComercialVendaDetail"));
 const ComercialMarketing = lazyRetry(() => import("./pages/comercial/ComercialMarketing"));
 const PortalComercialDashboard = lazyRetry(() => import("./pages/PortalComercialDashboard"));
@@ -296,6 +297,7 @@ const App = () => (
               <Route path="/comercial/oportunidades" element={<ComercialOportunidades />} />
               <Route path="/comercial/oportunidades/:id" element={<ComercialOportunidadeDetail />} />
               <Route path="/comercial/vendas" element={<ComercialVendas />} />
+              <Route path="/comercial/equipe" element={<ComercialEquipe />} />
               <Route path="/comercial/vendas/:id" element={<ComercialVendaDetail />} />
               <Route path="/comercial/marketing" element={<ComercialMarketing />} />
               <Route path="/portal-comercial/marketing" element={<ProtectedRoute permissionKey="can_access_comercial_portal"><ComercialMarketing internal /></ProtectedRoute>} />

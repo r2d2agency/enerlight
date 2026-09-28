@@ -1633,6 +1633,42 @@ internalRouter.get('/me', async (req, res) => {
   res.json({ actor: result.rows[0] });
 });
 
+internalRouter.post('/equipe/membros/:id/senha-temporaria', async (req, res) => {
+  try {
+    if (!['admin', 'gerente'].includes(req.actor.profile)) return res.status(403).json({ error: 'Acesso restrito a supervisores' });
+    const member = await query(`SELECT id, name, email, user_id, status FROM com_actors a WHERE a.id=$1 AND a.organization_id=$2 AND a.profile IN ('vendedor','parceiro') AND (EXISTS (SELECT 1 FROM com_team_supervisors ts WHERE ts.actor_id=$3 AND ts.team_id=a.team_id))`, [req.params.id, req.actor.organization_id, req.actor.id]);
+    if (!member.rows[0]) return res.status(404).json({ error: 'Membro não encontrado na sua equipe' });
+    if (member.rows[0].user_id) return res.status(400).json({ error: 'Usuário interno deve usar a senha temporária do CRM' });
+    const temporaryPassword = generateTemporaryPassword();
+    const hash = await bcrypt.hash(temporaryPassword, 10);
+    await query(`UPDATE com_actors SET password_hash=$1, must_change_password=true, temp_password_expires_at=NOW()+INTERVAL '1 hour', password_changed_at=NOW(), status='active', updated_at=NOW() WHERE id=$2`, [hash, req.params.id]);
+    await logAudit(req, { action: 'team_member_temporary_password_generated', entityType: 'com_actor', entityId: req.params.id });
+    res.json({ actor: { id: member.rows[0].id, name: member.rows[0].name, email: member.rows[0].email }, temporary_password: temporaryPassword });
+  } catch (error) { console.error('[comercial] team member password error:', error); res.status(500).json({ error: 'Erro ao gerar senha temporária' }); }
+});
+
+internalRouter.get('/equipe/resumo', async (req, res) => {
+  try {
+    if (!['admin', 'gerente'].includes(req.actor.profile)) return res.status(403).json({ error: 'Acesso restrito a supervisores' });
+    const { date_from, date_to, actor_id } = req.query;
+    const params = [req.actor.organization_id, req.actor.id];
+    const dateFromIdx = date_from ? (params.push(date_from), params.length) : null;
+    const dateToIdx = date_to ? (params.push(date_to), params.length) : null;
+    const actorIdx = actor_id ? (params.push(actor_id), params.length) : null;
+    const memberWhere = `a.organization_id = $1 AND (a.id = $2 OR EXISTS (SELECT 1 FROM com_team_supervisors ts WHERE ts.actor_id = $2 AND ts.team_id = a.team_id)) AND a.profile IN ('vendedor','parceiro')${actorIdx ? ` AND a.id = $${actorIdx}` : ''}`;
+    const dateSales = `${dateFromIdx ? ` AND s.sale_date >= $${dateFromIdx}` : ''}${dateToIdx ? ` AND s.sale_date <= $${dateToIdx}` : ''}`;
+    const dateQuotes = `${dateFromIdx ? ` AND q.created_at >= $${dateFromIdx}` : ''}${dateToIdx ? ` AND q.created_at <= $${dateToIdx}` : ''}`;
+    const members = await query(`SELECT a.id, a.name, a.email, a.profile,
+      COALESCE((SELECT COUNT(*) FROM com_sales s WHERE s.actor_id=a.id AND s.status='confirmed'${dateSales}),0)::int sales_count,
+      COALESCE((SELECT SUM(s.total_value) FROM com_sales s WHERE s.actor_id=a.id AND s.status='confirmed'${dateSales}),0) sales_total,
+      COALESCE((SELECT COUNT(*) FROM online_quotes q WHERE q.actor_id=a.id${dateQuotes}),0)::int quotes_count,
+      COALESCE((SELECT SUM(c.amount) FROM com_commissions c JOIN com_sales s ON s.id=c.sale_id WHERE c.actor_id=a.id${dateSales}),0) commission_total
+      FROM com_actors a WHERE ${memberWhere} ORDER BY a.name`, params);
+    const totals = members.rows.reduce((acc, row) => ({ sales_count: acc.sales_count + Number(row.sales_count), sales_total: acc.sales_total + Number(row.sales_total || 0), quotes_count: acc.quotes_count + Number(row.quotes_count), commission_total: acc.commission_total + Number(row.commission_total || 0) }), { sales_count: 0, sales_total: 0, quotes_count: 0, commission_total: 0 });
+    res.json({ members: members.rows, totals });
+  } catch (error) { console.error('[comercial] team summary error:', error); res.status(500).json({ error: 'Erro ao carregar equipe' }); }
+});
+
 internalRouter.get('/clientes', listCustomersHandler);
 internalRouter.post('/clientes', createCustomerHandler);
 internalRouter.get('/clientes/:id', getCustomerHandler);
