@@ -396,7 +396,7 @@ export interface ComercialTeamFilters {
 export const comercialTeamApi = {
   getSummary: (filters?: ComercialTeamFilters) => {
     const qs = new URLSearchParams(Object.entries(filters || {}).filter(([, v]) => v) as [string, string][]).toString();
-    return call<ComercialTeamSummary>(`/api/comercial/interno/equipe/resumo${qs ? `?${qs}` : ''}`);
+    return call<ComercialTeamSummary>(`/api/comercial/equipe/resumo${qs ? `?${qs}` : ''}`);
   },
   generateMemberTemporaryPassword: (memberId: string) =>
     api<{ actor: { id: string; name: string; email: string }; temporary_password: string }>(`/api/comercial/interno/equipe/membros/${memberId}/senha-temporaria`, { method: 'POST' }),

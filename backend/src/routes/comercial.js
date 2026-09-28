@@ -1568,6 +1568,29 @@ router.post('/oportunidades', externalActorAuth, createOpportunityHandler);
 router.get('/oportunidades/:id', externalActorAuth, getOpportunityHandler);
 router.put('/oportunidades/:id', externalActorAuth, updateOpportunityHandler);
 
+// Gestão de equipe para supervisores externos do Portal Comercial.
+router.get('/equipe/resumo', externalActorAuth, async (req, res) => {
+  try {
+    if (!['admin', 'gerente'].includes(req.actor.profile)) return res.status(403).json({ error: 'Acesso restrito a supervisores' });
+    const { date_from, date_to, actor_id } = req.query;
+    const params = [req.actor.organization_id, req.actor.id];
+    const dateFromIdx = date_from ? (params.push(date_from), params.length) : null;
+    const dateToIdx = date_to ? (params.push(date_to), params.length) : null;
+    const actorIdx = actor_id ? (params.push(actor_id), params.length) : null;
+    const memberWhere = `a.organization_id = $1 AND EXISTS (SELECT 1 FROM com_team_supervisors ts WHERE ts.actor_id = $2 AND ts.team_id = a.team_id) AND a.profile IN ('vendedor','parceiro')${actorIdx ? ` AND a.id = $${actorIdx}` : ''}`;
+    const dateSales = `${dateFromIdx ? ` AND s.sale_date >= $${dateFromIdx}` : ''}${dateToIdx ? ` AND s.sale_date <= $${dateToIdx}` : ''}`;
+    const dateQuotes = `${dateFromIdx ? ` AND q.created_at >= $${dateFromIdx}` : ''}${dateToIdx ? ` AND q.created_at <= $${dateToIdx}` : ''}`;
+    const members = await query(`SELECT a.id, a.name, a.email, a.profile,
+      COALESCE((SELECT COUNT(*) FROM com_sales s WHERE s.actor_id=a.id AND s.status='confirmed'${dateSales}),0)::int sales_count,
+      COALESCE((SELECT SUM(s.total_value) FROM com_sales s WHERE s.actor_id=a.id AND s.status='confirmed'${dateSales}),0) sales_total,
+      COALESCE((SELECT COUNT(*) FROM online_quotes q WHERE q.actor_id=a.id${dateQuotes}),0)::int quotes_count,
+      COALESCE((SELECT SUM(c.amount) FROM com_commissions c JOIN com_sales s ON s.id=c.sale_id WHERE c.actor_id=a.id${dateSales}),0) commission_total
+      FROM com_actors a WHERE ${memberWhere} ORDER BY a.name`, params);
+    const totals = members.rows.reduce((acc, row) => ({ sales_count: acc.sales_count + Number(row.sales_count), sales_total: acc.sales_total + Number(row.sales_total || 0), quotes_count: acc.quotes_count + Number(row.quotes_count), commission_total: acc.commission_total + Number(row.commission_total || 0) }), { sales_count: 0, sales_total: 0, quotes_count: 0, commission_total: 0 });
+    res.json({ members: members.rows, totals });
+  } catch (error) { console.error('[comercial] external team summary error:', error); res.status(500).json({ error: 'Erro ao carregar equipe' }); }
+});
+
 // Vendas
 router.get('/vendas', externalActorAuth, listSalesHandler);
 router.get('/vendas/:id', externalActorAuth, getSaleHandler);
