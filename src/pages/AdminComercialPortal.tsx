@@ -73,6 +73,8 @@ export default function AdminComercialPortal() {
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const [teamDialogOpen, setTeamDialogOpen] = useState(false);
   const [memberDialogTeam, setMemberDialogTeam] = useState<ComercialTeam | null>(null);
+  const [supervisorDialogTeam, setSupervisorDialogTeam] = useState<ComercialTeam | null>(null);
+  const [selectedSupervisorIds, setSelectedSupervisorIds] = useState<string[]>([]);
   const [teamMembers, setTeamMembers] = useState<ComercialTeamMember[]>([]);
   const [memberToAdd, setMemberToAdd] = useState('');
   const [loadingMembers, setLoadingMembers] = useState(false);
@@ -213,6 +215,24 @@ export default function AdminComercialPortal() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const openSupervisorDialog = (team: ComercialTeam) => {
+    setSupervisorDialogTeam(team);
+    setSelectedSupervisorIds((team.supervisors || []).map((supervisor) => supervisor.id));
+  };
+
+  const handleSaveSupervisors = async () => {
+    if (!supervisorDialogTeam) return;
+    setSaving(true);
+    try {
+      await comercialAdminApi.setTeamSupervisors(supervisorDialogTeam.id, selectedSupervisorIds);
+      toast({ title: 'Supervisores atualizados' });
+      setSupervisorDialogTeam(null);
+      load();
+    } catch (error) {
+      toast({ title: 'Erro ao atualizar supervisores', description: error instanceof Error ? error.message : 'Tente novamente.', variant: 'destructive' });
+    } finally { setSaving(false); }
   };
 
   const openMembersDialog = async (team: ComercialTeam) => {
@@ -764,7 +784,7 @@ export default function AdminComercialPortal() {
                     </Select>
                   </div>
                   <div className="space-y-1">
-                    <Label>Perfil</Label>
+                    <Label>Perfil do usuário no módulo Comercial</Label>
                     <Select value={linkForm.profile} onValueChange={(v) => setLinkForm({ ...linkForm, profile: v as ComercialProfile })}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
@@ -974,7 +994,7 @@ export default function AdminComercialPortal() {
                         <TableCell className="font-medium">{team.name}</TableCell>
                         <TableCell><div className="flex flex-wrap gap-1">{(team.supervisors || []).map((supervisor) => <Badge key={supervisor.id} variant="secondary">{supervisor.name}</Badge>)}{!(team.supervisors || []).length && <span className="text-sm text-muted-foreground">Nenhum</span>}</div></TableCell>
                         <TableCell className="text-sm text-muted-foreground">{team.members_count}</TableCell>
-                        <TableCell className="text-right"><Button size="sm" variant="outline" onClick={() => openMembersDialog(team)}><Users2 className="mr-1 h-4 w-4" />Gerenciar membros</Button></TableCell>
+                        <TableCell className="text-right"><div className="flex justify-end gap-2"><Button size="sm" variant="outline" onClick={() => openSupervisorDialog(team)}><Briefcase className="mr-1 h-4 w-4" />Supervisores</Button><Button size="sm" variant="outline" onClick={() => openMembersDialog(team)}><Users2 className="mr-1 h-4 w-4" />Membros</Button></div></TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -982,6 +1002,19 @@ export default function AdminComercialPortal() {
               )}
             </CardContent>
           </Card>
+
+          <Dialog open={!!supervisorDialogTeam} onOpenChange={(open) => { if (!open) setSupervisorDialogTeam(null); }}>
+            <DialogContent className="max-w-lg">
+              <DialogHeader><DialogTitle>Supervisores — {supervisorDialogTeam?.name}</DialogTitle></DialogHeader>
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">Selecione um ou mais usuários cadastrados com o perfil <strong>Gerente Comercial</strong>. Para cadastrar: vá em <strong>Usuários → Vincular usuário interno</strong> e escolha esse perfil.</p>
+                <div className="max-h-64 space-y-2 overflow-y-auto rounded border p-3">
+                  {actors.filter((actor) => actor.profile === 'gerente' && actor.status === 'active').length === 0 ? <p className="text-sm text-muted-foreground">Nenhum gerente ativo cadastrado. Cadastre um usuário com o perfil Gerente Comercial primeiro.</p> : actors.filter((actor) => actor.profile === 'gerente' && actor.status === 'active').map((actor) => <label key={actor.id} className="flex cursor-pointer items-center gap-3 rounded p-2 hover:bg-muted"><Checkbox checked={selectedSupervisorIds.includes(actor.id)} onCheckedChange={(checked) => setSelectedSupervisorIds((current) => checked ? [...new Set([...current, actor.id])] : current.filter((id) => id !== actor.id))} /><span><strong className="block text-sm">{actor.name}</strong><small className="text-muted-foreground">{actor.email}</small></span></label>)}
+                </div>
+              </div>
+              <DialogFooter><Button onClick={handleSaveSupervisors} disabled={saving}>{saving && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}Salvar supervisores</Button></DialogFooter>
+            </DialogContent>
+          </Dialog>
 
           <Dialog open={!!memberDialogTeam} onOpenChange={(open) => { if (!open) setMemberDialogTeam(null); }}>
             <DialogContent className="max-w-lg">
