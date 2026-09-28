@@ -195,24 +195,27 @@ const CUSTOMER_TYPES = ['pj', 'pf'];
 
 // admin: todos os clientes da organização; gerente com equipe: os seus + os
 // da equipe; vendedor/parceiro/gerente sem equipe: só os próprios.
-function customerScope(actor, paramsArr) {
+function actorScopeSql(actor, paramsArr, column, alias) {
   paramsArr.push(actor.organization_id);
   const orgIdx = paramsArr.length;
-  if (actor.profile === 'admin') {
-    return { where: `c.organization_id = $${orgIdx}`, params: paramsArr };
-  }
-  if (actor.profile === 'gerente' && actor.team_id) {
-    paramsArr.push(actor.id);
-    const selfIdx = paramsArr.length;
-    paramsArr.push(actor.team_id);
-    const teamIdx = paramsArr.length;
-    return {
-      where: `c.organization_id = $${orgIdx} AND c.owner_actor_id IN (SELECT id FROM com_actors WHERE id = $${selfIdx} OR team_id = $${teamIdx})`,
-      params: paramsArr,
-    };
-  }
+  if (actor.profile === 'admin') return { where: `${alias}.organization_id = $${orgIdx}`, params: paramsArr };
   paramsArr.push(actor.id);
-  return { where: `c.organization_id = $${orgIdx} AND c.owner_actor_id = $${orgIdx + 1}`, params: paramsArr };
+  const actorIdx = paramsArr.length;
+  return {
+    where: `${alias}.organization_id = $${orgIdx} AND ${column} IN (
+      SELECT a.id FROM com_actors a WHERE a.organization_id = $${orgIdx} AND (
+        a.id = $${actorIdx} OR EXISTS (
+          SELECT 1 FROM com_team_supervisors ts
+          WHERE ts.actor_id = $${actorIdx} AND ts.team_id = a.team_id
+        )
+      )
+    )`,
+    params: paramsArr,
+  };
+}
+
+function customerScope(actor, paramsArr) {
+  return actorScopeSql(actor, paramsArr, 'c.owner_actor_id', 'c');
 }
 
 async function listCustomersHandler(req, res) {
@@ -453,23 +456,7 @@ async function listMyPriceListsHandler(req, res) {
 const QUOTE_LOCKED_STATUSES = ['convertido', 'cancelado'];
 
 function quoteScope(actor, paramsArr) {
-  paramsArr.push(actor.organization_id);
-  const orgIdx = paramsArr.length;
-  if (actor.profile === 'admin') {
-    return { where: `q.organization_id = $${orgIdx}`, params: paramsArr };
-  }
-  if (actor.profile === 'gerente' && actor.team_id) {
-    paramsArr.push(actor.id);
-    const selfIdx = paramsArr.length;
-    paramsArr.push(actor.team_id);
-    const teamIdx = paramsArr.length;
-    return {
-      where: `q.organization_id = $${orgIdx} AND q.actor_id IN (SELECT id FROM com_actors WHERE id = $${selfIdx} OR team_id = $${teamIdx})`,
-      params: paramsArr,
-    };
-  }
-  paramsArr.push(actor.id);
-  return { where: `q.organization_id = $${orgIdx} AND q.actor_id = $${orgIdx + 1}`, params: paramsArr };
+  return actorScopeSql(actor, paramsArr, 'q.actor_id', 'q');
 }
 
 async function recalculateQuoteTotals(quoteId) {
@@ -955,23 +942,7 @@ async function convertQuoteToSaleHandler(req, res) {
 }
 
 function salesScope(actor, paramsArr) {
-  paramsArr.push(actor.organization_id);
-  const orgIdx = paramsArr.length;
-  if (actor.profile === 'admin') {
-    return { where: `s.organization_id = $${orgIdx}`, params: paramsArr };
-  }
-  if (actor.profile === 'gerente' && actor.team_id) {
-    paramsArr.push(actor.id);
-    const selfIdx = paramsArr.length;
-    paramsArr.push(actor.team_id);
-    const teamIdx = paramsArr.length;
-    return {
-      where: `s.organization_id = $${orgIdx} AND s.actor_id IN (SELECT id FROM com_actors WHERE id = $${selfIdx} OR team_id = $${teamIdx})`,
-      params: paramsArr,
-    };
-  }
-  paramsArr.push(actor.id);
-  return { where: `s.organization_id = $${orgIdx} AND s.actor_id = $${orgIdx + 1}`, params: paramsArr };
+  return actorScopeSql(actor, paramsArr, 's.actor_id', 's');
 }
 
 async function listSalesHandler(req, res) {
@@ -1054,23 +1025,7 @@ async function listStagesHandler(req, res) {
 }
 
 function opportunityScope(actor, paramsArr) {
-  paramsArr.push(actor.organization_id);
-  const orgIdx = paramsArr.length;
-  if (actor.profile === 'admin') {
-    return { where: `o.organization_id = $${orgIdx}`, params: paramsArr };
-  }
-  if (actor.profile === 'gerente' && actor.team_id) {
-    paramsArr.push(actor.id);
-    const selfIdx = paramsArr.length;
-    paramsArr.push(actor.team_id);
-    const teamIdx = paramsArr.length;
-    return {
-      where: `o.organization_id = $${orgIdx} AND o.actor_id IN (SELECT id FROM com_actors WHERE id = $${selfIdx} OR team_id = $${teamIdx})`,
-      params: paramsArr,
-    };
-  }
-  paramsArr.push(actor.id);
-  return { where: `o.organization_id = $${orgIdx} AND o.actor_id = $${orgIdx + 1}`, params: paramsArr };
+  return actorScopeSql(actor, paramsArr, 'o.actor_id', 'o');
 }
 
 async function listOpportunitiesHandler(req, res) {
@@ -1354,7 +1309,10 @@ async function myCommissionsHandler(req, res) {
        WHERE c.actor_id = $1 ORDER BY c.created_at DESC`,
       [req.actor.id]
     );
-    res.json({ commissions: result.rows });
+    const month = new Date().toISOString().slice(0, 7);
+    const currentMonth = result.rows.filter((row) => String(row.sale_date || '').slice(0, 7) === month);
+    const byStatus = currentMonth.reduce((acc, row) => { acc[row.status] = (acc[row.status] || 0) + Number(row.amount || 0); return acc; }, { previsto: 0, liberado: 0, pago: 0 });
+    res.json({ commissions: result.rows, summary: { month, commission_total: currentMonth.reduce((sum, row) => sum + Number(row.amount || 0), 0), closed_sales_count: new Set(currentMonth.map((row) => row.sale_id)).size, by_status: byStatus } });
   } catch (error) {
     console.error('[comercial] my commissions error:', error);
     res.status(500).json({ error: 'Erro ao carregar comissões' });
@@ -2067,7 +2025,10 @@ adminRouter.get('/teams', gate('can_manage_comercial_portal'), async (req, res) 
 
   const result = await query(
     `SELECT t.id, t.name, t.manager_actor_id, m.name as manager_name,
-            (SELECT COUNT(*) FROM com_actors a WHERE a.team_id = t.id) as members_count
+            (SELECT COUNT(*) FROM com_actors a WHERE a.team_id = t.id) as members_count,
+            COALESCE((SELECT json_agg(json_build_object('id', s.id, 'name', s.name, 'email', s.email) ORDER BY s.name)
+                      FROM com_team_supervisors ts JOIN com_actors s ON s.id = ts.actor_id
+                      WHERE ts.team_id = t.id), '[]'::json) as supervisors
      FROM com_teams t LEFT JOIN com_actors m ON m.id = t.manager_actor_id
      WHERE t.organization_id = $1 ORDER BY t.name ASC`,
     [org.organization_id]
@@ -2077,21 +2038,32 @@ adminRouter.get('/teams', gate('can_manage_comercial_portal'), async (req, res) 
 
 adminRouter.post('/teams', gate('can_manage_comercial_portal'), async (req, res) => {
   try {
-    const { name, manager_actor_id } = req.body;
+    const { name, manager_actor_id, supervisor_actor_ids = [] } = req.body;
     if (!name?.trim()) return res.status(400).json({ error: 'Nome é obrigatório' });
+    if (!Array.isArray(supervisor_actor_ids)) return res.status(400).json({ error: 'supervisor_actor_ids deve ser uma lista' });
 
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'Sem organização' });
 
-    if (manager_actor_id) {
-      const mgr = await query('SELECT id FROM com_actors WHERE id = $1 AND organization_id = $2', [manager_actor_id, org.organization_id]);
-      if (mgr.rows.length === 0) return res.status(400).json({ error: 'Gerente inválido' });
+    const supervisorIds = [...new Set(supervisor_actor_ids.filter(Boolean))];
+    if (manager_actor_id && !supervisorIds.includes(manager_actor_id)) supervisorIds.push(manager_actor_id);
+    if (supervisorIds.length) {
+      const supervisors = await query(
+        `SELECT id FROM com_actors WHERE id = ANY($1::uuid[]) AND organization_id = $2 AND profile = 'gerente' AND status = 'active'`,
+        [supervisorIds, org.organization_id]
+      );
+      if (supervisors.rows.length !== supervisorIds.length) return res.status(400).json({ error: 'Um ou mais supervisores são inválidos' });
     }
 
     const result = await query(
       `INSERT INTO com_teams (organization_id, name, manager_actor_id, created_by)
        VALUES ($1, $2, $3, $4) RETURNING *`,
-      [org.organization_id, name.trim(), manager_actor_id || null, req.userId]
+      [org.organization_id, name.trim(), manager_actor_id || supervisorIds[0] || null, req.userId]
+    );
+    if (supervisorIds.length) await query(
+      `INSERT INTO com_team_supervisors (team_id, actor_id, created_by)
+       SELECT $1, unnest($2::uuid[]), $3 ON CONFLICT DO NOTHING`,
+      [result.rows[0].id, supervisorIds, req.userId]
     );
     res.status(201).json({ team: result.rows[0] });
   } catch (error) {
@@ -2106,17 +2078,30 @@ adminRouter.put('/teams/:id', gate('can_manage_comercial_portal'), async (req, r
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'Sem organização' });
 
-    const { name, manager_actor_id } = req.body;
-    if (manager_actor_id) {
-      const mgr = await query('SELECT id FROM com_actors WHERE id = $1 AND organization_id = $2', [manager_actor_id, org.organization_id]);
-      if (mgr.rows.length === 0) return res.status(400).json({ error: 'Gerente inválido' });
+    const { name, manager_actor_id, supervisor_actor_ids } = req.body;
+    const supervisorIds = supervisor_actor_ids === undefined ? null : [...new Set((Array.isArray(supervisor_actor_ids) ? supervisor_actor_ids : []).filter(Boolean))];
+    if (supervisorIds && manager_actor_id && !supervisorIds.includes(manager_actor_id)) supervisorIds.push(manager_actor_id);
+    if (supervisorIds?.length) {
+      const supervisors = await query(
+        `SELECT id FROM com_actors WHERE id = ANY($1::uuid[]) AND organization_id = $2 AND profile = 'gerente' AND status = 'active'`,
+        [supervisorIds, org.organization_id]
+      );
+      if (supervisors.rows.length !== supervisorIds.length) return res.status(400).json({ error: 'Um ou mais supervisores são inválidos' });
     }
     const result = await query(
-      `UPDATE com_teams SET name = COALESCE($1, name), manager_actor_id = $2, updated_at = NOW()
+      `UPDATE com_teams SET name = COALESCE($1, name), manager_actor_id = COALESCE($2, manager_actor_id), updated_at = NOW()
        WHERE id = $3 AND organization_id = $4 RETURNING *`,
-      [name?.trim() || null, manager_actor_id || null, req.params.id, org.organization_id]
+      [name?.trim() || null, manager_actor_id || (supervisorIds?.[0] || null), req.params.id, org.organization_id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Equipe não encontrada' });
+    if (supervisorIds) {
+      await query('DELETE FROM com_team_supervisors WHERE team_id = $1', [req.params.id]);
+      if (supervisorIds.length) await query(
+        `INSERT INTO com_team_supervisors (team_id, actor_id, created_by)
+         SELECT $1, unnest($2::uuid[]), $3`,
+        [req.params.id, supervisorIds, req.userId]
+      );
+    }
     res.json({ team: result.rows[0] });
   } catch (error) {
     console.error('[comercial] update team error:', error);
@@ -2919,8 +2904,8 @@ const catalogRecipients = async (req,res) => { const org=await marketingOrg(req)
 const catalogDownload = async (req,res) => { const org=await marketingOrg(req); const r=await query('SELECT file_url,original_name FROM com_comercial_catalogs WHERE id=$1 AND organization_id=$2 AND is_active=true AND is_published=true AND (valid_from IS NULL OR valid_from<=CURRENT_DATE) AND (valid_until IS NULL OR valid_until>=CURRENT_DATE)',[req.params.id,org]); if(!r.rows.length)return res.status(404).json({error:'Catálogo não encontrado'}); const url=safeAssetUrl(r.rows[0].file_url); await query('UPDATE com_comercial_catalogs SET download_count=download_count+1 WHERE id=$1',[req.params.id]); res.json({url,filename:r.rows[0].original_name||'catalogo.pdf'}); };
 const marketingCategories = async (req,res) => { const org=await marketingOrg(req); if(!org)return res.status(403).json({error:'Sem organização'}); const r=await query('SELECT c.*, p.name AS parent_name FROM com_marketing_categories c LEFT JOIN com_marketing_categories p ON p.id=c.parent_id WHERE c.organization_id=$1 ORDER BY c.parent_id NULLS FIRST,c.position,c.name',[org]); res.json({categories:r.rows}); };
 const marketingMaterials = async (req,res) => { const org=await marketingOrg(req); if(!org)return res.status(403).json({error:'Sem organização'}); const r=await query(`SELECT m.*, ('/api/comercial/marketing/materiais/' || m.id || '/download') AS download_url, row_to_json(c) AS category FROM com_marketing_materials m LEFT JOIN com_marketing_categories c ON c.id=m.category_id WHERE m.organization_id=$1 AND m.is_active=true AND (m.is_published=true OR $2=true) ORDER BY m.position,m.title`,[org,Boolean(req.isMarketingAdmin)]); res.json({materials:r.rows}); };
-const categoryCreate = async(req,res)=>{const org=await marketingOrg(req); const b=req.body||{}; if(!org)return res.status(403).json({error:'Sem organização'}); if(!b.name?.trim())return res.status(400).json({error:'Nome é obrigatório'}); if(b.parent_id){const p=await query('SELECT id FROM com_marketing_categories WHERE id=$1 AND organization_id=$2',[b.parent_id,org]);if(!p.rows.length)return res.status(400).json({error:'Categoria pai inválida'});} const r=await query('INSERT INTO com_marketing_categories(organization_id,name,description,parent_id) VALUES($1,$2,$3,$4) RETURNING *',[org,b.name.trim(),b.description||null,b.parent_id||null]);res.status(201).json({category:r.rows[0]});};
-const categoryUpdate = async(req,res)=>{const org=await marketingOrg(req);const b=req.body||{};if(b.parent_id){if(b.parent_id===req.params.id)return res.status(400).json({error:'Uma categoria não pode ser pai dela mesma'});const p=await query('SELECT id FROM com_marketing_categories WHERE id=$1 AND organization_id=$2',[b.parent_id,org]);if(!p.rows.length)return res.status(400).json({error:'Categoria pai inválida'});const cycle=await query(`WITH RECURSIVE tree AS (SELECT id,parent_id FROM com_marketing_categories WHERE id=$1 UNION ALL SELECT c.id,c.parent_id FROM com_marketing_categories c JOIN tree t ON c.id=t.parent_id) SELECT 1 FROM tree WHERE id=$2`,[req.params.id,b.parent_id]);if(cycle.rows.length)return res.status(400).json({error:'Não é possível criar ciclo de categorias'});}const r=await query('UPDATE com_marketing_categories SET name=COALESCE($1,name),description=COALESCE($2,description),is_active=COALESCE($3,is_active),parent_id=$4 WHERE id=$5 AND organization_id=$6 RETURNING *',[b.name,b.description,b.is_active,b.parent_id===undefined?null:b.parent_id,req.params.id,org]);if(!r.rows.length)return res.status(404).json({error:'Categoria não encontrada'});res.json({category:r.rows[0]});};
+const categoryCreate = async(req,res)=>{const org=await marketingOrg(req); const b=req.body||{}; if(!org)return res.status(403).json({error:'Sem organização'}); if(!b.name?.trim())return res.status(400).json({error:'Nome é obrigatório'}); if(b.image_url&&!safeAssetUrl(b.image_url))return res.status(400).json({error:'Imagem inválida'}); if(b.parent_id){const p=await query('SELECT id FROM com_marketing_categories WHERE id=$1 AND organization_id=$2',[b.parent_id,org]);if(!p.rows.length)return res.status(400).json({error:'Categoria pai inválida'});} const r=await query('INSERT INTO com_marketing_categories(organization_id,name,description,image_url,parent_id) VALUES($1,$2,$3,$4,$5) RETURNING *',[org,b.name.trim(),b.description||null,b.image_url||null,b.parent_id||null]);res.status(201).json({category:r.rows[0]});};
+const categoryUpdate = async(req,res)=>{const org=await marketingOrg(req);const b=req.body||{};if(b.image_url&&!safeAssetUrl(b.image_url))return res.status(400).json({error:'Imagem inválida'});if(b.parent_id){if(b.parent_id===req.params.id)return res.status(400).json({error:'Uma categoria não pode ser pai dela mesma'});const p=await query('SELECT id FROM com_marketing_categories WHERE id=$1 AND organization_id=$2',[b.parent_id,org]);if(!p.rows.length)return res.status(400).json({error:'Categoria pai inválida'});const cycle=await query(`WITH RECURSIVE tree AS (SELECT id,parent_id FROM com_marketing_categories WHERE id=$1 UNION ALL SELECT c.id,c.parent_id FROM com_marketing_categories c JOIN tree t ON c.id=t.parent_id) SELECT 1 FROM tree WHERE id=$2`,[req.params.id,b.parent_id]);if(cycle.rows.length)return res.status(400).json({error:'Não é possível criar ciclo de categorias'});}const r=await query('UPDATE com_marketing_categories SET name=COALESCE($1,name),description=COALESCE($2,description),image_url=COALESCE($3,image_url),is_active=COALESCE($4,is_active),parent_id=$5 WHERE id=$6 AND organization_id=$7 RETURNING *',[b.name,b.description,b.image_url,b.is_active,b.parent_id===undefined?null:b.parent_id,req.params.id,org]);if(!r.rows.length)return res.status(404).json({error:'Categoria não encontrada'});res.json({category:r.rows[0]});};
 const normalizeMarketingTags = (value) => Array.isArray(value) ? [...new Set(value.map((tag) => String(tag).trim().replace(/^#/, '').slice(0, 40)).filter(Boolean))].slice(0, 30) : [];
 const materialCreate = async(req,res)=>{const org=await marketingOrg(req);const b=req.body||{};if(!org)return res.status(403).json({error:'Sem organização'});if(!b.title?.trim()||!safeAssetUrl(b.file_url))return res.status(400).json({error:'Título e arquivo válido são obrigatórios'});if(b.thumbnail_url&&!safeAssetUrl(b.thumbnail_url))return res.status(400).json({error:'Thumbnail inválida'});const r=await query('INSERT INTO com_marketing_materials(organization_id,category_id,title,description,file_url,thumbnail_url,material_type,copy_text,tags,created_by) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10) RETURNING *',[org,b.category_id||null,b.title.trim(),b.description||null,b.file_url,b.thumbnail_url||null,b.material_type||'support',typeof b.copy_text==='string'?b.copy_text.slice(0,20000):null,JSON.stringify(normalizeMarketingTags(b.tags)),req.userId]);res.status(201).json({material:r.rows[0]});};
 const materialUpdate = async(req,res)=>{const org=await marketingOrg(req);const b=req.body||{};if(b.file_url&&!safeAssetUrl(b.file_url))return res.status(400).json({error:'Referência de arquivo inválida'});if(b.thumbnail_url&&!safeAssetUrl(b.thumbnail_url))return res.status(400).json({error:'Thumbnail inválida'});const fields=['title','description','category_id','file_url','thumbnail_url','material_type','copy_text','is_active','is_published'];const vals=[];const sets=[];for(const f of fields)if(b[f]!==undefined){sets.push(`${f}=$${vals.length+1}`);vals.push(f==='copy_text'&&typeof b[f]==='string'?b[f].slice(0,20000):b[f]);}if(b.tags!==undefined){sets.push(`tags=$${vals.length+1}::jsonb`);vals.push(JSON.stringify(normalizeMarketingTags(b.tags)));}if(!sets.length)return res.status(400).json({error:'Nenhuma alteração'});vals.push(req.params.id,org);const r=await query(`UPDATE com_marketing_materials SET ${sets.join(',' )},updated_at=NOW() WHERE id=$${vals.length-1} AND organization_id=$${vals.length} RETURNING *`,vals);if(!r.rows.length)return res.status(404).json({error:'Material não encontrado'});res.json({material:r.rows[0]});};

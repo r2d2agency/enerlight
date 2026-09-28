@@ -84,7 +84,7 @@ export default function AdminComercialPortal() {
   const [inviteForm, setInviteForm] = useState<{ name: string; email: string; phone: string; profile: ComercialProfile }>({
     name: '', email: '', phone: '', profile: 'parceiro',
   });
-  const [teamForm, setTeamForm] = useState({ name: '' });
+  const [teamForm, setTeamForm] = useState({ name: '', supervisor_actor_ids: [] as string[] });
   const [editingProduct, setEditingProduct] = useState<ComercialAdminProduct | null>(null);
   const [productForm, setProductForm] = useState(emptyProductForm);
 
@@ -220,7 +220,7 @@ export default function AdminComercialPortal() {
     try {
       await comercialAdminApi.createTeam(teamForm);
       toast({ title: 'Equipe criada' });
-      setTeamForm({ name: '' });
+      setTeamForm({ name: '', supervisor_actor_ids: [] });
       setTeamDialogOpen(false);
       load();
     } catch (error) {
@@ -888,7 +888,11 @@ export default function AdminComercialPortal() {
                 </DialogHeader>
                 <div className="space-y-1">
                   <Label>Nome *</Label>
-                  <Input value={teamForm.name} onChange={(e) => setTeamForm({ name: e.target.value })} />
+                  <Input value={teamForm.name} onChange={(e) => setTeamForm({ ...teamForm, name: e.target.value })} />
+                  <Label className="mt-3 block">Supervisores (opcional)</Label>
+                  <div className="max-h-32 space-y-2 overflow-y-auto rounded border p-2">
+                    {actors.filter((actor) => actor.profile === 'gerente' && actor.status === 'active').length === 0 ? <p className="text-xs text-muted-foreground">Cadastre um gerente ativo primeiro.</p> : actors.filter((actor) => actor.profile === 'gerente' && actor.status === 'active').map((actor) => <label key={actor.id} className="flex items-center gap-2 text-sm"><Checkbox checked={teamForm.supervisor_actor_ids.includes(actor.id)} onCheckedChange={(checked) => setTeamForm((current) => ({ ...current, supervisor_actor_ids: checked ? [...current.supervisor_actor_ids, actor.id] : current.supervisor_actor_ids.filter((id) => id !== actor.id) }))} />{actor.name}</label>)}
+                  </div>
                 </div>
                 <DialogFooter>
                   <Button onClick={handleCreateTeam} disabled={saving}>
@@ -916,6 +920,7 @@ export default function AdminComercialPortal() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Nome</TableHead>
+                      <TableHead>Supervisores</TableHead>
                       <TableHead>Membros</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -923,6 +928,7 @@ export default function AdminComercialPortal() {
                     {teams.map((team) => (
                       <TableRow key={team.id}>
                         <TableCell className="font-medium">{team.name}</TableCell>
+                        <TableCell><div className="flex flex-wrap gap-1">{(team.supervisors || []).map((supervisor) => <Badge key={supervisor.id} variant="secondary">{supervisor.name}</Badge>)}{!(team.supervisors || []).length && <span className="text-sm text-muted-foreground">Nenhum</span>}</div></TableCell>
                         <TableCell className="text-sm text-muted-foreground">{team.members_count}</TableCell>
                       </TableRow>
                     ))}

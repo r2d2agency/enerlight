@@ -5663,6 +5663,21 @@ DO $$ BEGIN
   ALTER TABLE com_teams ADD COLUMN manager_actor_id UUID REFERENCES com_actors(id) ON DELETE SET NULL;
 EXCEPTION WHEN duplicate_column THEN NULL; END $$;
 
+-- Supervisores: uma equipe pode ter vários gerentes, mantendo manager_actor_id
+-- como compatibilidade com instalações antigas.
+CREATE TABLE IF NOT EXISTS com_team_supervisors (
+  team_id UUID NOT NULL REFERENCES com_teams(id) ON DELETE CASCADE,
+  actor_id UUID NOT NULL REFERENCES com_actors(id) ON DELETE CASCADE,
+  created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (team_id, actor_id)
+);
+CREATE INDEX IF NOT EXISTS idx_com_team_supervisors_actor ON com_team_supervisors(actor_id);
+INSERT INTO com_team_supervisors (team_id, actor_id)
+SELECT id, manager_actor_id FROM com_teams
+WHERE manager_actor_id IS NOT NULL
+ON CONFLICT (team_id, actor_id) DO NOTHING;
+
 -- Vínculo vendedor/representante × tabela de preço autorizada (item 8 do módulo comercial)
 CREATE TABLE IF NOT EXISTS com_actor_price_lists (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -6052,11 +6067,12 @@ CREATE INDEX IF NOT EXISTS idx_com_audit_logs_entity ON com_audit_logs(entity_ty
 const step80Marketing = `
 CREATE TABLE IF NOT EXISTS com_marketing_categories (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(), organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-  name VARCHAR(255) NOT NULL, description TEXT, is_active BOOLEAN NOT NULL DEFAULT true, position INTEGER NOT NULL DEFAULT 0,
+  name VARCHAR(255) NOT NULL, description TEXT, image_url TEXT, is_active BOOLEAN NOT NULL DEFAULT true, position INTEGER NOT NULL DEFAULT 0,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), UNIQUE (organization_id, name)
 );
 CREATE INDEX IF NOT EXISTS idx_com_marketing_categories_org ON com_marketing_categories(organization_id, position);
 ALTER TABLE com_marketing_categories ADD COLUMN IF NOT EXISTS parent_id UUID REFERENCES com_marketing_categories(id) ON DELETE SET NULL;
+ALTER TABLE com_marketing_categories ADD COLUMN IF NOT EXISTS image_url TEXT;
 CREATE INDEX IF NOT EXISTS idx_com_marketing_categories_parent ON com_marketing_categories(organization_id, parent_id, position);
 CREATE TABLE IF NOT EXISTS com_marketing_materials (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(), organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,

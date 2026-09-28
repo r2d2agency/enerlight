@@ -343,7 +343,7 @@ export interface ComercialMarketingMaterial {
   mime_type?: string | null;
   original_name?: string | null;
   file_size?: number | null;
-  category?: { id: string; name: string; parent_id?: string | null; parent_name?: string | null } | string | null;
+  category?: { id: string; name: string; image_url?: string | null; parent_id?: string | null; parent_name?: string | null } | string | null;
   download_url?: string;
   copy_text?: string | null;
   tags?: string[];
@@ -361,6 +361,13 @@ export interface ComercialMyCommission {
   amount: number;
   status: 'previsto' | 'liberado' | 'pago';
   created_at: string;
+}
+
+export interface ComercialCommissionSummary {
+  month: string;
+  commission_total: number;
+  closed_sales_count: number;
+  by_status: { previsto: number; liberado: number; pago: number };
 }
 
 // Portal externo — login isolado, fora do app principal (sem AuthContext)
@@ -432,7 +439,7 @@ export const comercialExternalApi = {
   getSale: (id: string) => call<{ sale: ComercialSale; items: ComercialSaleItem[] }>(`/api/comercial/vendas/${id}`),
 
   getDashboard: () => call<ComercialDashboard>('/api/comercial/dashboard'),
-  listMyCommissions: () => call<{ commissions: ComercialMyCommission[] }>('/api/comercial/comissoes/minhas'),
+  listMyCommissions: () => call<{ commissions: ComercialMyCommission[]; summary: ComercialCommissionSummary }>('/api/comercial/comissoes/minhas'),
 };
 
 // Proposta pública — sem autenticação, acessada pelo cliente final via link
@@ -492,7 +499,7 @@ export const comercialInternalApi = {
   getSale: (id: string) => api<{ sale: ComercialSale; items: ComercialSaleItem[] }>(`/api/comercial/interno/vendas/${id}`),
 
   getDashboard: () => api<ComercialDashboard>('/api/comercial/interno/dashboard'),
-  listMyCommissions: () => api<{ commissions: ComercialMyCommission[] }>('/api/comercial/interno/comissoes/minhas'),
+  listMyCommissions: () => api<{ commissions: ComercialMyCommission[]; summary: ComercialCommissionSummary }>('/api/comercial/interno/comissoes/minhas'),
 };
 
 export interface ComercialAdminActor {
@@ -516,12 +523,19 @@ export interface ComercialAdminActor {
   created_at: string;
 }
 
+export interface ComercialTeamSupervisor {
+  id: string;
+  name: string;
+  email?: string;
+}
+
 export interface ComercialTeam {
   id: string;
   name: string;
   manager_actor_id?: string | null;
   manager_name?: string | null;
   members_count: number;
+  supervisors?: ComercialTeamSupervisor[];
 }
 
 export interface ComercialAdminProduct {
@@ -708,9 +722,9 @@ export const comercialAdminApi = {
     api<{ actor: ComercialAdminActor }>(`/api/comercial/admin/actors/${id}/unblock`, { method: 'POST' }),
 
   listTeams: () => api<{ teams: ComercialTeam[] }>('/api/comercial/admin/teams'),
-  createTeam: (body: { name: string; manager_actor_id?: string }) =>
+  createTeam: (body: { name: string; manager_actor_id?: string; supervisor_actor_ids?: string[] }) =>
     api<{ team: ComercialTeam }>('/api/comercial/admin/teams', { method: 'POST', body }),
-  updateTeam: (id: string, body: { name?: string; manager_actor_id?: string | null }) =>
+  updateTeam: (id: string, body: { name?: string; manager_actor_id?: string | null; supervisor_actor_ids?: string[] }) =>
     api<{ team: ComercialTeam }>(`/api/comercial/admin/teams/${id}`, { method: 'PUT', body }),
   deleteTeam: (id: string) =>
     api<{ message: string }>(`/api/comercial/admin/teams/${id}`, { method: 'DELETE' }),
