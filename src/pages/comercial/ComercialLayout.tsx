@@ -18,7 +18,7 @@ const NAV_ITEMS = [
   { name: 'Catálogo', href: '/comercial/catalogo', icon: Package, enabled: true },
   { name: 'Marketing', href: '/comercial/marketing', icon: Megaphone, enabled: true },
   { name: 'Minha equipe', href: '/comercial/equipe', icon: UsersRound, enabled: true },
-  { name: 'Minha conta', href: '/comercial/conta', icon: UserCog, enabled: false },
+  { name: 'Minha conta', href: '/comercial/conta', icon: UserCog, enabled: true }
 ];
 
 const ComercialLayout = ({ children }: { children: (actor: ComercialActor) => ReactNode }) => {

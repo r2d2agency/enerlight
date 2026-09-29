@@ -141,6 +141,7 @@ const AdminRepresentantesPortal = lazyRetry(() => import("./pages/AdminRepresent
 
 const ComercialLogin = lazyRetry(() => import("./pages/comercial/ComercialLogin"));
 const ComercialTrocarSenha = lazyRetry(() => import("./pages/comercial/ComercialTrocarSenha"));
+const ComercialMinhaConta = lazyRetry(() => import("./pages/comercial/ComercialMinhaConta"));
 const ComercialEsqueciSenha = lazyRetry(() => import("./pages/comercial/ComercialEsqueciSenha"));
 const ComercialAtivarConta = lazyRetry(() => import("./pages/comercial/ComercialAtivarConta"));
 const ComercialDashboard = lazyRetry(() => import("./pages/comercial/ComercialDashboard"));
@@ -286,6 +287,7 @@ const App = () => (
               {/* Portal Comercial — login isolado (externo: representantes/parceiros) fora do app principal */}
               <Route path="/comercial/login" element={<ComercialLogin />} />
               <Route path="/comercial/trocar-senha" element={<ComercialTrocarSenha />} />
+              <Route path="/comercial/conta" element={<ComercialMinhaConta />} />
               <Route path="/comercial/esqueci-senha" element={<ComercialEsqueciSenha />} />
               <Route path="/comercial/ativar-conta" element={<ComercialAtivarConta />} />
               <Route path="/comercial/definir-senha" element={<ComercialAtivarConta />} />
