@@ -1563,7 +1563,8 @@ router.get('/me', externalActorAuth, async (req, res) => {
   const result = await query(
     `SELECT a.id, a.email, a.name, a.phone, a.profile, a.status, a.max_discount_percent,
             a.can_view_costs, a.can_view_margin, a.can_edit_price_manually,
-            a.default_price_list_id, t.name as team_name
+            a.default_price_list_id, t.name as team_name,
+            EXISTS (SELECT 1 FROM com_team_supervisors ts WHERE ts.actor_id = a.id) as is_supervisor
      FROM com_actors a LEFT JOIN com_teams t ON t.id = a.team_id
      WHERE a.id = $1`,
     [req.actorId]
@@ -1680,7 +1681,8 @@ internalRouter.get('/me', async (req, res) => {
   const result = await query(
     `SELECT a.id, a.email, a.name, a.phone, a.profile, a.status, a.max_discount_percent,
             a.can_view_costs, a.can_view_margin, a.can_edit_price_manually,
-            a.default_price_list_id, t.name as team_name
+            a.default_price_list_id, t.name as team_name,
+            EXISTS (SELECT 1 FROM com_team_supervisors ts WHERE ts.actor_id = a.id) as is_supervisor
      FROM com_actors a LEFT JOIN com_teams t ON t.id = a.team_id
      WHERE a.id = $1`,
     [req.actor.id]

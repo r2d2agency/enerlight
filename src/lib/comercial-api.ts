@@ -26,6 +26,7 @@ export interface ComercialActor {
   can_edit_price_manually: boolean;
   default_price_list_id?: string | null;
   team_name?: string | null;
+  is_supervisor?: boolean;
 }
 
 export type ComercialCustomerType = 'pj' | 'pf';

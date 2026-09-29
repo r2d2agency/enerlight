@@ -56,6 +56,9 @@ const ComercialLayout = ({ children }: { children: (actor: ComercialActor) => Re
           {NAV_ITEMS.map((item) => {
             const active = location.pathname === item.href || location.pathname.startsWith(`${item.href}/`);
             const Icon = item.icon;
+            const isSupervisorMenu = item.href === '/comercial/equipe';
+            const canSeeSupervisorMenu = actor.is_supervisor === true || actor.profile === 'admin';
+            if (isSupervisorMenu && !canSeeSupervisorMenu) return null;
             return item.enabled ? (
               <button key={item.href} onClick={() => navigate(item.href)} className={cn('flex w-full items-center gap-3 rounded-md border-l-[3px] px-3 py-2.5 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1677FF]', active ? 'border-[#1677FF] bg-[#123968] text-[#58A6FF]' : 'border-transparent text-[#8DA0BB] hover:bg-[#152133] hover:text-[#F4F8FF]')}>
                 <Icon className="h-[19px] w-[19px]" />{item.name}
