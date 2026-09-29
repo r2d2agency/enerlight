@@ -333,6 +333,40 @@ async function createCustomerHandler(req, res) {
   }
 }
 
+async function importCustomersHandler(req, res) {
+  try {
+    const isSupervisor = req.actor.profile === 'admin' || (await query('SELECT 1 FROM com_team_supervisors WHERE actor_id = $1 LIMIT 1', [req.actor.id])).rows.length > 0;
+    if (!isSupervisor) return res.status(403).json({ error: 'Apenas supervisores podem importar clientes' });
+    const rows = Array.isArray(req.body?.customers) ? req.body.customers : [];
+    if (!rows.length || rows.length > 1000) return res.status(400).json({ error: 'Envie entre 1 e 1000 clientes' });
+    const allowed = req.actor.profile === 'admin' ? null : (await query(`SELECT a.id FROM com_actors a WHERE a.organization_id = $1 AND (a.id = $2 OR EXISTS (SELECT 1 FROM com_team_supervisors ts WHERE ts.actor_id = $2 AND ts.team_id = a.team_id)) AND a.profile IN ('vendedor','parceiro')`, [req.actor.organization_id, req.actor.id])).rows.map((r) => r.id);
+    const report = { created: 0, duplicates: 0, invalid: 0, errors: [] };
+    for (let i = 0; i < rows.length; i += 1) {
+      const b = rows[i] || {}; const type = CUSTOMER_TYPES.includes(b.type) ? b.type : 'pj';
+      const owner = b.owner_actor_id || req.actor.id;
+      if (!b.company_name?.trim() || (allowed && !allowed.includes(owner))) { report.invalid += 1; report.errors.push({ row: i + 1, error: 'Nome ou vendedor inválido' }); continue; }
+      const document = type === 'pf' ? (b.cpf || '').trim() : (b.cnpj || '').trim();
+      if (document && (await query(`SELECT 1 FROM com_customers WHERE organization_id = $1 AND ${type === 'pf' ? 'cpf' : 'cnpj'} = $2 LIMIT 1`, [req.actor.organization_id, document])).rows.length) { report.duplicates += 1; continue; }
+      await query(`INSERT INTO com_customers (organization_id, owner_actor_id, type, company_name, trade_name, cnpj, cpf, phone, whatsapp, email, contact_name, city, state, origin, notes, created_by, updated_by) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$16)`, [req.actor.organization_id, owner, type, b.company_name.trim(), b.trade_name || null, type === 'pj' ? document || null : null, type === 'pf' ? document || null : null, b.phone || null, b.whatsapp || null, b.email || null, b.contact_name || null, b.city || null, b.state || null, b.origin || 'importacao', b.notes || null, req.actor.id]);
+      report.created += 1;
+    }
+    res.status(201).json({ report });
+  } catch (error) { console.error('[comercial] import customers error:', error); res.status(500).json({ error: 'Erro ao importar clientes' }); }
+}
+
+async function distributeCustomersHandler(req, res) {
+  try {
+    const isSupervisor = req.actor.profile === 'admin' || (await query('SELECT 1 FROM com_team_supervisors WHERE actor_id = $1 LIMIT 1', [req.actor.id])).rows.length > 0;
+    if (!isSupervisor) return res.status(403).json({ error: 'Apenas supervisores podem distribuir clientes' });
+    const owner = req.body?.owner_actor_id; const ids = Array.isArray(req.body?.customer_ids) ? req.body.customer_ids : [];
+    if (!owner || !ids.length) return res.status(400).json({ error: 'Vendedor e clientes são obrigatórios' });
+    const allowed = req.actor.profile === 'admin' ? true : (await query(`SELECT 1 FROM com_actors a WHERE a.id = $1 AND a.organization_id = $2 AND a.profile IN ('vendedor','parceiro') AND EXISTS (SELECT 1 FROM com_team_supervisors ts WHERE ts.actor_id = $3 AND ts.team_id = a.team_id)`, [owner, req.actor.organization_id, req.actor.id])).rows.length > 0;
+    if (!allowed) return res.status(403).json({ error: 'Vendedor fora da sua equipe' });
+    const result = await query('UPDATE com_customers SET owner_actor_id = $1, updated_by = $2, updated_at = NOW() WHERE organization_id = $3 AND id = ANY($4::uuid[]) RETURNING id', [owner, req.actor.id, req.actor.organization_id, ids]);
+    res.json({ updated: result.rows.length });
+  } catch (error) { console.error('[comercial] distribute customers error:', error); res.status(500).json({ error: 'Erro ao distribuir clientes' }); }
+}
+
 async function updateCustomerHandler(req, res) {
   try {
     const existing = await query(
@@ -1574,6 +1608,8 @@ router.get('/me', externalActorAuth, async (req, res) => {
 });
 
 // Clientes, catálogo e tabelas de preço — mesmos handlers usados pela porta interna
+router.post('/clientes/importar', externalActorAuth, importCustomersHandler);
+router.post('/clientes/distribuir', externalActorAuth, distributeCustomersHandler);
 router.get('/clientes', externalActorAuth, listCustomersHandler);
 router.post('/clientes', externalActorAuth, createCustomerHandler);
 router.get('/clientes/:id', externalActorAuth, getCustomerHandler);
@@ -1726,6 +1762,8 @@ internalRouter.get('/equipe/resumo', async (req, res) => {
   } catch (error) { console.error('[comercial] team summary error:', error); res.status(500).json({ error: 'Erro ao carregar equipe' }); }
 });
 
+internalRouter.post('/clientes/importar', importCustomersHandler);
+internalRouter.post('/clientes/distribuir', distributeCustomersHandler);
 internalRouter.get('/clientes', listCustomersHandler);
 internalRouter.post('/clientes', createCustomerHandler);
 internalRouter.get('/clientes/:id', getCustomerHandler);

@@ -436,6 +436,8 @@ export const comercialExternalApi = {
   ativarConta: (token: string, password: string) =>
     call<{ message: string }>('/api/comercial/ativar-conta', { method: 'POST', body: { token, password } , auth: false }),
 
+  importCustomers: (customers: Partial<ComercialCustomer>[]) => call<{ report: { created: number; duplicates: number; invalid: number; errors: Array<{ row: number; error: string }> } }>('/api/comercial/clientes/importar', { method: 'POST', body: { customers } }),
+  distributeCustomers: (customer_ids: string[], owner_actor_id: string) => call<{ updated: number }>('/api/comercial/clientes/distribuir', { method: 'POST', body: { customer_ids, owner_actor_id } }),
   listCustomers: (filters?: ComercialListFilters) => call<{ customers: ComercialCustomer[] }>(withListFilters('/api/comercial/clientes', filters)),
   getCustomer: (id: string) => call<{ customer: ComercialCustomer }>(`/api/comercial/clientes/${id}`),
   createCustomer: (body: Partial<ComercialCustomer>) =>
@@ -496,6 +498,8 @@ export const comercialInternalApi = {
   downloadMarketingMaterial: (id: string) => api<{ url?: string; file_url?: string; filename?: string }>(`/api/comercial/interno/marketing/materiais/${id}/download`),
   me: () => api<{ actor: ComercialActor }>('/api/comercial/interno/me'),
 
+  importCustomers: (customers: Partial<ComercialCustomer>[]) => api<{ report: { created: number; duplicates: number; invalid: number; errors: Array<{ row: number; error: string }> } }>('/api/comercial/interno/clientes/importar', { method: 'POST', body: { customers } }),
+  distributeCustomers: (customer_ids: string[], owner_actor_id: string) => api<{ updated: number }>('/api/comercial/interno/clientes/distribuir', { method: 'POST', body: { customer_ids, owner_actor_id } }),
   listCustomers: (filters?: ComercialListFilters) => api<{ customers: ComercialCustomer[] }>(withListFilters('/api/comercial/interno/clientes', filters)),
   getCustomer: (id: string) => api<{ customer: ComercialCustomer }>(`/api/comercial/interno/clientes/${id}`),
   createCustomer: (body: Partial<ComercialCustomer>) =>
