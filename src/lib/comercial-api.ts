@@ -393,6 +393,13 @@ export interface ComercialTeamFilters {
   actor_id?: string;
 }
 
+export type ComercialListFilters = ComercialTeamFilters;
+
+function withListFilters(path: string, filters?: ComercialListFilters) {
+  const query = new URLSearchParams(Object.entries(filters || {}).filter(([, value]) => value) as [string, string][]).toString();
+  return query ? `${path}?${query}` : path;
+}
+
 export const comercialTeamApi = {
   getSummary: (filters?: ComercialTeamFilters) => {
     const qs = new URLSearchParams(Object.entries(filters || {}).filter(([, v]) => v) as [string, string][]).toString();
@@ -428,7 +435,7 @@ export const comercialExternalApi = {
   ativarConta: (token: string, password: string) =>
     call<{ message: string }>('/api/comercial/ativar-conta', { method: 'POST', body: { token, password } , auth: false }),
 
-  listCustomers: () => call<{ customers: ComercialCustomer[] }>('/api/comercial/clientes'),
+  listCustomers: (filters?: ComercialListFilters) => call<{ customers: ComercialCustomer[] }>(withListFilters('/api/comercial/clientes', filters)),
   getCustomer: (id: string) => call<{ customer: ComercialCustomer }>(`/api/comercial/clientes/${id}`),
   createCustomer: (body: Partial<ComercialCustomer>) =>
     call<{ customer: ComercialCustomer }>('/api/comercial/clientes', { method: 'POST', body }),
@@ -440,7 +447,7 @@ export const comercialExternalApi = {
   listCatalog: () => call<{ products: ComercialCatalogProduct[] }>('/api/comercial/catalogo'),
   listMyPriceLists: () => call<{ price_lists: ComercialMyPriceList[] }>('/api/comercial/tabelas-preco'),
 
-  listQuotes: () => call<{ quotes: ComercialQuoteListItem[] }>('/api/comercial/orcamentos'),
+  listQuotes: (filters?: ComercialListFilters) => call<{ quotes: ComercialQuoteListItem[] }>(withListFilters('/api/comercial/orcamentos', filters)),
   createQuote: (body: { customer_id: string; price_list_id?: string }) =>
     call<{ quote: ComercialQuote }>('/api/comercial/orcamentos', { method: 'POST', body }),
   getQuote: (id: string) => call<ComercialQuoteDetail>(`/api/comercial/orcamentos/${id}`),
@@ -459,14 +466,14 @@ export const comercialExternalApi = {
     call<{ sale: ComercialSale }>(`/api/comercial/orcamentos/${id}/converter-venda`, { method: 'POST' }),
 
   listStages: () => call<{ stages: ComercialOpportunityStage[] }>('/api/comercial/oportunidades/etapas'),
-  listOpportunities: () => call<{ opportunities: ComercialOpportunity[] }>('/api/comercial/oportunidades'),
+  listOpportunities: (filters?: ComercialListFilters) => call<{ opportunities: ComercialOpportunity[] }>(withListFilters('/api/comercial/oportunidades', filters)),
   createOpportunity: (body: Partial<ComercialOpportunity>) =>
     call<{ opportunity: ComercialOpportunity }>('/api/comercial/oportunidades', { method: 'POST', body }),
   getOpportunity: (id: string) => call<ComercialOpportunityDetail>(`/api/comercial/oportunidades/${id}`),
   updateOpportunity: (id: string, body: Partial<ComercialOpportunity>) =>
     call<{ opportunity: ComercialOpportunity }>(`/api/comercial/oportunidades/${id}`, { method: 'PUT', body }),
 
-  listSales: () => call<{ sales: ComercialSaleListItem[] }>('/api/comercial/vendas'),
+  listSales: (filters?: ComercialListFilters) => call<{ sales: ComercialSaleListItem[] }>(withListFilters('/api/comercial/vendas', filters)),
   getSale: (id: string) => call<{ sale: ComercialSale; items: ComercialSaleItem[] }>(`/api/comercial/vendas/${id}`),
 
   getDashboard: () => call<ComercialDashboard>('/api/comercial/dashboard'),
@@ -488,7 +495,7 @@ export const comercialInternalApi = {
   downloadMarketingMaterial: (id: string) => api<{ url?: string; file_url?: string; filename?: string }>(`/api/comercial/interno/marketing/materiais/${id}/download`),
   me: () => api<{ actor: ComercialActor }>('/api/comercial/interno/me'),
 
-  listCustomers: () => api<{ customers: ComercialCustomer[] }>('/api/comercial/interno/clientes'),
+  listCustomers: (filters?: ComercialListFilters) => api<{ customers: ComercialCustomer[] }>(withListFilters('/api/comercial/interno/clientes', filters)),
   getCustomer: (id: string) => api<{ customer: ComercialCustomer }>(`/api/comercial/interno/clientes/${id}`),
   createCustomer: (body: Partial<ComercialCustomer>) =>
     api<{ customer: ComercialCustomer }>('/api/comercial/interno/clientes', { method: 'POST', body }),
@@ -500,7 +507,7 @@ export const comercialInternalApi = {
   listCatalog: () => api<{ products: ComercialCatalogProduct[] }>('/api/comercial/interno/catalogo'),
   listMyPriceLists: () => api<{ price_lists: ComercialMyPriceList[] }>('/api/comercial/interno/tabelas-preco'),
 
-  listQuotes: () => api<{ quotes: ComercialQuoteListItem[] }>('/api/comercial/interno/orcamentos'),
+  listQuotes: (filters?: ComercialListFilters) => api<{ quotes: ComercialQuoteListItem[] }>(withListFilters('/api/comercial/interno/orcamentos', filters)),
   createQuote: (body: { customer_id: string; price_list_id?: string }) =>
     api<{ quote: ComercialQuote }>('/api/comercial/interno/orcamentos', { method: 'POST', body }),
   getQuote: (id: string) => api<ComercialQuoteDetail>(`/api/comercial/interno/orcamentos/${id}`),
@@ -519,14 +526,14 @@ export const comercialInternalApi = {
     api<{ sale: ComercialSale }>(`/api/comercial/interno/orcamentos/${id}/converter-venda`, { method: 'POST' }),
 
   listStages: () => api<{ stages: ComercialOpportunityStage[] }>('/api/comercial/interno/oportunidades/etapas'),
-  listOpportunities: () => api<{ opportunities: ComercialOpportunity[] }>('/api/comercial/interno/oportunidades'),
+  listOpportunities: (filters?: ComercialListFilters) => api<{ opportunities: ComercialOpportunity[] }>(withListFilters('/api/comercial/interno/oportunidades', filters)),
   createOpportunity: (body: Partial<ComercialOpportunity>) =>
     api<{ opportunity: ComercialOpportunity }>('/api/comercial/interno/oportunidades', { method: 'POST', body }),
   getOpportunity: (id: string) => api<ComercialOpportunityDetail>(`/api/comercial/interno/oportunidades/${id}`),
   updateOpportunity: (id: string, body: Partial<ComercialOpportunity>) =>
     api<{ opportunity: ComercialOpportunity }>(`/api/comercial/interno/oportunidades/${id}`, { method: 'PUT', body }),
 
-  listSales: () => api<{ sales: ComercialSaleListItem[] }>('/api/comercial/interno/vendas'),
+  listSales: (filters?: ComercialListFilters) => api<{ sales: ComercialSaleListItem[] }>(withListFilters('/api/comercial/interno/vendas', filters)),
   getSale: (id: string) => api<{ sale: ComercialSale; items: ComercialSaleItem[] }>(`/api/comercial/interno/vendas/${id}`),
 
   getDashboard: () => api<ComercialDashboard>('/api/comercial/interno/dashboard'),

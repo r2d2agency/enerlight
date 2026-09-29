@@ -8,7 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { ComercialActor, ComercialCustomer } from '@/lib/comercial-api';
+import { ComercialActor, ComercialCustomer, ComercialListFilters as ListFilters } from '@/lib/comercial-api';
+import ComercialListFilters from './ComercialListFilters';
 import { Loader2, Plus, Users, Building2, User } from 'lucide-react';
 
 const emptyForm = {
@@ -21,7 +22,7 @@ const emptyForm = {
 
 interface Props {
   actor: ComercialActor;
-  listCustomers: () => Promise<{ customers: ComercialCustomer[] }>;
+  listCustomers: (filters?: ListFilters) => Promise<{ customers: ComercialCustomer[] }>;
   createCustomer: (body: Partial<ComercialCustomer>) => Promise<{ customer: ComercialCustomer }>;
   updateCustomer: (id: string, body: Partial<ComercialCustomer>) => Promise<{ customer: ComercialCustomer }>;
 }
@@ -38,11 +39,12 @@ export default function ComercialClientesView({ actor, listCustomers, createCust
   const [editing, setEditing] = useState<ComercialCustomer | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [filters, setFilters] = useState<ListFilters>({});
   const { toast } = useToast();
 
-  const load = () => {
+  const load = (nextFilters = filters) => {
     setLoading(true);
-    listCustomers()
+    listCustomers(nextFilters)
       .then((res) => setCustomers(res.customers))
       .catch((error) => toast({ title: 'Erro ao carregar clientes', description: error?.message, variant: 'destructive' }))
       .finally(() => setLoading(false));
@@ -239,6 +241,7 @@ export default function ComercialClientesView({ actor, listCustomers, createCust
         </Dialog>
       </div>
 
+      <ComercialListFilters actor={actor} value={filters} onChange={setFilters} onApply={() => load()} onClear={() => { setFilters({}); load({}); }} />
       <Card>
         <CardContent className="p-0">
           {loading ? (

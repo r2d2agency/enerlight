@@ -1,11 +1,11 @@
 import PortalComercialShell from './comercial/PortalComercialShell';
 import ComercialVendasView from './comercial/ComercialVendasView';
-import { comercialInternalApi } from '@/lib/comercial-api';
+import { ComercialActor, comercialInternalApi } from '@/lib/comercial-api';
 
 export default function PortalComercialVendas() {
   return (
     <PortalComercialShell>
-      {() => <ComercialVendasView basePath="/portal-comercial/vendas" listSales={comercialInternalApi.listSales} />}
+      {(actor) => <ComercialVendasView basePath="/portal-comercial/vendas" actor={actor} listSales={comercialInternalApi.listSales} />}
     </PortalComercialShell>
   );
 }

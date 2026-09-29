@@ -5,8 +5,9 @@ import { comercialInternalApi } from '@/lib/comercial-api';
 export default function PortalComercialOrcamentos() {
   return (
     <PortalComercialShell>
-      {() => (
+      {(actor) => (
         <ComercialOrcamentosView
+          actor={actor}
           basePath="/portal-comercial/orcamentos"
           listQuotes={comercialInternalApi.listQuotes}
           createQuote={comercialInternalApi.createQuote}

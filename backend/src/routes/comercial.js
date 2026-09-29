@@ -218,22 +218,51 @@ function customerScope(actor, paramsArr) {
   return actorScopeSql(actor, paramsArr, 'c.owner_actor_id', 'c');
 }
 
+function appendListFilters(req, params, where, column, actorColumn) {
+  const { actor_id: actorId, date_from: dateFrom, date_to: dateTo } = req.query || {};
+  const datePattern = /^\\d{4}-\\d{2}-\\d{2}$/;
+  if ((dateFrom && !datePattern.test(dateFrom)) || (dateTo && !datePattern.test(dateTo))) {
+    const error = new Error('Datas devem estar no formato AAAA-MM-DD');
+    error.status = 400;
+    throw error;
+  }
+  if (dateFrom && dateTo && dateFrom > dateTo) {
+    const error = new Error('Período inválido');
+    error.status = 400;
+    throw error;
+  }
+  if (actorId) {
+    params.push(actorId);
+    where += ` AND ${actorColumn} = $${params.length}`;
+  }
+  if (dateFrom) {
+    params.push(dateFrom);
+    where += ` AND ${column} >= $${params.length}::date`;
+  }
+  if (dateTo) {
+    params.push(dateTo);
+    where += ` AND ${column} < ($${params.length}::date + INTERVAL '1 day')`;
+  }
+  return where;
+}
+
 async function listCustomersHandler(req, res) {
   try {
     const params = [];
     const scope = customerScope(req.actor, params);
+    const where = appendListFilters(req, params, scope.where, 'c.created_at', 'c.owner_actor_id');
     const result = await query(
       `SELECT c.*, oa.name as owner_actor_name
        FROM com_customers c
        LEFT JOIN com_actors oa ON oa.id = c.owner_actor_id
-       WHERE ${scope.where}
+       WHERE ${where}
        ORDER BY c.created_at DESC`,
-      scope.params
+      params
     );
     res.json({ customers: result.rows });
   } catch (error) {
     console.error('[comercial] list customers error:', error);
-    res.status(500).json({ error: 'Erro ao carregar clientes' });
+    res.status(error.status || 500).json({ error: error.status ? error.message : 'Erro ao carregar clientes' });
   }
 }
 
@@ -483,20 +512,21 @@ async function listQuotesHandler(req, res) {
   try {
     const params = [];
     const scope = quoteScope(req.actor, params);
+    const where = appendListFilters(req, params, scope.where, 'q.created_at', 'q.actor_id');
     const result = await query(
       `SELECT q.id, q.quote_number, q.status, q.total_value, q.valid_until, q.created_at, q.customer_id,
               c.company_name as customer_name, a.name as actor_name
        FROM online_quotes q
        LEFT JOIN com_customers c ON c.id = q.customer_id
        LEFT JOIN com_actors a ON a.id = q.actor_id
-       WHERE ${scope.where}
+       WHERE ${where}
        ORDER BY q.created_at DESC`,
-      scope.params
+      params
     );
     res.json({ quotes: result.rows });
   } catch (error) {
     console.error('[comercial] list quotes error:', error);
-    res.status(500).json({ error: 'Erro ao carregar orçamentos' });
+    res.status(error.status || 500).json({ error: error.status ? error.message : 'Erro ao carregar orçamentos' });
   }
 }
 
@@ -949,20 +979,21 @@ async function listSalesHandler(req, res) {
   try {
     const params = [];
     const scope = salesScope(req.actor, params);
+    const where = appendListFilters(req, params, scope.where, 's.sale_date', 's.actor_id');
     const result = await query(
       `SELECT s.id, s.sale_number, s.status, s.total_value, s.sale_date, s.created_at,
               c.company_name as customer_name, a.name as actor_name
        FROM com_sales s
        LEFT JOIN com_customers c ON c.id = s.customer_id
        LEFT JOIN com_actors a ON a.id = s.actor_id
-       WHERE ${scope.where}
+       WHERE ${where}
        ORDER BY s.created_at DESC`,
-      scope.params
+      params
     );
     res.json({ sales: result.rows });
   } catch (error) {
     console.error('[comercial] list sales error:', error);
-    res.status(500).json({ error: 'Erro ao carregar vendas' });
+    res.status(error.status || 500).json({ error: error.status ? error.message : 'Erro ao carregar vendas' });
   }
 }
 
@@ -1033,20 +1064,21 @@ async function listOpportunitiesHandler(req, res) {
     await ensureDefaultStages(req.actor.organization_id);
     const params = [];
     const scope = opportunityScope(req.actor, params);
+    const where = appendListFilters(req, params, scope.where, 'o.created_at', 'o.actor_id');
     const result = await query(
       `SELECT o.*, c.company_name as customer_name, a.name as actor_name, st.name as stage_name, st.is_won, st.is_lost
        FROM com_opportunities o
        LEFT JOIN com_customers c ON c.id = o.customer_id
        LEFT JOIN com_actors a ON a.id = o.actor_id
        LEFT JOIN com_opportunity_stages st ON st.id = o.stage_id
-       WHERE ${scope.where}
+       WHERE ${where}
        ORDER BY o.created_at DESC`,
-      scope.params
+      params
     );
     res.json({ opportunities: result.rows });
   } catch (error) {
     console.error('[comercial] list opportunities error:', error);
-    res.status(500).json({ error: 'Erro ao carregar oportunidades' });
+    res.status(error.status || 500).json({ error: error.status ? error.message : 'Erro ao carregar oportunidades' });
   }
 }
 

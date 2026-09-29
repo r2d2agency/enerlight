@@ -5,8 +5,9 @@ import { comercialInternalApi } from '@/lib/comercial-api';
 export default function PortalComercialOportunidades() {
   return (
     <PortalComercialShell>
-      {() => (
+      {(actor) => (
         <ComercialOportunidadesView
+          actor={actor}
           basePath="/portal-comercial/oportunidades"
           listStages={comercialInternalApi.listStages}
           listOpportunities={comercialInternalApi.listOpportunities}

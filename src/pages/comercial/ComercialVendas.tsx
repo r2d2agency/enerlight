@@ -4,7 +4,7 @@ import { comercialExternalApi } from '@/lib/comercial-api';
 
 const ComercialVendas = () => (
   <ComercialLayout>
-    {() => <ComercialVendasView basePath="/comercial/vendas" listSales={comercialExternalApi.listSales} />}
+    {(actor) => <ComercialVendasView basePath="/comercial/vendas" actor={actor} listSales={comercialExternalApi.listSales} />}
   </ComercialLayout>
 );
 

@@ -8,7 +8,8 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { ComercialCustomer, ComercialMyPriceList, ComercialQuote, ComercialQuoteListItem, ComercialQuoteStatus } from '@/lib/comercial-api';
+import { ComercialActor, ComercialCustomer, ComercialListFilters as ListFilters, ComercialMyPriceList, ComercialQuote, ComercialQuoteListItem, ComercialQuoteStatus } from '@/lib/comercial-api';
+import ComercialListFilters from './ComercialListFilters';
 import { Loader2, Plus, FileText, Search, UserPlus } from 'lucide-react';
 
 const statusConfig: Record<ComercialQuoteStatus, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
@@ -30,14 +31,15 @@ const formatCurrency = (value: number) =>
 
 interface Props {
   basePath: string;
-  listQuotes: () => Promise<{ quotes: ComercialQuoteListItem[] }>;
+  listQuotes: (filters?: ListFilters) => Promise<{ quotes: ComercialQuoteListItem[] }>;
+  actor: ComercialActor;
   createQuote: (body: { customer_id: string; price_list_id?: string }) => Promise<{ quote: ComercialQuote }>;
   listCustomers: () => Promise<{ customers: ComercialCustomer[] }>;
   createCustomer: (body: Partial<ComercialCustomer>) => Promise<{ customer: ComercialCustomer }>;
   listMyPriceLists: () => Promise<{ price_lists: ComercialMyPriceList[] }>;
 }
 
-export default function ComercialOrcamentosView({ basePath, listQuotes, createQuote, listCustomers, createCustomer, listMyPriceLists }: Props) {
+export default function ComercialOrcamentosView({ basePath, listQuotes, createQuote, listCustomers, createCustomer, listMyPriceLists, actor }: Props) {
   const [quotes, setQuotes] = useState<ComercialQuoteListItem[]>([]);
   const [customers, setCustomers] = useState<ComercialCustomer[]>([]);
   const [priceLists, setPriceLists] = useState<ComercialMyPriceList[]>([]);
@@ -50,12 +52,13 @@ export default function ComercialOrcamentosView({ basePath, listQuotes, createQu
   const [newCustomer, setNewCustomer] = useState({ company_name: '', cnpj: '', email: '', phone: '' });
   const [creating, setCreating] = useState(false);
   const [savingCustomer, setSavingCustomer] = useState(false);
+  const [filters, setFilters] = useState<ListFilters>({});
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  const load = () => {
+  const load = (nextFilters = filters) => {
     setLoading(true);
-    listQuotes()
+    listQuotes(nextFilters)
       .then((res) => setQuotes(res.quotes))
       .catch((error) => toast({ title: 'Erro ao carregar orçamentos', description: error?.message, variant: 'destructive' }))
       .finally(() => setLoading(false));
@@ -173,6 +176,7 @@ export default function ComercialOrcamentosView({ basePath, listQuotes, createQu
         </Dialog>
       </div>
 
+      <ComercialListFilters actor={actor} value={filters} onChange={setFilters} onApply={() => load()} onClear={() => { setFilters({}); load({}); }} />
       <Card>
         <CardContent className="p-0">
           {loading ? (

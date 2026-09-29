@@ -4,7 +4,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { ComercialSaleListItem } from '@/lib/comercial-api';
+import { ComercialActor, ComercialListFilters as ListFilters, ComercialSaleListItem } from '@/lib/comercial-api';
+import ComercialListFilters from './ComercialListFilters';
 import { Loader2, ShoppingCart } from 'lucide-react';
 
 const formatCurrency = (value: number) =>
@@ -12,21 +13,22 @@ const formatCurrency = (value: number) =>
 
 interface Props {
   basePath: string;
-  listSales: () => Promise<{ sales: ComercialSaleListItem[] }>;
+  listSales: (filters?: ListFilters) => Promise<{ sales: ComercialSaleListItem[] }>;
+  actor: ComercialActor;
 }
 
-export default function ComercialVendasView({ basePath, listSales }: Props) {
+export default function ComercialVendasView({ basePath, listSales, actor }: Props) {
   const [sales, setSales] = useState<ComercialSaleListItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filters, setFilters] = useState<ListFilters>({});
   const { toast } = useToast();
+  const load = (nextFilters = filters) => {
+    setLoading(true);
+    listSales(nextFilters).then((res) => setSales(res.sales)).catch((error) => toast({ title: 'Erro ao carregar vendas', description: error?.message, variant: 'destructive' })).finally(() => setLoading(false));
+  };
   const navigate = useNavigate();
 
-  useEffect(() => {
-    listSales()
-      .then((res) => setSales(res.sales))
-      .catch((error) => toast({ title: 'Erro ao carregar vendas', description: error?.message, variant: 'destructive' }))
-      .finally(() => setLoading(false));
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { load({}); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="space-y-4">
@@ -35,6 +37,7 @@ export default function ComercialVendasView({ basePath, listSales }: Props) {
         <p className="text-sm text-muted-foreground">Orçamentos convertidos em venda.</p>
       </div>
 
+      <ComercialListFilters actor={actor} value={filters} onChange={setFilters} onApply={() => load()} onClear={() => { setFilters({}); load({}); }} />
       <Card>
         <CardContent className="p-0">
           {loading ? (

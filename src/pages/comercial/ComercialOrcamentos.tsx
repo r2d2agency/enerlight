@@ -4,8 +4,9 @@ import { comercialExternalApi } from '@/lib/comercial-api';
 
 const ComercialOrcamentos = () => (
   <ComercialLayout>
-    {() => (
+    {(actor) => (
       <ComercialOrcamentosView
+        actor={actor}
         basePath="/comercial/orcamentos"
         listQuotes={comercialExternalApi.listQuotes}
         createQuote={comercialExternalApi.createQuote}

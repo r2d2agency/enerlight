@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { DndContext, DragEndEvent, PointerSensor, useDraggable, useDroppable, useSensor, useSensors } from '@dnd-kit/core';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,9 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import {
-  ComercialCustomer, ComercialOpportunity, ComercialOpportunityStage,
+  ComercialActor, ComercialCustomer, ComercialListFilters as ListFilters, ComercialOpportunity, ComercialOpportunityStage,
 } from '@/lib/comercial-api';
-import { Loader2, Plus, Handshake } from 'lucide-react';
+import ComercialListFilters from './ComercialListFilters';
+import { Loader2, Plus, Handshake, LayoutGrid, List as ListIcon, GripVertical, CalendarDays, UserRound } from 'lucide-react';
 
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value) || 0);
@@ -18,7 +20,8 @@ const formatCurrency = (value: number) =>
 interface Props {
   basePath: string;
   listStages: () => Promise<{ stages: ComercialOpportunityStage[] }>;
-  listOpportunities: () => Promise<{ opportunities: ComercialOpportunity[] }>;
+  listOpportunities: (filters?: ListFilters) => Promise<{ opportunities: ComercialOpportunity[] }>;
+  actor: ComercialActor;
   createOpportunity: (body: Partial<ComercialOpportunity>) => Promise<{ opportunity: ComercialOpportunity }>;
   updateOpportunity: (id: string, body: Partial<ComercialOpportunity>) => Promise<{ opportunity: ComercialOpportunity }>;
   listCustomers: () => Promise<{ customers: ComercialCustomer[] }>;
@@ -27,7 +30,7 @@ interface Props {
 const emptyForm = { customer_id: '', title: '', estimated_value: '', probability_percent: '', expected_close_date: '', origin: '' };
 
 export default function ComercialOportunidadesView({
-  basePath, listStages, listOpportunities, createOpportunity, updateOpportunity, listCustomers,
+  basePath, listStages, listOpportunities, createOpportunity, updateOpportunity, listCustomers, actor,
 }: Props) {
   const [stages, setStages] = useState<ComercialOpportunityStage[]>([]);
   const [opportunities, setOpportunities] = useState<ComercialOpportunity[]>([]);
@@ -37,12 +40,15 @@ export default function ComercialOportunidadesView({
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [movingId, setMovingId] = useState<string | null>(null);
+  const [filters, setFilters] = useState<ListFilters>({});
+  const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  const load = () => {
+  const load = (nextFilters = filters) => {
     setLoading(true);
-    Promise.all([listStages(), listOpportunities()])
+    Promise.all([listStages(), listOpportunities(nextFilters)])
       .then(([stagesRes, oppsRes]) => {
         setStages(stagesRes.stages);
         setOpportunities(oppsRes.opportunities);
@@ -84,6 +90,12 @@ export default function ComercialOportunidadesView({
     }
   };
 
+  const handleDragEnd = (event: DragEndEvent) => {
+    const stageId = String(event.over?.id || '');
+    const opp = opportunities.find((item) => item.id === String(event.active.id));
+    if (opp && stageId && stageId !== opp.stage_id) handleMove(opp, stageId);
+  };
+
   const handleMove = async (opp: ComercialOpportunity, stageId: string) => {
     setMovingId(opp.id);
     try {
@@ -104,6 +116,20 @@ export default function ComercialOportunidadesView({
       </div>
     );
   }
+
+  const DroppableStage = ({ stageId, className, children }: { stageId: string; className: string; children: React.ReactNode }) => {
+    const { setNodeRef, isOver } = useDroppable({ id: stageId });
+    return <div ref={setNodeRef} className={`${className} ${isOver ? 'ring-2 ring-primary ring-offset-2' : ''}`}>{children}</div>;
+  };
+
+  const OpportunityCard = ({ opp, stageId }: { opp: ComercialOpportunity; stageId: string }) => {
+    const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: opp.id });
+    const style = transform ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` } : undefined;
+    return <Card ref={setNodeRef} style={style} {...listeners} {...attributes} className={`group cursor-grab border-muted shadow-sm transition-all hover:border-primary/50 hover:shadow-md active:cursor-grabbing ${isDragging ? 'z-20 opacity-70 shadow-xl' : ''}`}>
+      <CardContent className="p-4" onClick={() => navigate(`${basePath}/${opp.id}`)}><div className="mb-3 flex items-start justify-between gap-2"><p className="text-sm font-semibold leading-snug">{opp.title}</p><GripVertical className="h-4 w-4 shrink-0 text-muted-foreground" /></div><p className="mb-3 truncate text-xs text-muted-foreground">{opp.customer_name || 'Cliente não informado'}</p><div className="flex items-center justify-between"><p className="text-sm font-bold text-primary">{formatCurrency(opp.estimated_value)}</p>{opp.probability_percent != null && <span className="text-[11px] text-muted-foreground">{opp.probability_percent}%</span>}</div>{opp.actor_name && <p className="mt-3 flex items-center gap-1 truncate border-t pt-2 text-[11px] text-muted-foreground"><UserRound className="h-3 w-3" />{opp.actor_name}</p>}</CardContent>
+      <div className="border-t bg-muted/20 px-3 py-2" onClick={(e) => e.stopPropagation()}><Select value={stageId} onValueChange={(v) => handleMove(opp, v)} disabled={movingId === opp.id}><SelectTrigger className="h-7 border-0 bg-transparent text-xs shadow-none"><SelectValue placeholder="Mover para..." /></SelectTrigger><SelectContent>{stages.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent></Select></div>
+    </Card>;
+  };
 
   return (
     <div className="space-y-4">
@@ -170,6 +196,9 @@ export default function ComercialOportunidadesView({
         </Dialog>
       </div>
 
+      <ComercialListFilters actor={actor} value={filters} onChange={setFilters} onApply={() => load()} onClear={() => { setFilters({}); load({}); }} />
+      <div className="flex items-center justify-between rounded-xl border bg-card p-2"><div><p className="px-2 text-sm font-semibold">Visão do funil</p><p className="px-2 text-xs text-muted-foreground">{opportunities.length} oportunidades filtradas</p></div><div className="flex rounded-lg bg-muted p-1"><Button size="sm" variant={viewMode === 'kanban' ? 'default' : 'ghost'} onClick={() => setViewMode('kanban')}><LayoutGrid className="mr-1 h-4 w-4" />Kanban</Button><Button size="sm" variant={viewMode === 'list' ? 'default' : 'ghost'} onClick={() => setViewMode('list')}><ListIcon className="mr-1 h-4 w-4" />Lista</Button></div></div>
+
       {opportunities.length === 0 && stages.length > 0 ? (
         <Card>
           <CardContent className="text-center py-12 text-muted-foreground">
@@ -177,43 +206,27 @@ export default function ComercialOportunidadesView({
             <p>Nenhuma oportunidade criada ainda.</p>
           </CardContent>
         </Card>
+      ) : viewMode === 'list' ? (
+        <Card><CardContent className="overflow-x-auto p-0"><table className="w-full text-sm"><thead><tr className="border-b text-left"><th className="p-3">Oportunidade</th><th className="p-3">Cliente</th><th className="p-3">Vendedor</th><th className="p-3">Etapa</th><th className="p-3">Valor</th><th className="p-3">Probabilidade</th><th className="p-3">Data</th></tr></thead><tbody>{opportunities.map((opp) => <tr key={opp.id} className="cursor-pointer border-b hover:bg-muted/50" onClick={() => navigate(`${basePath}/${opp.id}`)}><td className="p-3 font-medium">{opp.title}</td><td className="p-3">{opp.customer_name || '—'}</td><td className="p-3 text-muted-foreground">{opp.actor_name || '—'}</td><td className="p-3">{stages.find((stage) => stage.id === opp.stage_id)?.name || '—'}</td><td className="p-3 font-semibold">{formatCurrency(opp.estimated_value)}</td><td className="p-3">{opp.probability_percent != null ? `${opp.probability_percent}%` : '—'}</td><td className="p-3 text-muted-foreground">{opp.created_at ? new Date(opp.created_at).toLocaleDateString('pt-BR') : '—'}</td></tr>)}</tbody></table></CardContent></Card>
       ) : (
-        <div className="flex gap-3 overflow-x-auto pb-2">
-          {stages.map((stage) => {
+        <DndContext sensors={sensors} onDragEnd={handleDragEnd}><div className="flex gap-4 overflow-x-auto rounded-xl bg-muted/20 p-3 pb-4">
+          {stages.map((stage, index) => {
             const stageOpps = opportunities.filter((o) => o.stage_id === stage.id);
             const stageTotal = stageOpps.reduce((s, o) => s + Number(o.estimated_value || 0), 0);
             return (
-              <div key={stage.id} className="min-w-[260px] w-[260px] flex-shrink-0">
-                <div className="flex items-center justify-between px-1 mb-2">
-                  <p className="text-sm font-medium">{stage.name}</p>
-                  <p className="text-xs text-muted-foreground">{stageOpps.length} · {formatCurrency(stageTotal)}</p>
+              <DroppableStage key={stage.id} stageId={stage.id} className="min-w-[290px] w-[290px] flex-shrink-0 rounded-xl border bg-background/80 p-3 shadow-sm">
+                <div className="mb-3 flex items-start justify-between border-b pb-3">
+                  <div className="flex items-center gap-2"><span className={`h-2.5 w-2.5 rounded-full ${['bg-blue-500', 'bg-violet-500', 'bg-amber-500', 'bg-emerald-500', 'bg-rose-500'][index % 5]}`} /><div><p className="text-sm font-semibold">{stage.name}</p><p className="text-[11px] text-muted-foreground">{stageOpps.length} oportunidade{stageOpps.length === 1 ? '' : 's'}</p></div></div>
+                  <span className="rounded-full bg-muted px-2 py-1 text-[10px] font-medium">{formatCurrency(stageTotal)}</span>
                 </div>
-                <div className="space-y-2">
-                  {stageOpps.map((opp) => (
-                    <Card key={opp.id} className="cursor-pointer hover:shadow-md transition-shadow">
-                      <CardContent className="p-3 space-y-2" onClick={() => navigate(`${basePath}/${opp.id}`)}>
-                        <p className="text-sm font-medium leading-tight">{opp.title}</p>
-                        <p className="text-xs text-muted-foreground">{opp.customer_name}</p>
-                        <p className="text-sm font-semibold">{formatCurrency(opp.estimated_value)}</p>
-                        {opp.actor_name && <p className="text-[11px] text-muted-foreground">{opp.actor_name}</p>}
-                      </CardContent>
-                      <div className="px-3 pb-3" onClick={(e) => e.stopPropagation()}>
-                        <Select value={stage.id} onValueChange={(v) => handleMove(opp, v)} disabled={movingId === opp.id}>
-                          <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            {stages.map((s) => (
-                              <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </Card>
-                  ))}
+                <div className="min-h-[110px] space-y-3">
+                  {stageOpps.map((opp) => <OpportunityCard key={opp.id} opp={opp} stageId={stage.id} />)}
+                  {stageOpps.length === 0 && <div className="flex h-20 items-center justify-center rounded-lg border border-dashed text-xs text-muted-foreground">Nenhuma oportunidade</div>}
                 </div>
-              </div>
+              </DroppableStage>
             );
           })}
-        </div>
+        </div></DndContext>
       )}
     </div>
   );
