@@ -263,6 +263,7 @@ export default function ComercialClientesView({ actor, listCustomers, createCust
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       <ComercialListFilters actor={actor} value={filters} onChange={setFilters} onApply={() => load()} onClear={() => { setFilters({}); load({}); }} />
