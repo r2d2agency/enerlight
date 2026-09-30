@@ -348,20 +348,61 @@ async function createCustomerHandler(req, res) {
   }
 }
 
+async function importOptionsHandler(req, res) {
+  try {
+    const actor = req.actor;
+    const isAdmin = actor.profile === 'admin';
+    // Vendedores/parceiros: admin vê todos da organização; supervisor vê os das
+    // suas equipes; demais não têm acesso à importação.
+    const sellers = await query(
+      `SELECT a.id, a.name, a.email FROM com_actors a
+       WHERE a.organization_id = $1 AND a.status = 'active' AND a.profile IN ('vendedor','parceiro')
+         AND ($2::boolean OR a.id = $3 OR EXISTS (
+           SELECT 1 FROM com_team_supervisors ts WHERE ts.actor_id = $3 AND ts.team_id = a.team_id
+         ))
+       ORDER BY a.name`,
+      [actor.organization_id, isAdmin, actor.id]
+    );
+    const teams = await query(
+      `SELECT DISTINCT t.id, t.name FROM com_teams t
+       WHERE t.organization_id = $1 AND ($2::boolean OR EXISTS (
+         SELECT 1 FROM com_team_supervisors ts WHERE ts.actor_id = $3 AND ts.team_id = t.id
+       ))
+       ORDER BY t.name`,
+      [actor.organization_id, isAdmin, actor.id]
+    );
+    res.json({ sellers: sellers.rows, teams: teams.rows });
+  } catch (error) {
+    console.error('[comercial] import options error:', error);
+    res.status(500).json({ error: 'Erro ao carregar opções de importação' });
+  }
+}
+
 async function importCustomersHandler(req, res) {  try {
     const isSupervisor = req.actor.profile === 'admin' || (await query('SELECT 1 FROM com_team_supervisors WHERE actor_id = $1 LIMIT 1', [req.actor.id])).rows.length > 0;
     if (!isSupervisor) return res.status(403).json({ error: 'Apenas supervisores podem importar clientes' });
     const rows = Array.isArray(req.body?.customers) ? req.body.customers : [];
     if (!rows.length || rows.length > 1000) return res.status(400).json({ error: 'Envie entre 1 e 1000 clientes' });
     const allowed = req.actor.profile === 'admin' ? null : (await query(`SELECT a.id FROM com_actors a WHERE a.organization_id = $1 AND (a.id = $2 OR EXISTS (SELECT 1 FROM com_team_supervisors ts WHERE ts.actor_id = $2 AND ts.team_id = a.team_id)) AND a.profile IN ('vendedor','parceiro')`, [req.actor.organization_id, req.actor.id])).rows.map((r) => r.id);
+    // Destino por equipe: clientes ficam sem responsável individual, visíveis à equipe.
+    const teamId = req.body?.team_id || null;
+    if (teamId && req.body?.owner_actor_id) return res.status(400).json({ error: 'Escolha apenas um destino: vendedor ou equipe' });
+    if (teamId && (await query(
+      `SELECT 1 FROM com_teams t WHERE t.id = $1 AND t.organization_id = $2 AND ($3::boolean OR EXISTS (
+        SELECT 1 FROM com_team_supervisors ts WHERE ts.actor_id = $4 AND ts.team_id = t.id
+      ))`,
+      [teamId, req.actor.organization_id, req.actor.profile === 'admin', req.actor.id]
+    )).rows.length === 0) return res.status(400).json({ error: 'Equipe inválida para esta organização' });
     const report = { created: 0, duplicates: 0, invalid: 0, errors: [] };
     for (let i = 0; i < rows.length; i += 1) {
       const b = rows[i] || {}; const type = CUSTOMER_TYPES.includes(b.type) ? b.type : 'pj';
-      const owner = b.owner_actor_id || req.actor.id;
-      if (!b.company_name?.trim() || (allowed && !allowed.includes(owner))) { report.invalid += 1; report.errors.push({ row: i + 1, error: 'Nome ou vendedor inválido' }); continue; }
+      // Sem destino, o importador (supervisor) é o responsável; com team_id, o
+      // cliente fica sem dono individual e pertence à equipe.
+      const owner = b.owner_actor_id || (teamId ? null : req.actor.id);
+      if (!b.company_name?.trim() || (owner && allowed && !allowed.includes(owner))) { report.invalid += 1; report.errors.push({ row: i + 1, error: 'Nome ou vendedor inválido' }); continue; }
       const document = type === 'pf' ? (b.cpf || '').trim() : (b.cnpj || '').trim();
       if (document && (await query(`SELECT 1 FROM com_customers WHERE organization_id = $1 AND ${type === 'pf' ? 'cpf' : 'cnpj'} = $2 LIMIT 1`, [req.actor.organization_id, document])).rows.length) { report.duplicates += 1; continue; }
-      await query(`INSERT INTO com_customers (organization_id, owner_actor_id, type, company_name, trade_name, cnpj, cpf, phone, whatsapp, email, contact_name, city, state, origin, notes, created_by, updated_by) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$16)`, [req.actor.organization_id, owner, type, b.company_name.trim(), b.trade_name || null, type === 'pj' ? document || null : null, type === 'pf' ? document || null : null, b.phone || null, b.whatsapp || null, b.email || null, b.contact_name || null, b.city || null, b.state || null, b.origin || 'importacao', b.notes || null, req.actor.id]);
+      await query(`INSERT INTO com_customers (organization_id, owner_actor_id, owner_team_id, type, company_name, trade_name, cnpj, cpf, phone, whatsapp, email, contact_name, city, state, origin, notes, created_by, updated_by) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$17)`, [req.actor.organization_id, owner, owner ? null : teamId, type, b.company_name.trim(), b.trade_name || null, type === 'pj' ? document || null : null, type === 'pf' ? document || null : null, b.phone || null, b.whatsapp || null, b.email || null, b.contact_name || null, b.city || null, b.state || null, b.origin || 'importacao', b.notes || null, req.actor.id]);
       report.created += 1;
     }
     res.status(201).json({ report });
@@ -1640,6 +1681,8 @@ router.get('/me', externalActorAuth, async (req, res) => {
 });
 
 // Clientes, catálogo e tabelas de preço — mesmos handlers usados pela porta interna
+// Opções de destino da importação (vendedores e equipes visíveis ao ator).
+router.get('/clientes/importar/opcoes', externalActorAuth, importOptionsHandler);
 router.post('/clientes/importar', externalActorAuth, importCustomersHandler);
 router.post('/clientes/distribuir', externalActorAuth, distributeCustomersHandler);
 router.get('/clientes', externalActorAuth, listCustomersHandler);
@@ -1794,6 +1837,7 @@ internalRouter.get('/equipe/resumo', async (req, res) => {
   } catch (error) { console.error('[comercial] team summary error:', error); res.status(500).json({ error: 'Erro ao carregar equipe' }); }
 });
 
+internalRouter.get('/clientes/importar/opcoes', importOptionsHandler);
 internalRouter.post('/clientes/importar', importCustomersHandler);
 internalRouter.post('/clientes/distribuir', distributeCustomersHandler);
 internalRouter.get('/clientes', listCustomersHandler);

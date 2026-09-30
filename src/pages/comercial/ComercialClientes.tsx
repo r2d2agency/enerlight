@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
-import { ComercialActor, comercialAdminApi, ComercialAdminActor, ComercialTeam } from '@/lib/comercial-api';
+import { ComercialActor, comercialExternalApi } from '@/lib/comercial-api';
 import ComercialLayout from './ComercialLayout';
 import ComercialClientesView from './ComercialClientesView';
-import { comercialExternalApi } from '@/lib/comercial-api';
 import type { ImportTarget, SellerOption, TeamOption } from '@/components/comercial/CustomerImportDialog';
 
 const ComercialClientes = () => (
@@ -18,15 +17,17 @@ function ClientesContent({ actor }: { actor: ComercialActor }) {
 
   useEffect(() => {
     if (!isAdmin) return;
-    comercialAdminApi.listActors().then((res) => setSellers(
-      res.actors.filter((a: ComercialAdminActor) => ['vendedor', 'parceiro'].includes(a.profile) && a.status === 'active')
-        .map((a: ComercialAdminActor) => ({ id: a.id, name: a.name, email: a.email }))
-    )).catch(() => {});
-    comercialAdminApi.listTeams().then((res) => setTeams(res.teams.map((t: ComercialTeam) => ({ id: t.id, name: t.name })))).catch(() => {});
+    comercialExternalApi.importOptions()
+      .then((res) => { setSellers(res.sellers); setTeams(res.teams); })
+      .catch(() => {});
   }, [isAdmin]);
 
   const importCustomers = (customers: Record<string, string>[], target: ImportTarget) =>
-    comercialAdminApi.importCustomers(customers, target.kind === 'seller' ? target.id : undefined, target.kind === 'team' ? target.id : undefined);
+    comercialExternalApi.importCustomers(
+      customers,
+      target.kind === 'seller' ? target.id : undefined,
+      target.kind === 'team' ? target.id : undefined
+    );
 
   return (
     <ComercialClientesView

@@ -128,8 +128,8 @@ export default function ComercialClientesView({ actor, listCustomers, createCust
               <CustomerImportDialog
                 open={importOpen}
                 onOpenChange={setImportOpen}
-                sellers={[]}
-                teams={[]}
+                sellers={importSellers}
+                teams={importTeams}
                 onImport={onImportCustomers ?? (async () => ({ report: { created: 0, duplicates: 0, invalid: 0 } }))}
                 onImported={onImported}
               />
