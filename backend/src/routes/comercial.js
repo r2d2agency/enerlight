@@ -333,8 +333,7 @@ async function createCustomerHandler(req, res) {
   }
 }
 
-async function importCustomersHandler(req, res) {
-  try {
+async function importCustomersHandler(req, res) {  try {
     const isSupervisor = req.actor.profile === 'admin' || (await query('SELECT 1 FROM com_team_supervisors WHERE actor_id = $1 LIMIT 1', [req.actor.id])).rows.length > 0;
     if (!isSupervisor) return res.status(403).json({ error: 'Apenas supervisores podem importar clientes' });
     const rows = Array.isArray(req.body?.customers) ? req.body.customers : [];
@@ -1879,6 +1878,29 @@ adminRouter.put('/price-lists/:id/templates', gate('can_manage_comercial_portal'
   const result = await query('UPDATE price_lists SET allowed_templates=$1::jsonb, default_template_id=$2, updated_at=NOW() WHERE id=$3 AND organization_id=$4 RETURNING *', [JSON.stringify(valid), defaultId, req.params.id, org.organization_id]);
   if (!result.rows[0]) return res.status(404).json({ error: 'Tabela não encontrada' });
   res.json({ price_list: result.rows[0] });
+});
+
+adminRouter.post('/clientes/importar', gate('can_manage_comercial_portal'), async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'Sem organização' });
+    const rows = Array.isArray(req.body?.customers) ? req.body.customers : [];
+    if (!rows.length || rows.length > 1000) return res.status(400).json({ error: 'Envie entre 1 e 1000 clientes' });
+    const actors = (await query(`SELECT id FROM com_actors WHERE organization_id = $1 AND status = 'active' AND profile IN ('vendedor','parceiro')`, [org.organization_id])).rows.map((r) => r.id);
+    const defaultOwner = req.body?.owner_actor_id || null;
+    if (defaultOwner && !actors.includes(defaultOwner)) return res.status(400).json({ error: 'Vendedor inválido para esta organização' });
+    const report = { created: 0, duplicates: 0, invalid: 0, errors: [] };
+    for (let i = 0; i < rows.length; i += 1) {
+      const b = rows[i] || {}; const type = CUSTOMER_TYPES.includes(b.type) ? b.type : 'pj'; const owner = b.owner_actor_id || defaultOwner;
+      if (!b.company_name?.trim() || (owner && !actors.includes(owner))) { report.invalid += 1; report.errors.push({ row: i + 1, error: 'Nome ou vendedor inválido' }); continue; }
+      const document = type === 'pf' ? (b.cpf || '').trim() : (b.cnpj || '').trim();
+      if (document && (await query(`SELECT 1 FROM com_customers WHERE organization_id = $1 AND ${type === 'pf' ? 'cpf' : 'cnpj'} = $2 LIMIT 1`, [org.organization_id, document])).rows.length) { report.duplicates += 1; continue; }
+      await query(`INSERT INTO com_customers (organization_id, owner_actor_id, type, company_name, trade_name, cnpj, cpf, phone, whatsapp, email, contact_name, city, state, origin, notes, created_by, updated_by) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$16)`, [org.organization_id, owner, type, b.company_name.trim(), b.trade_name || null, type === 'pj' ? document || null : null, type === 'pf' ? document || null : null, b.phone || null, b.whatsapp || null, b.email || null, b.contact_name || null, b.city || null, b.state || null, b.origin || 'importacao_admin', b.notes || null, req.userId]);
+      report.created += 1;
+    }
+    await logAudit(req, { action: 'customers_imported', entityType: 'com_customer', entityId: null, newValue: report });
+    res.status(201).json({ report });
+  } catch (error) { console.error('[comercial] admin import customers error:', error); res.status(500).json({ error: 'Erro ao importar clientes' }); }
 });
 
 adminRouter.get('/actors', gate('can_manage_comercial_portal'), async (req, res) => {

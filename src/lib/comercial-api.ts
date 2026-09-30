@@ -749,6 +749,7 @@ export interface ComercialAuditLog {
 
 // Administração — usa a mesma sessão do CRM (auth_token), não o token isolado do portal
 export const comercialAdminApi = {
+  importCustomers: (customers: Partial<ComercialCustomer>[], owner_actor_id?: string) => api<{ report: { created: number; duplicates: number; invalid: number; errors: Array<{ row: number; error: string }> } }>('/api/comercial/admin/clientes/importar', { method: 'POST', body: { customers, owner_actor_id } }),
   listQuoteTemplates: () => api<{ templates: ComercialQuoteTemplate[] }>('/api/comercial/admin/quote-templates'),
   createQuoteTemplate: (body: Partial<ComercialQuoteTemplate>) => api<{ template: ComercialQuoteTemplate }>('/api/comercial/admin/quote-templates', { method: 'POST', body }),
   updateQuoteTemplate: (id: string, body: Partial<ComercialQuoteTemplate>) => api<{ template: ComercialQuoteTemplate }>(`/api/comercial/admin/quote-templates/${id}`, { method: 'PUT', body }),

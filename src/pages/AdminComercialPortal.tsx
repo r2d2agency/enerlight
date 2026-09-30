@@ -24,6 +24,7 @@ import AdminComercialDashboardTab from './comercial/AdminComercialDashboardTab';
 import AdminComercialCommissionsTab from './comercial/AdminComercialCommissionsTab';
 import AdminComercialAuditTab from './comercial/AdminComercialAuditTab';
 import AdminComercialMarketingTab from './comercial/AdminComercialMarketingTab';
+import CustomerImportDialog from '@/components/comercial/CustomerImportDialog';
 import * as XLSX from 'xlsx';
 import {
   Loader2, Plus, Briefcase, Send, Lock, Unlock, UserPlus, Users2, Package, Tag, ArrowRightLeft, Check, X, KeyRound,
@@ -85,6 +86,7 @@ export default function AdminComercialPortal() {
   const [defaultPriceListId, setDefaultPriceListId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [temporaryPassword, setTemporaryPassword] = useState<{ actorName: string; email: string; password: string } | null>(null);
+  const [customerImportOpen, setCustomerImportOpen] = useState(false);
 
   const [linkForm, setLinkForm] = useState<{ user_id: string; profile: ComercialProfile }>({ user_id: '', profile: 'vendedor' });
   const [inviteForm, setInviteForm] = useState<{ name: string; email: string; phone: string; profile: ComercialProfile }>({
@@ -708,6 +710,7 @@ export default function AdminComercialPortal() {
           <TabsTrigger value="atores">Usuários</TabsTrigger>
           <TabsTrigger value="equipes">Equipes</TabsTrigger>
           <TabsTrigger value="produtos">Produtos</TabsTrigger>
+          <TabsTrigger value="clientes">Clientes</TabsTrigger>
           <TabsTrigger value="tabelas-preco">Tabelas de Preço</TabsTrigger>
           <TabsTrigger value="comissoes">Comissões</TabsTrigger>
           <TabsTrigger value="transferencias">
@@ -746,6 +749,21 @@ export default function AdminComercialPortal() {
 
         <TabsContent value="dashboard" className="mt-4">
           <AdminComercialDashboardTab actors={actors} />
+        </TabsContent>
+
+        <TabsContent value="clientes" className="mt-4">
+          <Card><CardContent className="flex flex-wrap items-center justify-between gap-4 p-6">
+            <div><h2 className="font-semibold">Importação de clientes</h2><p className="text-sm text-muted-foreground">Importe até 1.000 clientes de uma planilha e vincule-os a um vendedor ou representante ativo.</p></div>
+            <Button onClick={() => setCustomerImportOpen(true)}><Upload className="mr-2 h-4 w-4" />Importar clientes</Button>
+          </CardContent></Card>
+          <CustomerImportDialog
+            open={customerImportOpen}
+            onOpenChange={setCustomerImportOpen}
+            sellers={actors.filter((actor) => ['vendedor', 'parceiro'].includes(actor.profile) && actor.status === 'active').map((actor) => ({ id: actor.id, name: actor.name, email: actor.email }))}
+            ownerLabel="Vincular clientes a"
+            onImport={(customers, ownerActorId) => comercialAdminApi.importCustomers(customers, ownerActorId)}
+            onImported={load}
+          />
         </TabsContent>
 
         <TabsContent value="atores" className="space-y-4 mt-4">
