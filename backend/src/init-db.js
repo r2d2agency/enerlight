@@ -6126,6 +6126,20 @@ CREATE TABLE IF NOT EXISTS com_comercial_catalog_actors (
 CREATE INDEX IF NOT EXISTS idx_com_comercial_catalogs_org ON com_comercial_catalogs(organization_id, is_published, position);
 `;
 
+// Propriedade de cliente no nível da equipe: clientes importados sem vendedor
+// individual ficam visíveis a membros e supervisores da equipe responsável.
+const step82ComercialCustomerTeamOwner = `
+DO $$ BEGIN
+  ALTER TABLE com_customers ADD COLUMN owner_team_id UUID REFERENCES com_teams(id) ON DELETE SET NULL;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+CREATE INDEX IF NOT EXISTS idx_com_customers_owner_team ON com_customers(owner_team_id);
+-- Backfill: clientes com dono herdaram a equipe do dono; sem dono, permanece NULL.
+UPDATE com_customers c
+SET owner_team_id = a.team_id
+FROM com_actors a
+WHERE c.owner_actor_id = a.id AND c.owner_team_id IS NULL AND a.team_id IS NOT NULL;
+`;
+
 const step79MigrateRepPortalData = `
 DO $$ BEGIN
   ALTER TABLE com_customers ADD COLUMN legacy_rep_portal_company_id UUID;
@@ -6462,6 +6476,7 @@ const migrationSteps = [
   { name: 'Portal Comercial (Migração de dados do rep_portal_* antigo)', sql: step79MigrateRepPortalData, critical: false },
   { name: 'Portal Comercial (Marketing)', sql: step80Marketing, critical: false },
   { name: 'Portal Comercial (Catálogos PDF)', sql: step81ComercialPdfCatalogs, critical: false },
+  { name: 'Portal Comercial (Cliente por equipe)', sql: step82ComercialCustomerTeamOwner, critical: false },
 ];
 
 

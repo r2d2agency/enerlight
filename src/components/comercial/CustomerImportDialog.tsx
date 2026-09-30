@@ -7,16 +7,18 @@ import * as XLSX from 'xlsx';
 import { Loader2, Upload } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
-interface SellerOption { id: string; name: string; email?: string }
+export interface SellerOption { id: string; name: string; email?: string }
+export interface TeamOption { id: string; name: string }
+
+export type ImportTarget = { kind: 'none' } | { kind: 'seller'; id: string } | { kind: 'team'; id: string };
 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   sellers: SellerOption[];
-  onImport: (customers: Record<string, string>[], ownerActorId?: string) => Promise<{ report: { created: number; duplicates: number; invalid: number } }>;
+  teams?: TeamOption[];
+  onImport: (customers: Record<string, string>[], target: ImportTarget) => Promise<{ report: { created: number; duplicates: number; invalid: number } }>;
   onImported?: () => void;
-  ownerLabel?: string;
-  requiredOwner?: boolean;
 }
 
 const pick = (row: Record<string, unknown>, keys: string[]) => {
@@ -26,8 +28,8 @@ const pick = (row: Record<string, unknown>, keys: string[]) => {
   return '';
 };
 
-export default function CustomerImportDialog({ open, onOpenChange, sellers, onImport, onImported, ownerLabel = 'Vendedor responsável', requiredOwner = false }: Props) {
-  const [ownerActorId, setOwnerActorId] = useState('');
+export default function CustomerImportDialog({ open, onOpenChange, sellers, teams = [], onImport, onImported }: Props) {
+  const [target, setTarget] = useState<ImportTarget>({ kind: 'none' });
   const [rows, setRows] = useState<Record<string, string>[]>([]);
   const [filename, setFilename] = useState('');
   const [loading, setLoading] = useState(false);
@@ -60,21 +62,32 @@ export default function CustomerImportDialog({ open, onOpenChange, sellers, onIm
   };
 
   const confirm = async () => {
-    if (requiredOwner && !ownerActorId) { toast({ title: 'Selecione um vendedor', description: 'Escolha para quem os clientes serão vinculados.', variant: 'destructive' }); return; }
     setLoading(true);
     try {
-      const { report } = await onImport(rows, ownerActorId || undefined);
+      const { report } = await onImport(rows, target);
       toast({ title: 'Importação concluída', description: `${report.created} criados, ${report.duplicates} duplicados, ${report.invalid} inválidos.` });
-      onOpenChange(false); setRows([]); setFilename(''); setOwnerActorId('');
+      onOpenChange(false); setRows([]); setFilename(''); setTarget({ kind: 'none' });
       onImported?.();
     } catch (error) { toast({ title: 'Erro ao importar', description: error instanceof Error ? error.message : 'Tente novamente.', variant: 'destructive' }); }
     finally { setLoading(false); }
   };
 
+  const targetValue = target.kind === 'none' ? 'none' : `${target.kind}:${target.id}`;
+
   return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent>
     <DialogHeader><DialogTitle>Importar clientes</DialogTitle></DialogHeader>
     <div className="space-y-4">
-      <div className="space-y-2"><Label>{ownerLabel}</Label><Select value={ownerActorId || 'none'} onValueChange={(value) => setOwnerActorId(value === 'none' ? '' : value)}><SelectTrigger><SelectValue placeholder={requiredOwner ? 'Selecione o vendedor' : 'Todos (sem vínculo)'} /></SelectTrigger><SelectContent>{!requiredOwner && <SelectItem value="none">Todos (sem vínculo)</SelectItem>}{sellers.map((seller) => <SelectItem key={seller.id} value={seller.id}>{seller.name}{seller.email ? ` — ${seller.email}` : ''}</SelectItem>)}</SelectContent></Select></div>
+      <div className="space-y-2"><Label>Destino dos clientes</Label><Select value={targetValue} onValueChange={(value) => {
+        if (value === 'none') setTarget({ kind: 'none' });
+        else {
+          const [kind, id] = value.split(':');
+          setTarget(kind === 'team' ? { kind: 'team', id } : { kind: 'seller', id });
+        }
+      }}><SelectTrigger><SelectValue placeholder="Sem vínculo" /></SelectTrigger><SelectContent>
+        <SelectItem value="none">Sem vínculo</SelectItem>
+        {sellers.map((seller) => <SelectItem key={seller.id} value={`seller:${seller.id}`}>{seller.name}{seller.email ? ` — ${seller.email}` : ''}</SelectItem>)}
+        {teams.map((team) => <SelectItem key={team.id} value={`team:${team.id}`}>Equipe: {team.name}</SelectItem>)}
+      </SelectContent></Select>{target.kind === 'team' && <p className="text-xs text-muted-foreground">Os clientes ficarão sem vendedor individual e visíveis para toda a equipe selecionada.</p>}</div>
       <div className="space-y-2"><Label>Arquivo (XLSX ou CSV, até 1.000 linhas)</Label><label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed p-4 text-sm text-muted-foreground hover:bg-muted/50"><Upload className="h-4 w-4" />{filename || 'Selecionar arquivo'}<input type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={readFile} /></label>{rows.length > 0 && <p className="text-xs text-muted-foreground">{rows.length} clientes prontos para importar.</p>}</div>
     </div>
     <DialogFooter><Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button><Button onClick={confirm} disabled={loading || !rows.length}>{loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Importar</Button></DialogFooter>

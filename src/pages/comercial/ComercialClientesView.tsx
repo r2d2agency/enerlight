@@ -9,8 +9,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogT
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { ComercialActor, ComercialCustomer, ComercialListFilters as ListFilters } from '@/lib/comercial-api';
+import CustomerImportDialog, { ImportTarget, SellerOption, TeamOption } from '@/components/comercial/CustomerImportDialog';
 import ComercialListFilters from './ComercialListFilters';
-import { Loader2, Plus, Users, Building2, User } from 'lucide-react';
+import { Loader2, Plus, Users, Building2, User, Upload } from 'lucide-react';
 
 const emptyForm = {
   type: 'pj' as 'pj' | 'pf',
@@ -25,6 +26,11 @@ interface Props {
   listCustomers: (filters?: ListFilters) => Promise<{ customers: ComercialCustomer[] }>;
   createCustomer: (body: Partial<ComercialCustomer>) => Promise<{ customer: ComercialCustomer }>;
   updateCustomer: (id: string, body: Partial<ComercialCustomer>) => Promise<{ customer: ComercialCustomer }>;
+  isAdmin?: boolean;
+  importSellers?: SellerOption[];
+  importTeams?: TeamOption[];
+  onImportCustomers?: (customers: Record<string, string>[], target: ImportTarget) => Promise<{ report: { created: number; duplicates: number; invalid: number } }>;
+  onImported?: () => void;
 }
 
 const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' }> = {
@@ -32,10 +38,11 @@ const statusConfig: Record<string, { label: string; variant: 'default' | 'second
   inactive: { label: 'Inativo', variant: 'secondary' },
 };
 
-export default function ComercialClientesView({ actor, listCustomers, createCustomer, updateCustomer }: Props) {
+export default function ComercialClientesView({ actor, listCustomers, createCustomer, updateCustomer, isAdmin = false, importSellers = [], importTeams = [], onImportCustomers, onImported }: Props) {
   const [customers, setCustomers] = useState<ComercialCustomer[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [editing, setEditing] = useState<ComercialCustomer | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
@@ -111,7 +118,24 @@ export default function ComercialClientesView({ actor, listCustomers, createCust
             {actor.profile === 'admin' ? 'Todos os clientes da organização' : actor.profile === 'gerente' ? 'Seus clientes e os da sua equipe' : 'Seus clientes'}
           </p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <div className="flex items-center gap-2 flex-wrap">
+          {isAdmin && (
+            <>
+              <Button variant="outline" onClick={() => setImportOpen(true)}>
+                <Upload className="h-4 w-4 mr-1" />
+                Importar clientes
+              </Button>
+              <CustomerImportDialog
+                open={importOpen}
+                onOpenChange={setImportOpen}
+                sellers={[]}
+                teams={[]}
+                onImport={onImportCustomers ?? (async () => ({ report: { created: 0, duplicates: 0, invalid: 0 } }))}
+                onImported={onImported}
+              />
+            </>
+          )}
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
             <Button onClick={openCreate}>
               <Plus className="h-4 w-4 mr-1" />
@@ -281,7 +305,9 @@ export default function ComercialClientesView({ actor, listCustomers, createCust
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">{c.phone || c.whatsapp || c.email || '—'}</TableCell>
                     {canSeeOwner && (
-                      <TableCell className="text-sm text-muted-foreground">{c.owner_actor_name || '—'}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {c.owner_actor_name || (c.owner_team_name ? `Equipe: ${c.owner_team_name}` : '—')}
+                      </TableCell>
                     )}
                     <TableCell>
                       <Badge variant={statusConfig[c.status]?.variant || 'secondary'}>

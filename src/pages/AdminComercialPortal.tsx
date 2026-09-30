@@ -760,8 +760,8 @@ export default function AdminComercialPortal() {
             open={customerImportOpen}
             onOpenChange={setCustomerImportOpen}
             sellers={actors.filter((actor) => ['vendedor', 'parceiro'].includes(actor.profile) && actor.status === 'active').map((actor) => ({ id: actor.id, name: actor.name, email: actor.email }))}
-            ownerLabel="Vincular clientes a"
-            onImport={(customers, ownerActorId) => comercialAdminApi.importCustomers(customers, ownerActorId)}
+            teams={teams.map((team) => ({ id: team.id, name: team.name }))}
+            onImport={(customers, target) => comercialAdminApi.importCustomers(customers, target.kind === 'seller' ? target.id : undefined, target.kind === 'team' ? target.id : undefined)}
             onImported={load}
           />
         </TabsContent>

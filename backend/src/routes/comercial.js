@@ -215,7 +215,20 @@ function actorScopeSql(actor, paramsArr, column, alias) {
 }
 
 function customerScope(actor, paramsArr) {
-  return actorScopeSql(actor, paramsArr, 'c.owner_actor_id', 'c');
+  const base = actorScopeSql(actor, paramsArr, 'c.owner_actor_id', 'c');
+  if (actor.profile === 'admin') return base;
+  // Clientes de propriedade da equipe (owner_team_id) também entram no escopo
+  // de membros e supervisores dessa equipe.
+  paramsArr.push(actor.id);
+  const actorIdx = paramsArr.length;
+  return {
+    where: `((${base.where}) OR (c.owner_team_id IS NOT NULL AND EXISTS (
+      SELECT 1 FROM com_team_supervisors ts2
+      WHERE ts2.actor_id = $${actorIdx}
+        AND (ts2.team_id = c.owner_team_id OR ts2.team_id IN (SELECT team_id FROM com_actors me WHERE me.id = $${actorIdx}))
+    )))`,
+    params: paramsArr,
+  };
 }
 
 function appendListFilters(req, params, where, column, actorColumn) {
@@ -252,9 +265,10 @@ async function listCustomersHandler(req, res) {
     const scope = customerScope(req.actor, params);
     const where = appendListFilters(req, params, scope.where, 'c.created_at', 'c.owner_actor_id');
     const result = await query(
-      `SELECT c.*, oa.name as owner_actor_name
+      `SELECT c.*, oa.name as owner_actor_name, ot.name as owner_team_name
        FROM com_customers c
        LEFT JOIN com_actors oa ON oa.id = c.owner_actor_id
+       LEFT JOIN com_teams ot ON ot.id = c.owner_team_id
        WHERE ${where}
        ORDER BY c.created_at DESC`,
       params
@@ -272,9 +286,10 @@ async function getCustomerHandler(req, res) {
     const scope = customerScope(req.actor, params);
     params.push(req.params.id);
     const result = await query(
-      `SELECT c.*, oa.name as owner_actor_name
+      `SELECT c.*, oa.name as owner_actor_name, ot.name as owner_team_name
        FROM com_customers c
        LEFT JOIN com_actors oa ON oa.id = c.owner_actor_id
+       LEFT JOIN com_teams ot ON ot.id = c.owner_team_id
        WHERE ${scope.where} AND c.id = $${params.length}`,
       params
     );
@@ -369,12 +384,22 @@ async function distributeCustomersHandler(req, res) {
 async function updateCustomerHandler(req, res) {
   try {
     const existing = await query(
-      'SELECT id, owner_actor_id FROM com_customers WHERE id = $1 AND organization_id = $2',
+      'SELECT id, owner_actor_id, owner_team_id FROM com_customers WHERE id = $1 AND organization_id = $2',
       [req.params.id, req.actor.organization_id]
     );
     if (existing.rows.length === 0) return res.status(404).json({ error: 'Cliente não encontrado' });
 
-    const canEdit = req.actor.profile === 'admin' || existing.rows[0].owner_actor_id === req.actor.id;
+    let canEdit = req.actor.profile === 'admin' || existing.rows[0].owner_actor_id === req.actor.id;
+    if (!canEdit && existing.rows[0].owner_team_id) {
+      // Membro da equipe responsável também pode editar clientes sem dono individual.
+      canEdit = (await query(
+        `SELECT 1 FROM com_actors me
+         WHERE me.id = $1 AND me.team_id = $2
+           AND (me.id = (SELECT actor_id FROM com_team_supervisors WHERE team_id = $2 AND actor_id = $1 LIMIT 1)
+                OR me.profile IN ('vendedor','parceiro','gerente'))`,
+        [req.actor.id, existing.rows[0].owner_team_id]
+      )).rows.length > 0;
+    }
     if (!canEdit) return res.status(403).json({ error: 'Você só pode editar seus próprios clientes' });
 
     const b = req.body || {};
@@ -586,15 +611,19 @@ async function createQuoteHandler(req, res) {
     if (!customer) return res.status(404).json({ error: 'Cliente não encontrado' });
 
     if (req.actor.profile !== 'admin') {
-      if (req.actor.profile === 'gerente' && req.actor.team_id) {
-        const ok = customer.owner_actor_id && await query(
+      let inScope = false;
+      if (customer.owner_team_id && customer.owner_team_id === req.actor.team_id) {
+        inScope = true;
+      } else if (customer.owner_actor_id) {
+        const ok = await query(
           'SELECT 1 FROM com_actors WHERE id = $1 AND (id = $2 OR team_id = $3)',
           [customer.owner_actor_id, req.actor.id, req.actor.team_id]
         );
-        if (!ok || ok.rows.length === 0) return res.status(403).json({ error: 'Cliente fora do seu escopo' });
-      } else if (customer.owner_actor_id !== req.actor.id) {
-        return res.status(403).json({ error: 'Cliente fora do seu escopo' });
+        inScope = req.actor.profile === 'gerente' && req.actor.team_id
+          ? ok.rows.length > 0
+          : customer.owner_actor_id === req.actor.id;
       }
+      if (!inScope) return res.status(403).json({ error: 'Cliente fora do seu escopo' });
     }
 
     // Prioridade da tabela de preço (item 9): cliente > escolhida no orçamento (se autorizada) > padrão do vendedor
@@ -1122,22 +1151,26 @@ async function createOpportunityHandler(req, res) {
     if (!b.customer_id) return res.status(400).json({ error: 'Cliente é obrigatório' });
 
     const custResult = await query(
-      'SELECT id, owner_actor_id FROM com_customers WHERE id = $1 AND organization_id = $2',
+      'SELECT id, owner_actor_id, owner_team_id FROM com_customers WHERE id = $1 AND organization_id = $2',
       [b.customer_id, req.actor.organization_id]
     );
     const customer = custResult.rows[0];
     if (!customer) return res.status(404).json({ error: 'Cliente não encontrado' });
 
     if (req.actor.profile !== 'admin') {
-      if (req.actor.profile === 'gerente' && req.actor.team_id) {
-        const ok = customer.owner_actor_id && await query(
+      let inScope = false;
+      if (customer.owner_team_id && customer.owner_team_id === req.actor.team_id) {
+        inScope = true;
+      } else if (customer.owner_actor_id) {
+        const ok = await query(
           'SELECT 1 FROM com_actors WHERE id = $1 AND (id = $2 OR team_id = $3)',
           [customer.owner_actor_id, req.actor.id, req.actor.team_id]
         );
-        if (!ok || ok.rows.length === 0) return res.status(403).json({ error: 'Cliente fora do seu escopo' });
-      } else if (customer.owner_actor_id !== req.actor.id) {
-        return res.status(403).json({ error: 'Cliente fora do seu escopo' });
+        inScope = req.actor.profile === 'gerente' && req.actor.team_id
+          ? ok.rows.length > 0
+          : customer.owner_actor_id === req.actor.id;
       }
+      if (!inScope) return res.status(403).json({ error: 'Cliente fora do seu escopo' });
     }
 
     await ensureDefaultStages(req.actor.organization_id);
@@ -1889,13 +1922,20 @@ adminRouter.post('/clientes/importar', gate('can_manage_comercial_portal'), asyn
     const actors = (await query(`SELECT id FROM com_actors WHERE organization_id = $1 AND status = 'active' AND profile IN ('vendedor','parceiro')`, [org.organization_id])).rows.map((r) => r.id);
     const defaultOwner = req.body?.owner_actor_id || null;
     if (defaultOwner && !actors.includes(defaultOwner)) return res.status(400).json({ error: 'Vendedor inválido para esta organização' });
+    // Destino por equipe: clientes ficam sem responsável individual, visíveis à equipe.
+    const defaultTeamId = req.body?.team_id || null;
+    if (defaultTeamId && defaultOwner) return res.status(400).json({ error: 'Escolha apenas um destino: vendedor ou equipe' });
+    if (defaultTeamId && (await query('SELECT 1 FROM com_teams WHERE id = $1 AND organization_id = $2', [defaultTeamId, org.organization_id])).rows.length === 0) {
+      return res.status(400).json({ error: 'Equipe inválida para esta organização' });
+    }
     const report = { created: 0, duplicates: 0, invalid: 0, errors: [] };
     for (let i = 0; i < rows.length; i += 1) {
       const b = rows[i] || {}; const type = CUSTOMER_TYPES.includes(b.type) ? b.type : 'pj'; const owner = b.owner_actor_id || defaultOwner;
       if (!b.company_name?.trim() || (owner && !actors.includes(owner))) { report.invalid += 1; report.errors.push({ row: i + 1, error: 'Nome ou vendedor inválido' }); continue; }
       const document = type === 'pf' ? (b.cpf || '').trim() : (b.cnpj || '').trim();
       if (document && (await query(`SELECT 1 FROM com_customers WHERE organization_id = $1 AND ${type === 'pf' ? 'cpf' : 'cnpj'} = $2 LIMIT 1`, [org.organization_id, document])).rows.length) { report.duplicates += 1; continue; }
-      await query(`INSERT INTO com_customers (organization_id, owner_actor_id, type, company_name, trade_name, cnpj, cpf, phone, whatsapp, email, contact_name, city, state, origin, notes, created_by, updated_by) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$16)`, [org.organization_id, owner, type, b.company_name.trim(), b.trade_name || null, type === 'pj' ? document || null : null, type === 'pf' ? document || null : null, b.phone || null, b.whatsapp || null, b.email || null, b.contact_name || null, b.city || null, b.state || null, b.origin || 'importacao_admin', b.notes || null, req.userId]);
+      const ownerTeam = owner ? null : defaultTeamId;
+      await query(`INSERT INTO com_customers (organization_id, owner_actor_id, owner_team_id, type, company_name, trade_name, cnpj, cpf, phone, whatsapp, email, contact_name, city, state, origin, notes, created_by, updated_by) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$17)`, [org.organization_id, owner, ownerTeam, type, b.company_name.trim(), b.trade_name || null, type === 'pj' ? document || null : null, type === 'pf' ? document || null : null, b.phone || null, b.whatsapp || null, b.email || null, b.contact_name || null, b.city || null, b.state || null, b.origin || 'importacao_admin', b.notes || null, req.userId]);
       report.created += 1;
     }
     await logAudit(req, { action: 'customers_imported', entityType: 'com_customer', entityId: null, newValue: report });
