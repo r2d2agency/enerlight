@@ -738,13 +738,28 @@ async function getQuoteHandler(req, res) {
       `SELECT q.*, c.company_name as customer_name, c.email as customer_email, a.name as actor_name,
               o.name as organization_name, o.logo_url as organization_logo_url,
               t.cover_url as template_cover, t.cover_url as cover_image_url,
-              json_build_object('cover_url', t.cover_url, 'pdf_layout', NULL) as template
+              t.fiscal_info as template_fiscal_info,
+              cfg.legal_text, cfg.primary_color, cfg.accent_color, cfg.text_color,
+              json_build_object(
+                'cover_url', t.cover_url,
+                'logo_url', t.logo_url,
+                'header_text', t.header_text,
+                'footer_text', t.footer_text,
+                'footer_config', t.footer_config,
+                'fiscal_info', t.fiscal_info,
+                'legal_text', cfg.legal_text,
+                'primary_color', cfg.primary_color,
+                'accent_color', cfg.accent_color,
+                'text_color', cfg.text_color,
+                'pdf_layout', NULL
+              ) as template
        FROM online_quotes q
        LEFT JOIN price_lists pl ON pl.id = q.price_list_id
        LEFT JOIN online_quote_templates t ON t.id = COALESCE(q.template_id, pl.default_template_id)
        LEFT JOIN com_customers c ON c.id = q.customer_id
        LEFT JOIN com_actors a ON a.id = q.actor_id
        LEFT JOIN organizations o ON o.id = q.organization_id
+       LEFT JOIN online_quotes_config cfg ON cfg.organization_id = q.organization_id
        WHERE ${scope.where} AND q.id = $${params.length}`,
       params
     );
@@ -1747,8 +1762,27 @@ router.get('/comissoes/minhas', externalActorAuth, myCommissionsHandler);
 router.get('/proposta/:token', async (req, res) => {
   try {
     const result = await query(
-      `SELECT q.*, o.name as organization_name, o.logo_url as organization_logo_url
-       FROM online_quotes q LEFT JOIN organizations o ON o.id = q.organization_id
+      `SELECT q.*, o.name as organization_name, o.logo_url as organization_logo_url,
+              t.cover_url as template_cover, t.fiscal_info as template_fiscal_info,
+              cfg.legal_text, cfg.primary_color, cfg.accent_color, cfg.text_color,
+              json_build_object(
+                'cover_url', t.cover_url,
+                'logo_url', t.logo_url,
+                'header_text', t.header_text,
+                'footer_text', t.footer_text,
+                'footer_config', t.footer_config,
+                'fiscal_info', t.fiscal_info,
+                'legal_text', cfg.legal_text,
+                'primary_color', cfg.primary_color,
+                'accent_color', cfg.accent_color,
+                'text_color', cfg.text_color,
+                'pdf_layout', NULL
+              ) as template
+       FROM online_quotes q
+       LEFT JOIN organizations o ON o.id = q.organization_id
+       LEFT JOIN price_lists pl ON pl.id = q.price_list_id
+       LEFT JOIN online_quote_templates t ON t.id = COALESCE(q.template_id, pl.default_template_id)
+       LEFT JOIN online_quotes_config cfg ON cfg.organization_id = q.organization_id
        WHERE q.public_token = $1`,
       [req.params.token]
     );
@@ -1874,7 +1908,7 @@ internalRouter.get('/comissoes/minhas', myCommissionsHandler);
 const quoteSettingsHandler = async (req, res) => {
   const org = await marketingOrg(req);
   if (!org) return res.status(403).json({ error: 'Sem organização' });
-  const result = await query('SELECT delivery_terms, payment_terms_options, default_shipping_type FROM online_quotes_config WHERE organization_id = $1', [org]);
+  const result = await query('SELECT delivery_terms, payment_terms_options, default_shipping_type, legal_text, primary_color, accent_color, text_color FROM online_quotes_config WHERE organization_id = $1', [org]);
   res.json({ settings: result.rows[0] || { delivery_terms: [], payment_terms_options: [], default_shipping_type: 'cif' } });
 };
 router.get('/quote-settings', externalActorAuth, quoteSettingsHandler);
@@ -1902,9 +1936,16 @@ adminRouter.put('/settings', gate('can_manage_comercial_portal'), async (req, re
   const deliveryTerms = Array.isArray(req.body?.delivery_terms) ? normalizeOptions(req.body.delivery_terms) : [];
   const paymentTerms = Array.isArray(req.body?.payment_terms_options) ? normalizeOptions(req.body.payment_terms_options) : [];
   const shippingType = ['fob', 'cif'].includes(req.body?.default_shipping_type) ? req.body.default_shipping_type : 'cif';
-  const result = await query(`INSERT INTO online_quotes_config (organization_id, delivery_terms, payment_terms_options, default_shipping_type)
-    VALUES ($1, $2::jsonb, $3::jsonb, $4) ON CONFLICT (organization_id) DO UPDATE SET delivery_terms = EXCLUDED.delivery_terms, payment_terms_options = EXCLUDED.payment_terms_options, default_shipping_type = EXCLUDED.default_shipping_type, updated_at = NOW() RETURNING *`,
-    [org.organization_id, JSON.stringify(deliveryTerms), JSON.stringify(paymentTerms), shippingType]);
+  const hexColor = (value, fallback) => (typeof value === 'string' && /^#[0-9a-fA-F]{6}$/.test(value.trim()) ? value.trim() : fallback);
+  const result = await query(`INSERT INTO online_quotes_config (organization_id, delivery_terms, payment_terms_options, default_shipping_type, legal_text, primary_color, accent_color, text_color)
+    VALUES ($1, $2::jsonb, $3::jsonb, $4, $5, $6, $7, $8)
+    ON CONFLICT (organization_id) DO UPDATE SET delivery_terms = EXCLUDED.delivery_terms, payment_terms_options = EXCLUDED.payment_terms_options, default_shipping_type = EXCLUDED.default_shipping_type,
+      legal_text = EXCLUDED.legal_text, primary_color = EXCLUDED.primary_color, accent_color = EXCLUDED.accent_color, text_color = EXCLUDED.text_color, updated_at = NOW() RETURNING *`,
+    [org.organization_id, JSON.stringify(deliveryTerms), JSON.stringify(paymentTerms), shippingType,
+      typeof req.body?.legal_text === 'string' ? req.body.legal_text : null,
+      hexColor(req.body?.primary_color, '#202D3D'),
+      hexColor(req.body?.accent_color, '#1E5AAF'),
+      hexColor(req.body?.text_color, '#282828')]);
   res.json({ settings: result.rows[0] });
 });
 
@@ -1918,10 +1959,10 @@ adminRouter.get('/quote-templates', gate('can_manage_comercial_portal'), async (
 adminRouter.post('/quote-templates', gate('can_manage_comercial_portal'), async (req, res) => {
   const org = await getUserOrg(req.userId);
   if (!org) return res.status(403).json({ error: 'Sem organização' });
-  const { name, description, cover_url, header_text, footer_text, footer_config, is_default } = req.body || {};
+  const { name, description, cover_url, header_text, footer_text, footer_config, logo_url, is_default } = req.body || {};
   if (!String(name || '').trim()) return res.status(400).json({ error: 'Nome do template é obrigatório' });
   if (is_default) await query('UPDATE online_quote_templates SET is_default = false WHERE organization_id = $1', [org.organization_id]);
-  const result = await query(`INSERT INTO online_quote_templates (organization_id, name, description, cover_url, header_text, footer_text, footer_config, is_default) VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8) RETURNING *`, [org.organization_id, name.trim(), description || null, cover_url || null, header_text || null, footer_text || null, JSON.stringify(footer_config || {}), !!is_default]);
+  const result = await query(`INSERT INTO online_quote_templates (organization_id, name, description, cover_url, header_text, footer_text, footer_config, logo_url, is_default) VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9) RETURNING *`, [org.organization_id, name.trim(), description || null, cover_url || null, header_text || null, footer_text || null, JSON.stringify(footer_config || {}), logo_url || null, !!is_default]);
   res.status(201).json({ template: result.rows[0] });
 });
 
@@ -1932,7 +1973,7 @@ adminRouter.put('/quote-templates/:id', gate('can_manage_comercial_portal'), asy
   if (!current.rows[0]) return res.status(404).json({ error: 'Template não encontrado' });
   const b = req.body || {};
   if (b.is_default) await query('UPDATE online_quote_templates SET is_default = false WHERE organization_id = $1', [org.organization_id]);
-  const result = await query(`UPDATE online_quote_templates SET name = COALESCE($1,name), description=$2, cover_url=$3, header_text=$4, footer_text=$5, footer_config=$6::jsonb, is_default=COALESCE($7,is_default), updated_at=NOW() WHERE id=$8 AND organization_id=$9 RETURNING *`, [b.name?.trim() || null, b.description || null, b.cover_url || null, b.header_text || null, b.footer_text || null, JSON.stringify(b.footer_config || {}), b.is_default === undefined ? null : !!b.is_default, req.params.id, org.organization_id]);
+  const result = await query(`UPDATE online_quote_templates SET name = COALESCE($1,name), description=$2, cover_url=$3, header_text=$4, footer_text=$5, footer_config=$6::jsonb, logo_url=COALESCE($7,logo_url), is_default=COALESCE($8,is_default), updated_at=NOW() WHERE id=$9 AND organization_id=$10 RETURNING *`, [b.name?.trim() || null, b.description || null, b.cover_url || null, b.header_text || null, b.footer_text || null, JSON.stringify(b.footer_config || {}), b.logo_url === undefined ? null : (b.logo_url || null), b.is_default === undefined ? null : !!b.is_default, req.params.id, org.organization_id]);
   res.json({ template: result.rows[0] });
 });
 

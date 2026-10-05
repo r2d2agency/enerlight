@@ -227,7 +227,15 @@ app.use((req, res, next) => {
 // Serve uploaded files statically with CORS headers
 const uploadsDir = path.join(process.cwd(), 'uploads');
 app.use('/uploads', (req, res, next) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  // Must echo the request Origin: the PDF generator fetches these images with
+  // credentials: 'include', and browsers reject a wildcard for credentialed requests.
+  const corsOrigin = resolveCorsOrigin(req.headers.origin);
+  if (corsOrigin) {
+    res.setHeader('Access-Control-Allow-Origin', corsOrigin);
+    res.setHeader('Vary', 'Origin');
+  } else {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+  }
   res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Range, Content-Type');
   res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range, Accept-Ranges');

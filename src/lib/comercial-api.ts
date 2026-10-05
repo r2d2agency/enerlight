@@ -110,6 +110,20 @@ export interface ComercialQuoteListItem {
   actor_name?: string | null;
 }
 
+export interface QuoteTemplatePayload {
+  cover_url?: string | null;
+  logo_url?: string | null;
+  header_text?: string | null;
+  footer_text?: string | null;
+  footer_config?: unknown;
+  fiscal_info?: string | null;
+  legal_text?: string | null;
+  primary_color?: string | null;
+  accent_color?: string | null;
+  text_color?: string | null;
+  pdf_layout?: string | null;
+}
+
 export interface ComercialQuote {
   id: string;
   organization_id: string;
@@ -146,6 +160,13 @@ export interface ComercialQuote {
   rejected_at?: string | null;
   organization_name?: string;
   organization_logo_url?: string | null;
+  template?: QuoteTemplatePayload | null;
+  template_cover?: string | null;
+  template_fiscal_info?: string | null;
+  legal_text?: string | null;
+  primary_color?: string | null;
+  accent_color?: string | null;
+  text_color?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -422,7 +443,7 @@ export const comercialExternalApi = {
 
   me: () => call<{ actor: ComercialActor }>('/api/comercial/me'),
   listMarketingMaterials: () => call<{ materials: ComercialMarketingMaterial[] }>('/api/comercial/marketing/materiais'),
-  getQuoteSettings: () => call<{ settings: { delivery_terms: string[]; payment_terms_options: string[]; default_shipping_type: 'fob' | 'cif' } }>('/api/comercial/quote-settings'),
+  getQuoteSettings: () => call<{ settings: { delivery_terms: string[]; payment_terms_options: string[]; default_shipping_type: 'fob' | 'cif'; legal_text?: string | null; primary_color?: string | null; accent_color?: string | null; text_color?: string | null } }>('/api/comercial/quote-settings'),
   listCatalogs: () => call<{ catalogs: ComercialPdfCatalog[] }>('/api/comercial/catalogos'),
   downloadCatalog: (id: string) => call<{ url: string; filename: string }>(`/api/comercial/catalogos/${id}/download`),
   downloadMarketingMaterial: (id: string) => call<{ url?: string; file_url?: string; filename?: string }>(`/api/comercial/marketing/materiais/${id}/download`),
@@ -497,7 +518,7 @@ export const comercialInternalApi = {
   listCatalogs: () => api<{ catalogs: ComercialPdfCatalog[] }>('/api/comercial/interno/catalogos'),
   downloadCatalog: (id: string) => api<{ url: string; filename: string }>(`/api/comercial/interno/catalogos/${id}/download`),
   listMarketingMaterials: () => api<{ materials: ComercialMarketingMaterial[] }>('/api/comercial/interno/marketing/materiais'),
-  getQuoteSettings: () => api<{ settings: { delivery_terms: string[]; payment_terms_options: string[]; default_shipping_type: 'fob' | 'cif' } }>('/api/comercial/interno/quote-settings'),
+  getQuoteSettings: () => api<{ settings: { delivery_terms: string[]; payment_terms_options: string[]; default_shipping_type: 'fob' | 'cif'; legal_text?: string | null; primary_color?: string | null; accent_color?: string | null; text_color?: string | null } }>('/api/comercial/interno/quote-settings'),
   downloadMarketingMaterial: (id: string) => api<{ url?: string; file_url?: string; filename?: string }>(`/api/comercial/interno/marketing/materiais/${id}/download`),
   me: () => api<{ actor: ComercialActor }>('/api/comercial/interno/me'),
 
@@ -759,8 +780,8 @@ export const comercialAdminApi = {
   updateQuoteTemplate: (id: string, body: Partial<ComercialQuoteTemplate>) => api<{ template: ComercialQuoteTemplate }>(`/api/comercial/admin/quote-templates/${id}`, { method: 'PUT', body }),
   deleteQuoteTemplate: (id: string) => api<{ message: string }>(`/api/comercial/admin/quote-templates/${id}`, { method: 'DELETE' }),
   setPriceListTemplates: (id: string, body: { template_ids: string[]; default_template_id?: string | null }) => api<{ price_list: ComercialAdminPriceList }>(`/api/comercial/admin/price-lists/${id}/templates`, { method: 'PUT', body }),
-  getSettings: () => api<{ settings: { delivery_terms: string[]; payment_terms_options: string[]; default_shipping_type: 'fob' | 'cif' } }>('/api/comercial/admin/settings'),
-  updateSettings: (body: { delivery_terms: string[]; payment_terms_options: string[]; default_shipping_type: 'fob' | 'cif' }) => api<{ settings: { delivery_terms: string[]; payment_terms_options: string[]; default_shipping_type: 'fob' | 'cif' } }>('/api/comercial/admin/settings', { method: 'PUT', body }),
+  getSettings: () => api<{ settings: { delivery_terms: string[]; payment_terms_options: string[]; default_shipping_type: 'fob' | 'cif'; legal_text?: string | null; primary_color?: string | null; accent_color?: string | null; text_color?: string | null } }>('/api/comercial/admin/settings'),
+  updateSettings: (body: { delivery_terms: string[]; payment_terms_options: string[]; default_shipping_type: 'fob' | 'cif'; legal_text?: string | null; primary_color?: string | null; accent_color?: string | null; text_color?: string | null }) => api<{ settings: { delivery_terms: string[]; payment_terms_options: string[]; default_shipping_type: 'fob' | 'cif'; legal_text?: string | null; primary_color?: string | null; accent_color?: string | null; text_color?: string | null } }>('/api/comercial/admin/settings', { method: 'PUT', body }),
   listActors: () => api<{ actors: ComercialAdminActor[] }>('/api/comercial/admin/actors'),
   getActor: (id: string) => api<{ actor: ComercialAdminActor }>(`/api/comercial/admin/actors/${id}`),
   linkInternal: (body: { user_id: string; profile?: ComercialProfile; team_id?: string }) =>

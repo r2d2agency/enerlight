@@ -242,9 +242,13 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
         shipping_type: quote.shipping_type || 'cif',
         shipping_value: quote.freight_value,
         notes: quote.notes,
-        template: quote.template ? { ...quote.template, cover_url: resolveMediaUrl(quote.template.cover_url) } : undefined,
+        template: quote.template ? { ...quote.template, cover_url: resolveMediaUrl(quote.template.cover_url), logo_url: resolveMediaUrl(quote.template.logo_url) } : undefined,
         template_cover: resolveMediaUrl(quote.template_cover),
         cover_image_url: resolveMediaUrl(quote.cover_image_url),
+        primary_color: quote.primary_color,
+        accent_color: quote.accent_color,
+        text_color: quote.text_color,
+        legal_text: quote.legal_text,
         total_value: quote.total_value,
         include_images: true,
         items: items.map((i) => ({
@@ -257,7 +261,7 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
           image_url: i.image_url,
         })),
       },
-      { name: quote.organization_name, logo_url: quote.organization_logo_url },
+      { name: quote.organization_name, logo_url: resolveMediaUrl(quote.organization_logo_url) },
       { layout, include_cover: withCover }
       );
     } catch (error) {

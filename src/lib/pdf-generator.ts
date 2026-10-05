@@ -9,15 +9,85 @@ const numberValue = (value: unknown): number => {
 };
 
 const loadRemoteImage = async (url: string): Promise<string> => {
-  const response = await fetch(url, { credentials: 'include', mode: 'cors' });
-  if (!response.ok) throw new Error(`Não foi possível carregar a capa (${response.status})`);
-  const blob = await response.blob();
+  // Normaliza barras duplicadas vindas de configuração salva pelo admin.
+  const normalized = (() => {
+    try {
+      const parsed = new URL(url);
+      parsed.pathname = parsed.pathname.replace(/\/{2,}/g, '/');
+      return parsed.toString();
+    } catch {
+      return url.replace(/([^:])\/{2,}/g, '$1/');
+    }
+  })();
+
+  // Arquivos de /uploads são públicos e não exigem cookies; 'omit' evita o
+  // bloqueio de CORS que ocorre com 'include' quando a origem é curinga.
+  const fetchImage = (credentials: RequestCredentials) =>
+    fetch(normalized, { credentials, mode: 'cors' }).then((response) => {
+      if (!response.ok) throw new Error(`Não foi possível carregar a imagem (${response.status})`);
+      return response.blob();
+    });
+
+  let blob: Blob;
+  try {
+    blob = await fetchImage('omit');
+  } catch (_) {
+    blob = await fetchImage('include');
+  }
+
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(reader.error || new Error('Não foi possível ler a capa'));
+    reader.onerror = () => reject(reader.error || new Error('Não foi possível ler a imagem'));
     reader.readAsDataURL(blob);
   });
+};
+
+/** Paleta do PDF: cores e logo vêm da configuração da organização/template. */
+export type QuoteBranding = {
+  primary: [number, number, number];
+  accent: [number, number, number];
+  text: [number, number, number];
+  logoUrl?: string | null;
+};
+
+const DEFAULT_BRANDING: QuoteBranding = {
+  primary: [32, 45, 61],
+  accent: [30, 90, 175],
+  text: [40, 40, 40],
+};
+
+const hexToRgb = (value: unknown, fallback: [number, number, number]): [number, number, number] => {
+  if (typeof value !== 'string') return fallback;
+  const hex = value.trim().replace('#', '');
+  if (!/^[0-9a-fA-F]{6}$/.test(hex)) return fallback;
+  return [parseInt(hex.slice(0, 2), 16), parseInt(hex.slice(2, 4), 16), parseInt(hex.slice(4, 6), 16)];
+};
+
+export const resolveBranding = (quote: any): QuoteBranding => ({
+  primary: hexToRgb(quote?.template?.primary_color ?? quote?.primary_color, DEFAULT_BRANDING.primary),
+  accent: hexToRgb(quote?.template?.accent_color ?? quote?.accent_color, DEFAULT_BRANDING.accent),
+  text: hexToRgb(quote?.template?.text_color ?? quote?.text_color, DEFAULT_BRANDING.text),
+  logoUrl: quote?.template?.logo_url ?? null,
+});
+
+/** Texto informado pelo admin (leis, condições, avisos). Aceita quebras de linha. */
+const legalTextOf = (quote: any): string =>
+  String(quote?.template?.legal_text ?? quote?.legal_text ?? '')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n')
+    .replace(/<[^>]*>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .trim();
+
+/** Desenha o logo do template no topo; cai para a logo da organização. */
+const drawHeaderLogo = async (doc: any, branding: QuoteBranding, organization: any, x: number, y: number, w: number, h: number) => {
+  const source = branding.logoUrl || organization?.logo_url;
+  if (!source) return;
+  try {
+    const image = await loadRemoteImage(source);
+    doc.addImage(image, 'PNG', x, y, w, h, undefined, 'FAST');
+  } catch (_) { /* documento continua sem logo */ }
 };
 
 const generateModernPortraitPDF = async (quote: any, organization: any) => {
@@ -34,28 +104,39 @@ const generateModernPortraitPDF = async (quote: any, organization: any) => {
       doc.addPage();
     } catch (_) { /* continue without cover */ }
   }
-  doc.setFillColor(32, 45, 61); doc.rect(0, 0, pageWidth, 38, 'F');
+  const branding = resolveBranding(quote);
+  doc.setFillColor(...branding.primary); doc.rect(0, 0, pageWidth, 38, 'F');
   doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(22); doc.text('PROPOSTA', margin, 18);
   doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.text(`CÓDIGO ${String(quote.id || '').split('-')[0].toUpperCase()}`, margin, 27);
   doc.text(format(new Date(), 'dd/MM/yyyy'), pageWidth - margin, 27, { align: 'right' });
-  if (organization?.logo_url) { try { const logo = await loadRemoteImage(organization.logo_url); doc.addImage(logo, 'PNG', pageWidth - 45, 6, 25, 20, undefined, 'FAST'); } catch (_) {} }
+  await drawHeaderLogo(doc, branding, organization, pageWidth - 45, 6, 25, 20);
   let y = 50;
-  doc.setTextColor(32, 45, 61); doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.text('CLIENTE', margin, y);
+  doc.setTextColor(...branding.primary); doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.text('CLIENTE', margin, y);
   doc.setFont('helvetica', 'normal'); doc.setFontSize(10); y += 7; doc.text(quote.client_name || 'Não informado', margin, y);
   const clientExtra = [quote.client_document, quote.client_email, quote.client_phone].filter(Boolean).join(' · ');
   if (clientExtra) { y += 5; doc.setTextColor(90, 100, 110); doc.setFontSize(8); doc.text(clientExtra, margin, y); }
-  y += 13; doc.setTextColor(32, 45, 61); doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.text('CONDIÇÕES COMERCIAIS', margin, y);
+  y += 13; doc.setTextColor(...branding.primary); doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.text('CONDIÇÕES COMERCIAIS', margin, y);
   y += 7; doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(70, 80, 90);
   const shippingValue = numberValue(quote.shipping_value);
   const itemSubtotal = (quote.items || []).reduce((acc: number, item: any) => acc + numberValue(item.total_price), 0);
   const totalValue = numberValue(quote.total_value) || itemSubtotal + shippingValue;
   const conditions = [`Pagamento: ${quote.payment_terms || 'A definir'}`, `Frete: ${(quote.shipping_type || 'cif').toUpperCase()} · ${currency.format(shippingValue)}`, `Validade: ${quote.valid_until ? format(parseISO(quote.valid_until), 'dd/MM/yyyy') : 'A definir'}`];
   doc.text(conditions, margin, y, { lineHeightFactor: 1.5 }); y += conditions.length * 5 + 7;
-  doc.setTextColor(32, 45, 61);
-  autoTable(doc, { startY: y, margin: { left: margin, right: margin }, head: [['Produto', 'Qtd', 'Unitário', 'Desc.', 'Total']], body: (quote.items || []).map((item: any) => [item.product_name || 'Produto', item.quantity || 0, currency.format(item.unit_price || 0), `${Number(item.discount_value || item.discount_percent || 0).toFixed(2)}%`, currency.format(item.total_price || 0)]), theme: 'striped', headStyles: { fillColor: [32, 45, 61], textColor: 255, fontSize: 8 }, bodyStyles: { fontSize: 8, cellPadding: 3 }, columnStyles: { 0: { cellWidth: 67 }, 1: { halign: 'center', cellWidth: 18 }, 2: { halign: 'right', cellWidth: 31 }, 3: { halign: 'right', cellWidth: 22 }, 4: { halign: 'right', cellWidth: 35 } }, foot: [[{ content: 'TOTAL', colSpan: 4, styles: { halign: 'right', fontStyle: 'bold', fillColor: [230, 235, 240] } }, { content: currency.format(Number(quote.total_value || 0)), styles: { halign: 'right', fontStyle: 'bold', fillColor: [32, 45, 61], textColor: 255 } }]], showHead: 'everyPage' });
+  doc.setTextColor(...branding.primary);
+  autoTable(doc, { startY: y, margin: { left: margin, right: margin }, head: [['Produto', 'Qtd', 'Unitário', 'Desc.', 'Total']], body: (quote.items || []).map((item: any) => [item.product_name || 'Produto', item.quantity || 0, currency.format(item.unit_price || 0), `${Number(item.discount_value || item.discount_percent || 0).toFixed(2)}%`, currency.format(item.total_price || 0)]), theme: 'striped', headStyles: { fillColor: branding.primary, textColor: 255, fontSize: 8 }, bodyStyles: { fontSize: 8, cellPadding: 3 }, columnStyles: { 0: { cellWidth: 67 }, 1: { halign: 'center', cellWidth: 18 }, 2: { halign: 'right', cellWidth: 31 }, 3: { halign: 'right', cellWidth: 22 }, 4: { halign: 'right', cellWidth: 35 } }, foot: [[{ content: 'TOTAL', colSpan: 4, styles: { halign: 'right', fontStyle: 'bold', fillColor: branding.accent, textColor: 255 } }, { content: currency.format(Number(quote.total_value || 0)), styles: { halign: 'right', fontStyle: 'bold', fillColor: branding.primary, textColor: 255 } }]], showHead: 'everyPage' });
   y = (doc as any).lastAutoTable.finalY + 12;
   const notes = [quote.notes, quote.fiscal_info || quote.template_fiscal_info].filter(Boolean).join('\n');
   if (notes) { doc.setFontSize(9); doc.setFont('helvetica', 'bold'); doc.text('OBSERVAÇÕES', margin, y); y += 6; doc.setFont('helvetica', 'normal'); doc.setTextColor(80, 90, 100); doc.text(doc.splitTextToSize(String(notes).replace(/<[^>]*>/g, ''), pageWidth - margin * 2), margin, y); }
+  const legalText = legalTextOf(quote);
+  if (legalText) {
+    const legalLines = doc.splitTextToSize(legalText, pageWidth - margin * 2);
+    const legalBlockHeight = (legalLines.length * 4) + 14;
+    if (y + legalBlockHeight > pageHeight - 24) { doc.addPage(); y = 20; }
+    doc.setTextColor(...branding.primary); doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
+    doc.text('INFORMAÇÕES LEGAIS', margin, y); y += 6;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(90, 100, 110);
+    doc.text(legalLines, margin, y);
+  }
   for (let page = 1; page <= doc.getNumberOfPages(); page += 1) { doc.setPage(page); doc.setDrawColor(210, 215, 220); doc.line(margin, pageHeight - 14, pageWidth - margin, pageHeight - 14); doc.setFontSize(7); doc.setTextColor(120, 130, 140); doc.text(String(quote.template_footer || quote.footer_text || organization?.name || ''), pageWidth / 2, pageHeight - 8, { align: 'center' }); }
   const fileName = (quote.client_name || 'proposta').replace(/\s+/g, '-').toLowerCase(); doc.save(`proposta-${fileName}-vertical.pdf`);
 };
@@ -80,6 +161,7 @@ export const generateQuotePDF = async (quote: any, organization: any, options: {
   });
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
+  const branding = resolveBranding(quote);
 
   // 1. Cover Page (Folha de Rosto) - Full Page
   const coverUrl = quote.template?.cover_url || quote.template_cover || quote.cover_image_url;
@@ -96,7 +178,7 @@ export const generateQuotePDF = async (quote: any, organization: any, options: {
 
   // 2. Header
   doc.setFontSize(22);
-  doc.setTextColor(40, 40, 40);
+  doc.setTextColor(...branding.text);
   doc.text("PROPOSTA", 14, 22);
   
   doc.setFontSize(10);
@@ -108,16 +190,10 @@ export const generateQuotePDF = async (quote: any, organization: any, options: {
   }
 
   // 3. Organization info (Sender)
-  if (organization?.logo_url) {
-     try {
-        const logo = await loadRemoteImage(organization.logo_url);
-        // Usar proporção da imagem ou valores fixos para evitar caixa preta/distorção
-        doc.addImage(logo, 'PNG', pageWidth - 44, 10, 30, 30, undefined, 'FAST');
-      } catch(e) {}
-  }
-  
+  await drawHeaderLogo(doc, branding, organization, pageWidth - 44, 10, 30, 30);
+
   doc.setFontSize(12);
-  doc.setTextColor(40, 40, 40);
+  doc.setTextColor(...branding.text);
   doc.text(organization?.name || "Empresa", pageWidth - 14, 50, { align: "right" });
 
   // 4. Client Info
@@ -148,7 +224,7 @@ export const generateQuotePDF = async (quote: any, organization: any, options: {
 
   // 4.1 Payment Info
   doc.setFontSize(10);
-  doc.setTextColor(40, 40, 40);
+  doc.setTextColor(...branding.text);
   doc.setFont("helvetica", "bold");
   doc.text("FORMA DE PAGAMENTO:", pageWidth / 2, 65);
   doc.setFont("helvetica", "normal");
@@ -177,6 +253,22 @@ export const generateQuotePDF = async (quote: any, organization: any, options: {
   // 5. Items Table
   // Reserve image space only when the proposal explicitly requests images and at least one item has one.
   const includeImages = quote.include_images === true && Boolean(quote.items?.some((item: any) => item.image_url));
+
+  // As fotos precisam ser carregadas antes da tabela: didDrawCell e sincrono e
+  // addImage exige dados base64, nao URL. Falha ao carregar nao impede o PDF.
+  const itemImages: Record<number, string> = {};
+  if (includeImages) {
+    await Promise.all(
+      (quote.items || []).map(async (item: any, index: number) => {
+        if (!item?.image_url) return;
+        try {
+          itemImages[index] = await loadRemoteImage(item.image_url);
+        } catch (e) {
+          console.warn('Nao foi possivel carregar a foto do item', e);
+        }
+      })
+    );
+  }
   
   const headers = includeImages 
     ? [['Foto', 'Produto', 'Qtd', 'Unitário', 'Desc.', 'Total']]
@@ -206,7 +298,7 @@ export const generateQuotePDF = async (quote: any, organization: any, options: {
     head: headers,
     body: tableData,
     theme: 'grid',
-    headStyles: { fillColor: [40, 40, 40], textColor: [255, 255, 255], fontStyle: 'bold' },
+    headStyles: { fillColor: branding.primary, textColor: [255, 255, 255], fontStyle: 'bold' },
     columnStyles: includeImages ? {
       0: { cellWidth: 25, minCellHeight: 25 },
       2: { halign: 'center' },
@@ -221,16 +313,13 @@ export const generateQuotePDF = async (quote: any, organization: any, options: {
     },
     didDrawCell: (data) => {
       if (includeImages && data.section === 'body' && data.column.index === 0) {
-        const item = quote.items?.[data.row.index];
-        if (item?.image_url) {
+        const image = itemImages[data.row.index];
+        if (image) {
           try {
-            // Since we can't easily await inside didDrawCell, we should have pre-loaded 
-            // but for now, we'll try to use the image if it's already cached or a URL
-            // and wrap in try-catch to prevent PDF generation crash
             const dim = 18;
             const x = data.cell.x + (data.cell.width - dim) / 2;
             const y = data.cell.y + (data.cell.height - dim) / 2;
-            doc.addImage(item.image_url, 'JPEG', x, y, dim, dim);
+            doc.addImage(image, 'PNG', x, y, dim, dim, undefined, 'FAST');
           } catch (e) {
             console.warn("Could not add image to PDF row", e);
           }
@@ -239,16 +328,16 @@ export const generateQuotePDF = async (quote: any, organization: any, options: {
     },
     foot: [
       [
-        { content: 'SUBTOTAL ITENS', colSpan: includeImages ? 5 : 4, styles: { halign: 'right', fontStyle: 'bold' as const, fillColor: [245, 245, 245], textColor: [40, 40, 40] } },
-        { content: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(itemSubtotal), styles: { fontStyle: 'bold' as const, fillColor: [245, 245, 245], halign: 'right', textColor: [40, 40, 40] } }
+        { content: 'SUBTOTAL ITENS', colSpan: includeImages ? 5 : 4, styles: { halign: 'right', fontStyle: 'bold' as const, fillColor: branding.accent, textColor: [255, 255, 255] } },
+        { content: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(itemSubtotal), styles: { fontStyle: 'bold' as const, fillColor: branding.accent, halign: 'right', textColor: [255, 255, 255] } }
       ],
       ...(quote.shipping_value > 0 ? [[
-        { content: `FRETE (${quote.shipping_type?.toUpperCase() || 'CIF'})`, colSpan: includeImages ? 5 : 4, styles: { halign: 'right', fontStyle: 'bold' as const, fillColor: [245, 245, 245], textColor: [40, 40, 40] } },
-        { content: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(quote.shipping_value), styles: { fontStyle: 'bold' as const, fillColor: [245, 245, 245], halign: 'right', textColor: [40, 40, 40] } }
+        { content: `FRETE (${quote.shipping_type?.toUpperCase() || 'CIF'})`, colSpan: includeImages ? 5 : 4, styles: { halign: 'right', fontStyle: 'bold' as const, fillColor: branding.accent, textColor: [255, 255, 255] } },
+        { content: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(quote.shipping_value), styles: { fontStyle: 'bold' as const, fillColor: branding.accent, halign: 'right', textColor: [255, 255, 255] } }
       ]] : []),
       [
-        { content: 'VALOR TOTAL', colSpan: includeImages ? 5 : 4, styles: { halign: 'right', fontStyle: 'bold' as const, fillColor: [40, 40, 40], textColor: [255, 255, 255] } },
-        { content: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalValue), styles: { fontStyle: 'bold' as const, fillColor: [40, 40, 40], halign: 'right', textColor: [255, 255, 255] } }
+        { content: 'VALOR TOTAL', colSpan: includeImages ? 5 : 4, styles: { halign: 'right', fontStyle: 'bold' as const, fillColor: branding.primary, textColor: [255, 255, 255] } },
+        { content: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalValue), styles: { fontStyle: 'bold' as const, fillColor: branding.primary, halign: 'right', textColor: [255, 255, 255] } }
       ]
     ] as any,
   });
@@ -261,7 +350,7 @@ export const generateQuotePDF = async (quote: any, organization: any, options: {
   if (fiscalSource) {
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
-    doc.setTextColor(40, 40, 40);
+    doc.setTextColor(...branding.text);
     doc.text("Informações Fiscais:", 14, currentY);
     
     doc.setFont("helvetica", "normal");
@@ -291,7 +380,7 @@ export const generateQuotePDF = async (quote: any, organization: any, options: {
   if (quote.notes) {
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
-    doc.setTextColor(40, 40, 40);
+    doc.setTextColor(...branding.text);
     doc.text("Informações Adicionais / Observações:", 14, currentY);
     
     doc.setFont("helvetica", "normal");
@@ -314,7 +403,7 @@ export const generateQuotePDF = async (quote: any, organization: any, options: {
   if (templateText) {
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
-    doc.setTextColor(40, 40, 40);
+    doc.setTextColor(...branding.text);
     doc.text("Termos e Condições do Modelo:", 14, currentY);
     
     doc.setFont("helvetica", "normal");
@@ -332,6 +421,24 @@ export const generateQuotePDF = async (quote: any, organization: any, options: {
     doc.text(splitTemplateText, 14, currentY + 7, { align: "left" });
     currentY += (splitTemplateText.length * 5) + 12;
   }
+  // 6.3 Texto legal configurado pelo admin
+  const legalText = legalTextOf(quote);
+  if (legalText) {
+    if (currentY > pageHeight - 40) { doc.addPage(); currentY = 20; }
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(...branding.text);
+    doc.text("Informações Legais:", 14, currentY);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(80, 80, 80);
+
+    const splitLegal = doc.splitTextToSize(legalText, pageWidth - 28);
+    doc.text(splitLegal, 14, currentY + 7, { align: "left" });
+    currentY += (splitLegal.length * 4) + 12;
+  }
+
   // 7. Global 3-Column Footer
   const footerConfig = quote.template?.footer_config || quote.footer_config;
   if (footerConfig) {

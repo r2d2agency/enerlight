@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { comercialPublicApi, ComercialQuote, ComercialQuoteItem } from '@/lib/comercial-api';
 import { generateQuotePDF } from '@/lib/pdf-generator';
+import { resolveMediaUrl } from '@/lib/media';
 import { Loader2, FileWarning, Download, Briefcase } from 'lucide-react';
 
 const formatCurrency = (value: number) =>
@@ -54,6 +55,18 @@ export default function PropostaPublica() {
         shipping_value: quote.freight_value,
         notes: quote.notes,
         total_value: quote.total_value,
+        template: quote.template
+          ? {
+              ...quote.template,
+              cover_url: resolveMediaUrl(quote.template.cover_url),
+              logo_url: resolveMediaUrl(quote.template.logo_url),
+            }
+          : undefined,
+        template_cover: resolveMediaUrl(quote.template_cover),
+        primary_color: quote.primary_color,
+        accent_color: quote.accent_color,
+        text_color: quote.text_color,
+        legal_text: quote.legal_text,
         include_images: true,
         items: items.map((i) => ({
           product_name: i.product_name,
@@ -65,7 +78,7 @@ export default function PropostaPublica() {
           image_url: i.image_url,
         })),
       },
-      { name: quote.organization_name, logo_url: quote.organization_logo_url }
+      { name: quote.organization_name, logo_url: resolveMediaUrl(quote.organization_logo_url) }
     );
   };
 

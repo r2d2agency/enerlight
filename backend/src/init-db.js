@@ -6140,6 +6140,26 @@ FROM com_actors a
 WHERE c.owner_actor_id = a.id AND c.owner_team_id IS NULL AND a.team_id IS NOT NULL;
 `;
 
+// Personalização do PDF de orçamento: logo enviada do computador, texto legal
+// e paleta de cores por organização.
+const step83QuotePdfBranding = `
+DO $$ BEGIN
+  ALTER TABLE online_quote_templates ADD COLUMN logo_url TEXT;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE online_quotes_config ADD COLUMN legal_text TEXT;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE online_quotes_config ADD COLUMN primary_color VARCHAR(7) DEFAULT '#202D3D';
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE online_quotes_config ADD COLUMN accent_color VARCHAR(7) DEFAULT '#1E5AAF';
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE online_quotes_config ADD COLUMN text_color VARCHAR(7) DEFAULT '#282828';
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+`;
+
 const step79MigrateRepPortalData = `
 DO $$ BEGIN
   ALTER TABLE com_customers ADD COLUMN legacy_rep_portal_company_id UUID;
@@ -6477,6 +6497,7 @@ const migrationSteps = [
   { name: 'Portal Comercial (Marketing)', sql: step80Marketing, critical: false },
   { name: 'Portal Comercial (Catálogos PDF)', sql: step81ComercialPdfCatalogs, critical: false },
   { name: 'Portal Comercial (Cliente por equipe)', sql: step82ComercialCustomerTeamOwner, critical: false },
+  { name: 'Portal Comercial (Personalização do PDF)', sql: step83QuotePdfBranding, critical: false },
 ];
 
 
