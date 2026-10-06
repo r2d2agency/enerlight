@@ -1121,10 +1121,28 @@ async function getSaleHandler(req, res) {
     const scope = salesScope(req.actor, params);
     params.push(req.params.id);
     const result = await query(
-      `SELECT s.*, c.company_name as customer_name, a.name as actor_name
+      `SELECT s.*,
+              COALESCE(c.company_name, s.client_name) as customer_name,
+              c.type as customer_type, c.cnpj, c.cpf, c.state_registration,
+              c.phone as customer_phone, c.whatsapp as customer_whatsapp, c.email as customer_email,
+              c.contact_name as customer_contact_name, c.contact_role as customer_contact_role,
+              c.zip_code as customer_zip_code, c.address as customer_address,
+              c.address_number as customer_address_number, c.address_complement as customer_address_complement,
+              c.neighborhood as customer_neighborhood, c.city as customer_city, c.state as customer_state,
+              a.name as actor_name, a.email as actor_email, a.phone as actor_phone,
+              a.profile as actor_profile, a.status as actor_status,
+              tm.name as actor_team_name, t.name as price_list_name,
+              q.quote_number, q.payment_method as quote_payment_method,
+              q.shipping_type, q.delivery_time,
+              cm.amount as commission_amount, cm.percent_applied as commission_percent,
+              cm.status as commission_status
        FROM com_sales s
        LEFT JOIN com_customers c ON c.id = s.customer_id
        LEFT JOIN com_actors a ON a.id = s.actor_id
+       LEFT JOIN com_teams tm ON tm.id = a.team_id
+       LEFT JOIN price_lists t ON t.id = s.price_list_id
+       LEFT JOIN online_quotes q ON q.id = s.quote_id
+       LEFT JOIN com_commissions cm ON cm.sale_id = s.id
        WHERE ${scope.where} AND s.id = $${params.length}`,
       params
     );
@@ -1349,15 +1367,61 @@ async function updateOpportunityHandler(req, res) {
 async function dashboardHandler(req, res) {
   try {
     const actor = req.actor;
-    const monthStart = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1)).toISOString().slice(0, 10);
+
+    // Período: hoje ou um mês específico (YYYY-MM). Falls back to the current
+    // month so existing callers keep the old behavior.
+    const now = new Date();
+    const defaultMonth = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
+    const rawMonth = String(req.query.month || defaultMonth).trim();
+    const monthMatch = rawMonth.match(/^(\d{4})-(\d{2})$/);
+    if (!monthMatch || Number(monthMatch[2]) < 1 || Number(monthMatch[2]) > 12) {
+      return res.status(400).json({ error: 'Mês inválido. Use o formato YYYY-MM.' });
+    }
+    const year = Number(monthMatch[1]);
+    const monthIndex = Number(monthMatch[2]);
+    const monthStart = new Date(Date.UTC(year, monthIndex - 1, 1)).toISOString().slice(0, 10);
+    const nextMonthStart = new Date(Date.UTC(monthIndex === 12 ? year + 1 : year, monthIndex === 12 ? 0 : monthIndex, 1)).toISOString().slice(0, 10);
 
     const salesParams = [];
     const salesScopeRes = salesScope(actor, salesParams);
-    salesParams.push(monthStart);
+    salesParams.push(monthStart, nextMonthStart);
     const salesThisMonth = await query(
-      `SELECT COUNT(*) as count, COALESCE(SUM(total_value), 0) as total
-       FROM com_sales s WHERE ${salesScopeRes.where} AND s.status = 'confirmed' AND s.sale_date >= $${salesParams.length}`,
+      `SELECT COUNT(*) as count, COALESCE(SUM(total_value), 0) as total,
+              COALESCE(SUM(freight_value), 0) as freight_total,
+              COALESCE(SUM(discount_value), 0) as discount_total,
+              COALESCE(AVG(total_value), 0) as avg_ticket,
+              COUNT(DISTINCT customer_id) as customers_count
+       FROM com_sales s
+       WHERE ${salesScopeRes.where} AND s.status = 'confirmed'
+         AND s.sale_date >= $${salesParams.length - 1} AND s.sale_date < $${salesParams.length}`,
       salesParams
+    );
+
+    // Série dos últimos 6 meses para comparação no período escolhido.
+    const seriesStart = new Date(Date.UTC(monthIndex === 12 ? year + 1 : year, monthIndex === 12 ? 0 : monthIndex, 1));
+    seriesStart.setUTCMonth(seriesStart.getUTCMonth() - 5);
+    const seriesParams = [];
+    const seriesScope = salesScope(actor, seriesParams);
+    seriesParams.push(seriesStart.toISOString().slice(0, 10), nextMonthStart);
+    const salesSeries = await query(
+      `SELECT to_char(date_trunc('month', s.sale_date), 'YYYY-MM') as month,
+              COUNT(*) as count, COALESCE(SUM(s.total_value), 0) as total
+       FROM com_sales s
+       WHERE ${seriesScope.where} AND s.status = 'confirmed'
+         AND s.sale_date >= $${seriesParams.length - 1} AND s.sale_date < $${seriesParams.length}
+       GROUP BY 1 ORDER BY 1 ASC`,
+      seriesParams
+    );
+
+    const mpParams = [];
+    const mpScope = salesScope(actor, mpParams);
+    const salesByMonth = await query(
+      `SELECT to_char(date_trunc('month', s.sale_date), 'YYYY-MM') as month,
+              COUNT(*) as count, COALESCE(SUM(s.total_value), 0) as total
+       FROM com_sales s
+       WHERE ${mpScope.where} AND s.status = 'confirmed' AND s.sale_date >= $${mpParams.length}
+       GROUP BY 1 ORDER BY 1 DESC`,
+      [...mpParams, `${year - 1}-01-01`]
     );
 
     const qParams = [];
@@ -1373,9 +1437,10 @@ async function dashboardHandler(req, res) {
 
     const cParams = [];
     const cScope = customerScope(actor, cParams);
-    cParams.push(monthStart);
+    cParams.push(monthStart, nextMonthStart);
     const customersStats = await query(
-      `SELECT COUNT(*) as active_count, COUNT(*) FILTER (WHERE created_at >= $${cParams.length}) as new_this_month
+      `SELECT COUNT(*) as active_count,
+              COUNT(*) FILTER (WHERE c.created_at >= $${cParams.length - 1} AND c.created_at < $${cParams.length}) as new_this_month
        FROM com_customers c WHERE ${cScope.where} AND c.status = 'active'`,
       cParams
     );
@@ -1432,8 +1497,19 @@ async function dashboardHandler(req, res) {
     const sentCount = Number(quotesStats.rows[0].sent_count) || 0;
     const convertedCount = Number(quotesStats.rows[0].converted_count) || 0;
 
+    const salesRow = salesThisMonth.rows[0];
     res.json({
-      sales_this_month: { count: Number(salesThisMonth.rows[0].count), total: Number(salesThisMonth.rows[0].total) },
+      period: { month: rawMonth, date_from: monthStart, date_to: nextMonthStart },
+      sales_this_month: {
+        count: Number(salesRow.count) || 0,
+        total: Number(salesRow.total) || 0,
+        freight_total: Number(salesRow.freight_total) || 0,
+        discount_total: Number(salesRow.discount_total) || 0,
+        avg_ticket: Number(salesRow.avg_ticket) || 0,
+        customers_count: Number(salesRow.customers_count) || 0,
+      },
+      sales_series: salesSeries.rows.map((r) => ({ month: r.month, count: Number(r.count) || 0, total: Number(r.total) || 0 })),
+      sales_by_month: salesByMonth.rows.map((r) => ({ month: r.month, count: Number(r.count) || 0, total: Number(r.total) || 0 })),
       quotes: {
         sent_count: sentCount,
         awaiting_count: Number(quotesStats.rows[0].awaiting_count) || 0,
@@ -1463,10 +1539,11 @@ async function myCommissionsHandler(req, res) {
        WHERE c.actor_id = $1 ORDER BY c.created_at DESC`,
       [req.actor.id]
     );
-    const month = new Date().toISOString().slice(0, 7);
-    const currentMonth = result.rows.filter((row) => String(row.sale_date || '').slice(0, 7) === month);
+    const rawMonth = String(req.query.month || new Date().toISOString().slice(0, 7)).trim();
+    if (!/^\d{4}-\d{2}$/.test(rawMonth)) return res.status(400).json({ error: 'Mês inválido. Use o formato YYYY-MM.' });
+    const currentMonth = result.rows.filter((row) => String(row.sale_date || '').slice(0, 7) === rawMonth);
     const byStatus = currentMonth.reduce((acc, row) => { acc[row.status] = (acc[row.status] || 0) + Number(row.amount || 0); return acc; }, { previsto: 0, liberado: 0, pago: 0 });
-    res.json({ commissions: result.rows, summary: { month, commission_total: currentMonth.reduce((sum, row) => sum + Number(row.amount || 0), 0), closed_sales_count: new Set(currentMonth.map((row) => row.sale_id)).size, by_status: byStatus } });
+    res.json({ commissions: result.rows, summary: { month: rawMonth, commission_total: currentMonth.reduce((sum, row) => sum + Number(row.amount || 0), 0), closed_sales_count: new Set(currentMonth.map((row) => row.sale_id)).size, by_status: byStatus } });
   } catch (error) {
     console.error('[comercial] my commissions error:', error);
     res.status(500).json({ error: 'Erro ao carregar comissões' });
@@ -1933,19 +2010,36 @@ adminRouter.put('/settings', gate('can_manage_comercial_portal'), async (req, re
   const org = await getUserOrg(req.userId);
   if (!org) return res.status(403).json({ error: 'Sem organização' });
   const normalizeOptions = (values) => [...new Set(values.filter((v) => typeof v === 'string').map((v) => v.trim()).filter(Boolean))];
-  const deliveryTerms = Array.isArray(req.body?.delivery_terms) ? normalizeOptions(req.body.delivery_terms) : [];
-  const paymentTerms = Array.isArray(req.body?.payment_terms_options) ? normalizeOptions(req.body.payment_terms_options) : [];
-  const shippingType = ['fob', 'cif'].includes(req.body?.default_shipping_type) ? req.body.default_shipping_type : 'cif';
   const hexColor = (value, fallback) => (typeof value === 'string' && /^#[0-9a-fA-F]{6}$/.test(value.trim()) ? value.trim() : fallback);
+  const body = req.body || {};
+  // Atualização parcial: cada campo só é reescrito quando veio no corpo, para que
+  // salvar só o rodapé (ou só as cores) não apague o resto da configuração.
   const result = await query(`INSERT INTO online_quotes_config (organization_id, delivery_terms, payment_terms_options, default_shipping_type, legal_text, primary_color, accent_color, text_color)
     VALUES ($1, $2::jsonb, $3::jsonb, $4, $5, $6, $7, $8)
-    ON CONFLICT (organization_id) DO UPDATE SET delivery_terms = EXCLUDED.delivery_terms, payment_terms_options = EXCLUDED.payment_terms_options, default_shipping_type = EXCLUDED.default_shipping_type,
-      legal_text = EXCLUDED.legal_text, primary_color = EXCLUDED.primary_color, accent_color = EXCLUDED.accent_color, text_color = EXCLUDED.text_color, updated_at = NOW() RETURNING *`,
-    [org.organization_id, JSON.stringify(deliveryTerms), JSON.stringify(paymentTerms), shippingType,
-      typeof req.body?.legal_text === 'string' ? req.body.legal_text : null,
-      hexColor(req.body?.primary_color, '#202D3D'),
-      hexColor(req.body?.accent_color, '#1E5AAF'),
-      hexColor(req.body?.text_color, '#282828')]);
+    ON CONFLICT (organization_id) DO UPDATE SET
+      delivery_terms = CASE WHEN $9 THEN EXCLUDED.delivery_terms ELSE online_quotes_config.delivery_terms END,
+      payment_terms_options = CASE WHEN $10 THEN EXCLUDED.payment_terms_options ELSE online_quotes_config.payment_terms_options END,
+      default_shipping_type = CASE WHEN $11 THEN EXCLUDED.default_shipping_type ELSE online_quotes_config.default_shipping_type END,
+      legal_text = CASE WHEN $12 THEN EXCLUDED.legal_text ELSE online_quotes_config.legal_text END,
+      primary_color = CASE WHEN $13 THEN EXCLUDED.primary_color ELSE online_quotes_config.primary_color END,
+      accent_color = CASE WHEN $14 THEN EXCLUDED.accent_color ELSE online_quotes_config.accent_color END,
+      text_color = CASE WHEN $15 THEN EXCLUDED.text_color ELSE online_quotes_config.text_color END,
+      updated_at = NOW() RETURNING *`,
+    [org.organization_id,
+      JSON.stringify(Array.isArray(body.delivery_terms) ? normalizeOptions(body.delivery_terms) : []),
+      JSON.stringify(Array.isArray(body.payment_terms_options) ? normalizeOptions(body.payment_terms_options) : []),
+      ['fob', 'cif'].includes(body.default_shipping_type) ? body.default_shipping_type : 'cif',
+      typeof body.legal_text === 'string' ? body.legal_text : null,
+      hexColor(body.primary_color, '#202D3D'),
+      hexColor(body.accent_color, '#1E5AAF'),
+      hexColor(body.text_color, '#282828'),
+      Array.isArray(body.delivery_terms),
+      Array.isArray(body.payment_terms_options),
+      'default_shipping_type' in body,
+      typeof body.legal_text === 'string',
+      typeof body.primary_color === 'string',
+      typeof body.accent_color === 'string',
+      typeof body.text_color === 'string']);
   res.json({ settings: result.rows[0] });
 });
 

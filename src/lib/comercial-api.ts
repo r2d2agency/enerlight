@@ -329,6 +329,41 @@ export interface ComercialSale {
   payment_terms?: string | null;
   sale_date: string;
   notes?: string | null;
+  internal_notes?: string | null;
+  // Dados do cliente (LEFT JOIN em getSale)
+  customer_type?: string | null;
+  cnpj?: string | null;
+  cpf?: string | null;
+  state_registration?: string | null;
+  customer_phone?: string | null;
+  customer_whatsapp?: string | null;
+  customer_email?: string | null;
+  customer_contact_name?: string | null;
+  customer_contact_role?: string | null;
+  customer_zip_code?: string | null;
+  customer_address?: string | null;
+  customer_address_number?: string | null;
+  customer_address_complement?: string | null;
+  customer_neighborhood?: string | null;
+  customer_city?: string | null;
+  customer_state?: string | null;
+  // Dados do vendedor
+  actor_email?: string | null;
+  actor_phone?: string | null;
+  actor_profile?: string | null;
+  actor_status?: string | null;
+  actor_team_name?: string | null;
+  price_list_name?: string | null;
+  // Comissão prevista para a venda
+  commission_amount?: number | null;
+  commission_percent?: number | null;
+  commission_status?: string | null;
+  // Dados herdados do orçamento de origem
+  quote_number?: string | null;
+  quote_payment_method?: string | null;
+  payment_method?: string | null;
+  shipping_type?: string | null;
+  delivery_time?: string | null;
   created_at: string;
 }
 
@@ -347,7 +382,10 @@ export interface ComercialDashboardActivity {
 }
 
 export interface ComercialDashboard {
-  sales_this_month: { count: number; total: number };
+  period?: { month: string; date_from: string; date_to: string };
+  sales_this_month: { count: number; total: number; freight_total?: number; discount_total?: number; avg_ticket?: number; customers_count?: number };
+  sales_series?: Array<{ month: string; count: number; total: number }>;
+  sales_by_month?: Array<{ month: string; count: number; total: number }>;
   quotes: { sent_count: number; awaiting_count: number; converted_count: number; conversion_rate: number };
   customers: { active_count: number; new_this_month: number };
   opportunities_open: number;
@@ -503,8 +541,8 @@ export const comercialExternalApi = {
   listSales: (filters?: ComercialListFilters) => call<{ sales: ComercialSaleListItem[] }>(withListFilters('/api/comercial/vendas', filters)),
   getSale: (id: string) => call<{ sale: ComercialSale; items: ComercialSaleItem[] }>(`/api/comercial/vendas/${id}`),
 
-  getDashboard: () => call<ComercialDashboard>('/api/comercial/dashboard'),
-  listMyCommissions: () => call<{ commissions: ComercialMyCommission[]; summary: ComercialCommissionSummary }>('/api/comercial/comissoes/minhas'),
+  getDashboard: (params?: { month?: string }) => call<ComercialDashboard>(`/api/comercial/dashboard${params?.month ? `?month=${encodeURIComponent(params.month)}` : ''}`),
+  listMyCommissions: (params?: { month?: string }) => call<{ commissions: ComercialMyCommission[]; summary: ComercialCommissionSummary }>(`'/api/comercial/comissoes/minhas'${params?.month ? `?month=${encodeURIComponent(params.month)}` : ''}`),
 };
 
 // Proposta pública — sem autenticação, acessada pelo cliente final via link
@@ -566,8 +604,8 @@ export const comercialInternalApi = {
   listSales: (filters?: ComercialListFilters) => api<{ sales: ComercialSaleListItem[] }>(withListFilters('/api/comercial/interno/vendas', filters)),
   getSale: (id: string) => api<{ sale: ComercialSale; items: ComercialSaleItem[] }>(`/api/comercial/interno/vendas/${id}`),
 
-  getDashboard: () => api<ComercialDashboard>('/api/comercial/interno/dashboard'),
-  listMyCommissions: () => api<{ commissions: ComercialMyCommission[]; summary: ComercialCommissionSummary }>('/api/comercial/interno/comissoes/minhas'),
+  getDashboard: (params?: { month?: string }) => api<ComercialDashboard>(`/api/comercial/interno/dashboard${params?.month ? `?month=${encodeURIComponent(params.month)}` : ''}`),
+  listMyCommissions: (params?: { month?: string }) => api<{ commissions: ComercialMyCommission[]; summary: ComercialCommissionSummary }>(`'/api/comercial/interno/comissoes/minhas'${params?.month ? `?month=${encodeURIComponent(params.month)}` : ''}`),
 };
 
 export interface ComercialAdminActor {

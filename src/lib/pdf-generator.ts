@@ -1,6 +1,7 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { format, parseISO } from "date-fns";
+import { drawLegalBlocks, htmlToBlocks } from './pdf-legal-text';
 import { ptBR } from "date-fns/locale";
 
 const numberValue = (value: unknown): number => {
@@ -71,15 +72,6 @@ export const resolveBranding = (quote: any): QuoteBranding => ({
   logoUrl: quote?.template?.logo_url ?? null,
 });
 
-/** Texto informado pelo admin (leis, condições, avisos). Aceita quebras de linha. */
-const legalTextOf = (quote: any): string =>
-  String(quote?.template?.legal_text ?? quote?.legal_text ?? '')
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/p>/gi, '\n')
-    .replace(/<[^>]*>/g, '')
-    .replace(/&nbsp;/g, ' ')
-    .trim();
-
 /** Desenha o logo do template no topo; cai para a logo da organização. */
 const drawHeaderLogo = async (doc: any, branding: QuoteBranding, organization: any, x: number, y: number, w: number, h: number) => {
   const source = branding.logoUrl || organization?.logo_url;
@@ -127,15 +119,12 @@ const generateModernPortraitPDF = async (quote: any, organization: any) => {
   y = (doc as any).lastAutoTable.finalY + 12;
   const notes = [quote.notes, quote.fiscal_info || quote.template_fiscal_info].filter(Boolean).join('\n');
   if (notes) { doc.setFontSize(9); doc.setFont('helvetica', 'bold'); doc.text('OBSERVAÇÕES', margin, y); y += 6; doc.setFont('helvetica', 'normal'); doc.setTextColor(80, 90, 100); doc.text(doc.splitTextToSize(String(notes).replace(/<[^>]*>/g, ''), pageWidth - margin * 2), margin, y); }
-  const legalText = legalTextOf(quote);
-  if (legalText) {
-    const legalLines = doc.splitTextToSize(legalText, pageWidth - margin * 2);
-    const legalBlockHeight = (legalLines.length * 4) + 14;
-    if (y + legalBlockHeight > pageHeight - 24) { doc.addPage(); y = 20; }
+  const legalBlocks = htmlToBlocks(quote?.template?.legal_text ?? quote?.legal_text ?? '', 7.5);
+  if (legalBlocks.length > 0) {
+    if (y + 26 > pageHeight - 24) { doc.addPage(); y = 20; }
     doc.setTextColor(...branding.primary); doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
-    doc.text('INFORMAÇÕES LEGAIS', margin, y); y += 6;
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(90, 100, 110);
-    doc.text(legalLines, margin, y);
+    doc.text('INFORMAÇÕES LEGAIS', margin, y); y += 7;
+    drawLegalBlocks(doc, legalBlocks, margin, y, pageWidth - margin * 2, pageHeight, [90, 100, 110]);
   }
   for (let page = 1; page <= doc.getNumberOfPages(); page += 1) { doc.setPage(page); doc.setDrawColor(210, 215, 220); doc.line(margin, pageHeight - 14, pageWidth - margin, pageHeight - 14); doc.setFontSize(7); doc.setTextColor(120, 130, 140); doc.text(String(quote.template_footer || quote.footer_text || organization?.name || ''), pageWidth / 2, pageHeight - 8, { align: 'center' }); }
   const fileName = (quote.client_name || 'proposta').replace(/\s+/g, '-').toLowerCase(); doc.save(`proposta-${fileName}-vertical.pdf`);
@@ -422,21 +411,14 @@ export const generateQuotePDF = async (quote: any, organization: any, options: {
     currentY += (splitTemplateText.length * 5) + 12;
   }
   // 6.3 Texto legal configurado pelo admin
-  const legalText = legalTextOf(quote);
-  if (legalText) {
+  const legalBlocks = htmlToBlocks(quote?.template?.legal_text ?? quote?.legal_text ?? '', 8);
+  if (legalBlocks.length > 0) {
     if (currentY > pageHeight - 40) { doc.addPage(); currentY = 20; }
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(...branding.text);
     doc.text("Informações Legais:", 14, currentY);
-
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-    doc.setTextColor(80, 80, 80);
-
-    const splitLegal = doc.splitTextToSize(legalText, pageWidth - 28);
-    doc.text(splitLegal, 14, currentY + 7, { align: "left" });
-    currentY += (splitLegal.length * 4) + 12;
+    currentY = drawLegalBlocks(doc, legalBlocks, 14, currentY + 7, pageWidth - 28, pageHeight, [80, 80, 80]) + 12;
   }
 
   // 7. Global 3-Column Footer

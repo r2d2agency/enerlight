@@ -25,6 +25,7 @@ import AdminComercialCommissionsTab from './comercial/AdminComercialCommissionsT
 import AdminComercialAuditTab from './comercial/AdminComercialAuditTab';
 import AdminComercialMarketingTab from './comercial/AdminComercialMarketingTab';
 import CustomerImportDialog from '@/components/comercial/CustomerImportDialog';
+import { RichEmailEditor } from '@/components/email/RichEmailEditor';
 import * as XLSX from 'xlsx';
 import {
   Loader2, Plus, Briefcase, Send, Lock, Unlock, UserPlus, Users2, Package, Tag, ArrowRightLeft, Check, X, KeyRound,
@@ -165,6 +166,35 @@ export default function AdminComercialPortal() {
     if (canManage) load();
     else setLoading(false);
   }, [canManage]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /** Grava só o rodapé, preservando os demais campos já persistidos. */
+  const saveLegalText = async () => {
+    setSaving(true);
+    try {
+      await comercialAdminApi.updateSettings({ legal_text: commercialSettings.legal_text });
+      toast({ title: 'Rodapé salvo' });
+    } catch (error) {
+      toast({ title: 'Erro ao salvar o rodapé', description: error instanceof Error ? error.message : 'Tente novamente', variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveColors = async () => {
+    setSaving(true);
+    try {
+      await comercialAdminApi.updateSettings({
+        primary_color: commercialSettings.primary_color,
+        accent_color: commercialSettings.accent_color,
+        text_color: commercialSettings.text_color,
+      });
+      toast({ title: 'Cores salvas' });
+    } catch (error) {
+      toast({ title: 'Erro ao salvar as cores', description: error instanceof Error ? error.message : 'Tente novamente', variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
+  };
 
   if (!canManage) {
     return (
@@ -755,20 +785,38 @@ export default function AdminComercialPortal() {
             <div><Label>Prazos de entrega</Label><Textarea value={commercialSettings.delivery_terms} onChange={(e) => setCommercialSettings({ ...commercialSettings, delivery_terms: e.target.value })} placeholder="Uma opção por linha" /></div>
             <div><Label>Condições de pagamento</Label><Textarea value={commercialSettings.payment_terms_options} onChange={(e) => setCommercialSettings({ ...commercialSettings, payment_terms_options: e.target.value })} placeholder="Uma opção por linha" /></div>
             <div className="space-y-1"><Label>Frete padrão</Label><Select value={commercialSettings.default_shipping_type} onValueChange={(value: 'fob' | 'cif') => setCommercialSettings({ ...commercialSettings, default_shipping_type: value })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="cif">CIF (remetente)</SelectItem><SelectItem value="fob">FOB (destinatário)</SelectItem></SelectContent></Select></div>
-            <Card><CardContent className="space-y-4 pt-6">
+          </CardContent></Card>
+
+          {/* Rodapé do orçamento: visível e editável somente por administradores
+              (a rota /admin/settings é protegida por can_manage_comercial_portal). */}
+          <Card><CardContent className="space-y-4 pt-6">
             <div>
-              <h3 className="font-medium">Personalização do PDF do orçamento</h3>
-              <p className="text-sm text-muted-foreground">Informações legais e cores aplicadas aos orçamentos desta organização.</p>
+              <h3 className="font-medium">Rodapé do orçamento</h3>
+              <p className="text-sm text-muted-foreground">Texto livre exibido no fim de todo orçamento desta organização, com a formatação preservada no PDF. Salvo para todas as tabelas de preço e propostas.</p>
             </div>
-            <div><Label>Texto de informações legais</Label><Textarea rows={8} value={commercialSettings.legal_text} onChange={(e) => setCommercialSettings({ ...commercialSettings, legal_text: e.target.value })} placeholder="Leis, condições de venda, aviso de validade, dados adicionais…&#10;Use uma linha em branco para separar parágrafos." /><p className="mt-1 text-xs text-muted-foreground">Aparece no fim do orçamento, antes do rodapé, como &quot;Informações Legais&quot;.</p></div>
+            <div className="space-y-2">
+              <Label htmlFor="quote-legal-text">Informações legais do orçamento</Label>
+              <RichEmailEditor value={commercialSettings.legal_text} onChange={(value) => setCommercialSettings({ ...commercialSettings, legal_text: value })} placeholder="Impostos, regras de negócio, condições de venda, avisos…" className="min-h-[220px]" />
+              <p className="text-xs text-muted-foreground">Aceita negrito, itálico, sublinhado, títulos, listas e alinhamento. A formatação é preservada no PDF.</p>
+            </div>
+            <div className="flex justify-end">
+              <Button onClick={saveLegalText}>Salvar rodapé</Button>
+            </div>
+          </CardContent></Card>
+
+          <Card><CardContent className="space-y-4 pt-6">
+            <div>
+              <h3 className="font-medium">Cores do PDF do orçamento</h3>
+              <p className="text-sm text-muted-foreground">Aplicadas aos orçamentos e propostas desta organização.</p>
+            </div>
             <div className="grid gap-4 sm:grid-cols-3">
               <ColorField label="Cor principal" hint="Cabeçalho e títulos" value={commercialSettings.primary_color} onChange={(v) => setCommercialSettings({ ...commercialSettings, primary_color: v })} />
               <ColorField label="Cor de destaque" hint="Subtotais e faixas" value={commercialSettings.accent_color} onChange={(v) => setCommercialSettings({ ...commercialSettings, accent_color: v })} />
               <ColorField label="Cor de texto" hint="Textos do documento" value={commercialSettings.text_color} onChange={(v) => setCommercialSettings({ ...commercialSettings, text_color: v })} />
             </div>
-          </CardContent></Card>
-          <div className="flex justify-end">
-          <Button onClick={async () => { try { await comercialAdminApi.updateSettings({ delivery_terms: commercialSettings.delivery_terms.split('\n').map((v) => v.trim()).filter(Boolean), payment_terms_options: commercialSettings.payment_terms_options.split('\n').map((v) => v.trim()).filter(Boolean), default_shipping_type: commercialSettings.default_shipping_type, legal_text: commercialSettings.legal_text, primary_color: commercialSettings.primary_color, accent_color: commercialSettings.accent_color, text_color: commercialSettings.text_color }); toast({ title: 'Configurações salvas' }); } catch (error) { toast({ title: 'Erro ao salvar configurações', description: error instanceof Error ? error.message : 'Tente novamente', variant: 'destructive' }); } }}>Salvar configurações</Button></div>
+            <div className="flex justify-end">
+              <Button onClick={saveColors}>Salvar cores</Button>
+            </div>
           </CardContent></Card>
         </TabsContent>
 
