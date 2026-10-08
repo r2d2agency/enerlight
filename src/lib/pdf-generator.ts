@@ -128,7 +128,7 @@ const generateModernPortraitPDF = async (quote: any, organization: any) => {
   const conditions = [`Pagamento: ${quote.payment_terms || 'A definir'}`, `Frete: ${(quote.shipping_type || 'cif').toUpperCase()} · ${currency.format(shippingValue)}`, `Validade: ${quote.valid_until ? format(parseISO(quote.valid_until), 'dd/MM/yyyy') : 'A definir'}`];
   doc.text(conditions, margin, y, { lineHeightFactor: 1.5 }); y += conditions.length * 5 + 7;
   doc.setTextColor(...branding.primary);
-  autoTable(doc, { startY: y, margin: { left: margin, right: margin }, head: [['Produto', 'Qtd', 'Unitário', 'Desc.', 'Total']], body: (quote.items || []).map((item: any) => [item.product_name || 'Produto', item.quantity || 0, currency.format(item.unit_price || 0), `${Number(item.discount_value || item.discount_percent || 0).toFixed(2)}%`, currency.format(item.total_price || 0)]), theme: 'striped', headStyles: { fillColor: branding.primary, textColor: 255, fontSize: 8 }, bodyStyles: { fontSize: 8, cellPadding: 3 }, columnStyles: { 0: { cellWidth: 60 }, 1: { halign: 'center', cellWidth: 16 }, 2: { halign: 'right', cellWidth: 28 }, 3: { halign: 'right', cellWidth: 20 }, 4: { halign: 'right', cellWidth: 32 } }, foot: [[{ content: 'TOTAL', colSpan: 4, styles: { halign: 'right', fontStyle: 'bold', fillColor: branding.accent, textColor: 255 } }, { content: currency.format(Number(quote.total_value || 0)), styles: { halign: 'right', fontStyle: 'bold', fillColor: branding.primary, textColor: 255 } }]], showHead: 'everyPage' });
+  autoTable(doc, { startY: y, margin: { left: margin, right: margin }, head: [['Produto', 'Qtd', 'Unitário', 'Desc.', 'Total']], body: (quote.items || []).map((item: any) => [item.product_name || 'Produto', item.quantity || 0, currency.format(item.unit_price || 0), `${Number(item.discount_value || item.discount_percent || 0).toFixed(2)}%`, currency.format(item.total_price || 0)]), theme: 'striped', headStyles: { fillColor: branding.primary, textColor: 255, fontSize: 8 }, bodyStyles: { fontSize: 8, cellPadding: 3 }, columnStyles: { 0: { cellWidth: 55 }, 1: { halign: 'center', cellWidth: 15 }, 2: { halign: 'right', cellWidth: 26 }, 3: { halign: 'right', cellWidth: 18 }, 4: { halign: 'right', cellWidth: 30 } }, foot: [[{ content: 'TOTAL', colSpan: 4, styles: { halign: 'right', fontStyle: 'bold', fillColor: branding.accent, textColor: 255 } }, { content: currency.format(Number(quote.total_value || 0)), styles: { halign: 'right', fontStyle: 'bold', fillColor: branding.primary, textColor: 255 } }]], showHead: 'everyPage' });
   y = (doc as any).lastAutoTable.finalY + 12;
   const notes = [quote.notes, quote.fiscal_info || quote.template_fiscal_info].filter(Boolean).join('\n');
   if (notes) { doc.setFontSize(9); doc.setFont('helvetica', 'bold'); doc.text('OBSERVAÇÕES', margin, y); y += 6; doc.setFont('helvetica', 'normal'); doc.setTextColor(80, 90, 100); doc.text(doc.splitTextToSize(String(notes).replace(/<[^>]*>/g, ''), pageWidth - margin * 2), margin, y); }
@@ -305,7 +305,7 @@ export const generateQuotePDF = async (quote: any, organization: any, options: {
     theme: 'grid',
     headStyles: { fillColor: branding.primary, textColor: [255, 255, 255], fontStyle: 'bold' },
     columnStyles: includeImages ? {
-      0: { cellWidth: 25, minCellHeight: 25 },
+      0: { cellWidth: 20, minCellHeight: 20 },
       2: { halign: 'center' },
       3: { halign: 'right' },
       4: { halign: 'right' },
@@ -316,6 +316,7 @@ export const generateQuotePDF = async (quote: any, organization: any, options: {
       3: { halign: 'right' },
       4: { halign: 'right' },
     },
+    styles: { cellPadding: 2 },
     didDrawCell: (data) => {
       if (includeImages && data.section === 'body' && data.column.index === 0) {
         const image = itemImages[data.row.index];
