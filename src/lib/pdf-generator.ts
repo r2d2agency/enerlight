@@ -312,17 +312,20 @@ export const generateQuotePDF = async (quote: any, organization: any, options: {
     headStyles: { fillColor: branding.primary, textColor: [255, 255, 255], fontStyle: 'bold' },
     columnStyles: includeImages ? {
       0: { cellWidth: 20, minCellHeight: 20 },
-      2: { halign: 'center' },
-      3: { halign: 'right' },
-      4: { halign: 'right' },
-      5: { halign: 'right' },
+      1: { cellWidth: 'auto' },
+      2: { halign: 'center', cellWidth: 25 },
+      3: { halign: 'right', cellWidth: 30 },
+      4: { halign: 'right', cellWidth: 25 },
+      5: { halign: 'right', cellWidth: 35 },
     } : {
-      1: { halign: 'center' },
-      2: { halign: 'right' },
-      3: { halign: 'right' },
-      4: { halign: 'right' },
+      0: { cellWidth: 'auto' },
+      1: { halign: 'center', cellWidth: 25 },
+      2: { halign: 'right', cellWidth: 30 },
+      3: { halign: 'right', cellWidth: 25 },
+      4: { halign: 'right', cellWidth: 35 },
     },
-    styles: { cellPadding: 2 },
+    styles: { cellPadding: 2, overflow: 'linebreak' },
+    margin: { left: 14, right: 14 },
     didDrawCell: (data) => {
       if (includeImages && data.section === 'body' && data.column.index === 0) {
         const image = itemImages[data.row.index];
