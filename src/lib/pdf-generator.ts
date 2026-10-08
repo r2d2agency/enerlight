@@ -4,6 +4,19 @@ import { format, parseISO } from "date-fns";
 import { drawLegalBlocks, htmlToBlocks } from './pdf-legal-text';
 import { ptBR } from "date-fns/locale";
 
+// O autoTable só loga quando a tabela não cabe na página. Convertemos em erro
+// para a falha aparecer no console/toast em vez de passar despercebida.
+const AUTO_TABLE_WARN = "could not fit page";
+const originalConsoleLog = console.log;
+console.log = (...args: unknown[]) => {
+  const message = args.map((a) => String(a)).join(' ');
+  if (message.includes(AUTO_TABLE_WARN)) {
+    originalConsoleLog(...args);
+    throw new Error(`Tabela do PDF não cabe na página: ${message}`);
+  }
+  originalConsoleLog(...args);
+};
+
 const numberValue = (value: unknown): number => {
   const parsed = typeof value === 'number' ? value : Number(String(value ?? '').replace(',', '.'));
   return Number.isFinite(parsed) ? parsed : 0;

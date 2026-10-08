@@ -265,7 +265,9 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
       { layout, include_cover: withCover }
       );
     } catch (error) {
-      toast({ title: 'Erro ao gerar PDF', description: error instanceof Error ? error.message : 'Não foi possível gerar o PDF.', variant: 'destructive' });
+      console.error('[PDF] Falha ao gerar orçamento:', error);
+      const detail = error instanceof Error ? `${error.message}${error.stack ? `\n${error.stack.split('\n').slice(1, 4).join('\n')}` : ''}` : String(error);
+      toast({ title: 'Erro ao gerar PDF', description: detail, variant: 'destructive', duration: 15000 });
     }
   };
 

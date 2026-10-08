@@ -79,7 +79,15 @@ export default function PropostaPublica() {
         })),
       },
       { name: quote.organization_name, logo_url: resolveMediaUrl(quote.organization_logo_url) }
-    );
+    ).catch((error) => {
+      console.error('[PDF] Falha ao gerar proposta pública:', error);
+      toast({
+        title: 'Erro ao gerar PDF',
+        description: error instanceof Error ? error.message : 'Não foi possível gerar o PDF.',
+        variant: 'destructive',
+        duration: 15000,
+      });
+    });
   };
 
   if (loading) {
