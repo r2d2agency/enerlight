@@ -463,9 +463,9 @@ export const generateQuotePDF = async (quote: any, organization: any, options: {
       doc.setTextColor(100, 100, 100);
       
       const cols = ['left', 'center', 'right'];
-      for (let colIndex = 0; colIndex < cols.length; colIndex++) {
-        const col = cols[colIndex] as 'left' | 'center' | 'right';
-        const x = 14 + (colIndex * colWidth) + (colWidth / 2);
+      for (let i = 0; i < cols.length; i++) {
+        const col = cols[i] as 'left' | 'center' | 'right';
+        const x = 14 + (i * colWidth) + (colWidth / 2);
         const conf = config[col];
 
         if (conf?.type === 'text' && conf.content) {
