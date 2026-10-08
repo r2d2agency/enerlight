@@ -542,7 +542,7 @@ export const comercialExternalApi = {
   getSale: (id: string) => call<{ sale: ComercialSale; items: ComercialSaleItem[] }>(`/api/comercial/vendas/${id}`),
 
   getDashboard: (params?: { month?: string }) => call<ComercialDashboard>(`/api/comercial/dashboard${params?.month ? `?month=${encodeURIComponent(params.month)}` : ''}`),
-  listMyCommissions: (params?: { month?: string }) => call<{ commissions: ComercialMyCommission[]; summary: ComercialCommissionSummary }>(`'/api/comercial/comissoes/minhas'${params?.month ? `?month=${encodeURIComponent(params.month)}` : ''}`),
+  listMyCommissions: (params?: { month?: string }) => call<{ commissions: ComercialMyCommission[]; summary: ComercialCommissionSummary }>(`/api/comercial/comissoes/minhas${params?.month ? `?month=${encodeURIComponent(params.month)}` : ''}`),
 };
 
 // Proposta pública — sem autenticação, acessada pelo cliente final via link
@@ -605,7 +605,7 @@ export const comercialInternalApi = {
   getSale: (id: string) => api<{ sale: ComercialSale; items: ComercialSaleItem[] }>(`/api/comercial/interno/vendas/${id}`),
 
   getDashboard: (params?: { month?: string }) => api<ComercialDashboard>(`/api/comercial/interno/dashboard${params?.month ? `?month=${encodeURIComponent(params.month)}` : ''}`),
-  listMyCommissions: (params?: { month?: string }) => api<{ commissions: ComercialMyCommission[]; summary: ComercialCommissionSummary }>(`'/api/comercial/interno/comissoes/minhas'${params?.month ? `?month=${encodeURIComponent(params.month)}` : ''}`),
+  listMyCommissions: (params?: { month?: string }) => api<{ commissions: ComercialMyCommission[]; summary: ComercialCommissionSummary }>(`/api/comercial/interno/comissoes/minhas${params?.month ? `?month=${encodeURIComponent(params.month)}` : ''}`),
 };
 
 export interface ComercialAdminActor {

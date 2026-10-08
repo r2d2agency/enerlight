@@ -1415,13 +1415,14 @@ async function dashboardHandler(req, res) {
 
     const mpParams = [];
     const mpScope = salesScope(actor, mpParams);
+    mpParams.push(`${year - 1}-01-01`);
     const salesByMonth = await query(
       `SELECT to_char(date_trunc('month', s.sale_date), 'YYYY-MM') as month,
               COUNT(*) as count, COALESCE(SUM(s.total_value), 0) as total
        FROM com_sales s
        WHERE ${mpScope.where} AND s.status = 'confirmed' AND s.sale_date >= $${mpParams.length}
        GROUP BY 1 ORDER BY 1 DESC`,
-      [...mpParams, `${year - 1}-01-01`]
+      mpParams
     );
 
     const qParams = [];
