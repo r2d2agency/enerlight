@@ -264,6 +264,7 @@ export const generateQuotePDF = async (quote: any, organization: any, options: {
     : [['Produto', 'Qtd', 'Unitário', 'Desc.', 'Total']];
 
   const itemSubtotal = (quote.items || []).reduce((acc: number, item: any) => acc + numberValue(item.total_price), 0);
+  const totalValue = numberValue(quote.total_value) || itemSubtotal + numberValue(quote.shipping_value);
 
   const tableData = quote.items?.map((item: any) => {
     const discountStr = item.discount_type === 'percentage' 
