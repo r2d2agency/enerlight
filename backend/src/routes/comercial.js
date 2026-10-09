@@ -31,6 +31,20 @@ function genToken() {
   return crypto.randomBytes(32).toString('hex');
 }
 
+// Cliente real quando há proxy na frente (nginx já repassa X-Forwarded-For).
+function getIp(req) {
+  return req.headers['x-forwarded-for']?.toString().split(',')[0]?.trim() || req.socket?.remoteAddress || req.ip || null;
+}
+
+// Assinatura desenhada chega como data URL. Limitando o tamanho aqui evita
+// um POST grande demais derrubando o body parser de 50mb.
+function isValidImageDataUrl(value) {
+  return typeof value === 'string'
+    && value.startsWith('data:image/png;base64,')
+    && value.length > 500
+    && value.length < 1_500_000;
+}
+
 function generateTemporaryPassword() {
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%';
   const bytes = crypto.randomBytes(14);
@@ -128,9 +142,11 @@ function gate(key) {
 }
 
 // Auditoria (item 20) — nunca deixa uma falha de log quebrar a ação principal.
-async function logAudit(req, { action, entityType, entityId, oldValue, newValue }) {
+// organizationIdOverride existe para as rotas públicas (portal do cliente), onde
+// não há req.actor nem req.userId — a org vem do próprio registro acessado.
+async function logAudit(req, { action, entityType, entityId, oldValue, newValue, organizationId: organizationIdOverride }) {
   try {
-    const organizationId = req.actor?.organization_id || (await getUserOrg(req.userId))?.organization_id;
+    const organizationId = organizationIdOverride || req.actor?.organization_id || (await getUserOrg(req.userId))?.organization_id;
     if (!organizationId) return;
     const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || null;
     await query(
@@ -1899,6 +1915,141 @@ router.get('/proposta/:token', async (req, res) => {
   } catch (error) {
     console.error('[comercial] public proposal error:', error);
     res.status(500).json({ error: 'Erro ao carregar proposta' });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Aceite da proposta pelo cliente (público — sem autenticação, só o token)
+// ---------------------------------------------------------------------------
+// O aceite registra os dados capturados no navegador (geolocalização, IP,
+// user agent, data/hora), a assinatura desenhada e o nome/documento de quem
+// aceitou, e já converte o orçamento em venda. Depois disso o orçamento fica
+// travado, então a venda nasce com o snapshot dos itens e não muda junto com
+// nenhuma edição futura.
+const ACCEPTABLE_STATUSES = ['enviado', 'visualizado', 'em_negociacao'];
+
+router.post('/proposta/:token/aceitar', async (req, res) => {
+  try {
+    const result = await query(
+      'SELECT * FROM online_quotes WHERE public_token = $1',
+      [req.params.token]
+    );
+    const quote = result.rows[0];
+    if (!quote) return res.status(404).json({ error: 'Proposta não encontrada' });
+
+    if (quote.acceptance_status === 'accepted') {
+      return res.status(400).json({ error: 'Esta proposta já foi aceita pelo cliente' });
+    }
+    if (!ACCEPTABLE_STATUSES.includes(quote.status)) {
+      return res.status(400).json({ error: 'Esta proposta não está disponível para aceite' });
+    }
+
+    const body = req.body || {};
+    if (!isValidImageDataUrl(body.signature_data)) {
+      return res.status(400).json({ error: 'Assinatura obrigatória' });
+    }
+
+    const acceptedByName = String(body.accepted_by_name || '').trim().slice(0, 255);
+    const acceptedByDocument = String(body.accepted_by_document || '').trim().slice(0, 20);
+    if (!acceptedByName || !acceptedByDocument) {
+      return res.status(400).json({ error: 'Nome e documento de quem aceita são obrigatórios' });
+    }
+
+    const existingSale = await query('SELECT id FROM com_sales WHERE quote_id = $1', [quote.id]);
+    if (existingSale.rows.length > 0) {
+      return res.status(400).json({ error: 'Esta proposta já foi convertida em venda' });
+    }
+
+    const items = await query('SELECT * FROM online_quote_items WHERE quote_id = $1', [quote.id]);
+    if (items.rows.length === 0) return res.status(400).json({ error: 'Proposta sem itens' });
+
+    // Uma transação evita o pior cenário: a venda criada e o orçamento ainda
+    // "enviado" (cliente pagou, CRM não sabe) ou o inverso.
+    const client = await pool.connect();
+    let sale;
+    try {
+      await client.query('BEGIN');
+
+      const insertSale = await client.query(
+        `INSERT INTO com_sales
+           (organization_id, quote_id, opportunity_id, customer_id, actor_id, price_list_id, status, client_name, client_document,
+            subtotal_value, discount_value, freight_value, total_value, payment_terms, notes, created_by)
+         VALUES ($1,$2,$3,$4,$5,$6,'confirmed',$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING *`,
+        [quote.organization_id, quote.id, quote.opportunity_id, quote.customer_id, quote.actor_id, quote.price_list_id,
+          quote.client_name, quote.client_document, quote.subtotal_value, quote.discount_value, quote.freight_value,
+          quote.total_value, quote.payment_terms, quote.notes, quote.actor_id]
+      );
+      const numbered = await client.query(
+        `UPDATE com_sales SET sale_number = 'VND-' || to_char(created_at, 'YYYY') || '-' || LPAD(sequence_number::text, 5, '0')
+         WHERE id = $1 RETURNING *`,
+        [insertSale.rows[0].id]
+      );
+      sale = numbered.rows[0];
+
+      for (const item of items.rows) {
+        await client.query(
+          `INSERT INTO com_sale_items (sale_id, product_id, product_code, product_name, description, quantity, unit_price, total_price, discount_percent)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+          [sale.id, item.product_id, item.product_code, item.product_name, item.description,
+            item.quantity, item.unit_price, item.total_price, item.discount_percent]
+        );
+      }
+
+      // O aceite bloqueia a edição do orçamento: `convertido` já está em
+      // QUOTE_LOCKED_STATUSES, então nenhum guard extra é necessário.
+      await client.query(
+        `UPDATE online_quotes
+         SET status = 'convertido', acceptance_status = 'accepted', accepted_at = NOW(),
+             accepted_by_name = $2, accepted_by_document = $3, accepted_by_email = $4,
+             acceptance_signature = $5, acceptance_ip = $6, acceptance_user_agent = $7,
+             acceptance_geolocation = $8, updated_at = NOW()
+         WHERE id = $1`,
+        [quote.id, acceptedByName, acceptedByDocument, String(body.accepted_by_email || '').trim().slice(0, 255) || null,
+          body.signature_data, getIp(req), req.headers['user-agent'] || null,
+          String(body.geolocation || '').trim().slice(0, 100) || null]
+      );
+      await client.query(
+        `INSERT INTO com_quote_history (quote_id, action, from_status, to_status, note)
+         VALUES ($1, 'client_accepted', $2, 'convertido', $3)`,
+        [quote.id, quote.status, `Aceite do cliente ${acceptedByName} (${acceptedByDocument}) com assinatura digital`]
+      );
+
+      if (quote.opportunity_id) {
+        const wonStage = await client.query(
+          `SELECT id FROM com_opportunity_stages WHERE organization_id = $1 AND is_won = true ORDER BY position ASC LIMIT 1`,
+          [quote.organization_id]
+        );
+        await client.query(
+          `UPDATE com_opportunities SET status = 'won', stage_id = COALESCE($1, stage_id), updated_at = NOW() WHERE id = $2`,
+          [wonStage.rows[0]?.id || null, quote.opportunity_id]
+        );
+        await client.query(
+          `INSERT INTO com_opportunity_history (opportunity_id, actor_id, field, new_value, note) VALUES ($1, $2, 'status', 'won', 'Cliente aceitou a proposta')`,
+          [quote.opportunity_id, quote.actor_id]
+        );
+      }
+
+      await client.query('COMMIT');
+    } catch (dbError) {
+      await client.query('ROLLBACK');
+      throw dbError;
+    } finally {
+      client.release();
+    }
+
+    await calculateSaleCommission(sale, sale.price_list_id);
+    await logAudit(req, {
+      action: 'proposal_accepted',
+      entityType: 'online_quote',
+      entityId: quote.id,
+      organizationId: quote.organization_id,
+      newValue: { sale_id: sale.id, total_value: sale.total_value, accepted_by_name: acceptedByName, accepted_by_document: acceptedByDocument },
+    });
+
+    res.status(201).json({ message: 'Proposta aceita e convertida em venda', sale });
+  } catch (error) {
+    console.error('[comercial] accept proposal error:', error);
+    res.status(500).json({ error: 'Erro ao registrar aceite da proposta' });
   }
 });
 

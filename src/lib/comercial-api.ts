@@ -158,6 +158,16 @@ export interface ComercialQuote {
   viewed_at?: string | null;
   approved_at?: string | null;
   rejected_at?: string | null;
+  // Aceite do cliente na proposta pública
+  acceptance_status?: string | null;
+  accepted_at?: string | null;
+  accepted_by_name?: string | null;
+  accepted_by_document?: string | null;
+  accepted_by_email?: string | null;
+  acceptance_ip?: string | null;
+  acceptance_user_agent?: string | null;
+  acceptance_geolocation?: string | null;
+  acceptance_signature?: string | null;
   organization_name?: string;
   organization_logo_url?: string | null;
   template?: QuoteTemplatePayload | null;
@@ -549,6 +559,17 @@ export const comercialExternalApi = {
 export const comercialPublicApi = {
   getProposal: (token: string) =>
     call<{ quote: ComercialQuote; items: ComercialQuoteItem[] }>(`/api/comercial/proposta/${token}`, { auth: false }),
+  acceptProposal: (
+    token: string,
+    body: {
+      signature_data: string;
+      accepted_by_name: string;
+      accepted_by_document: string;
+      accepted_by_email?: string;
+      geolocation?: string;
+    }
+  ) =>
+    call<{ message: string; sale: ComercialSale }>(`/api/comercial/proposta/${token}/aceitar`, { method: 'POST', body, auth: false }),
 };
 
 // Portal interno — mesmo login/token do CRM (usa o helper api() principal)

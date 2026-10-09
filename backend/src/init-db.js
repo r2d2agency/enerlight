@@ -5890,6 +5890,40 @@ CREATE INDEX IF NOT EXISTS idx_com_quote_approvals_quote ON com_quote_approvals(
 CREATE INDEX IF NOT EXISTS idx_com_quote_approvals_status ON com_quote_approvals(status);
 `;
 
+// Portal Comercial — aceite da proposta pelo cliente. Registra quem aceitou,
+// quando, de onde (IP), com qual navegador e a geolocalização capturada no
+// navegador, além da assinatura desenhada (data URL PNG).
+const step84QuoteAcceptance = `
+DO $$ BEGIN
+  ALTER TABLE online_quotes ADD COLUMN acceptance_status VARCHAR(20);
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE online_quotes ADD COLUMN accepted_at TIMESTAMPTZ;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE online_quotes ADD COLUMN accepted_by_name VARCHAR(255);
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE online_quotes ADD COLUMN accepted_by_document VARCHAR(20);
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE online_quotes ADD COLUMN accepted_by_email VARCHAR(255);
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE online_quotes ADD COLUMN acceptance_signature TEXT;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE online_quotes ADD COLUMN acceptance_ip VARCHAR(64);
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE online_quotes ADD COLUMN acceptance_user_agent TEXT;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE online_quotes ADD COLUMN acceptance_geolocation VARCHAR(100);
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+CREATE INDEX IF NOT EXISTS idx_online_quotes_acceptance ON online_quotes(acceptance_status) WHERE acceptance_status IS NOT NULL;
+`;
+
 // Portal Comercial (Fase 4) — oportunidades (kanban configurável por
 // organização) e vendas. Venda é criada por conversão de orçamento, mas com
 // itens copiados (nunca um JOIN vivo) — alterar o orçamento depois não
@@ -6498,6 +6532,7 @@ const migrationSteps = [
   { name: 'Portal Comercial (Catálogos PDF)', sql: step81ComercialPdfCatalogs, critical: false },
   { name: 'Portal Comercial (Cliente por equipe)', sql: step82ComercialCustomerTeamOwner, critical: false },
   { name: 'Portal Comercial (Personalização do PDF)', sql: step83QuotePdfBranding, critical: false },
+  { name: 'Portal Comercial (Aceite do cliente na proposta)', sql: step84QuoteAcceptance, critical: false },
 ];
 
 

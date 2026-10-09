@@ -208,7 +208,9 @@ export default function ComercialOrcamentosView({ basePath, listQuotes, createQu
                     <TableCell className="text-sm text-muted-foreground">{q.actor_name || '—'}</TableCell>
                     <TableCell className="text-right font-medium">{formatCurrency(q.total_value)}</TableCell>
                     <TableCell>
-                      <Badge variant={statusConfig[q.status]?.variant || 'secondary'}>{statusConfig[q.status]?.label || q.status}</Badge>
+                      {q.status === 'convertido'
+                        ? <Badge variant="default" className="bg-green-600 hover:bg-green-700">Aceito pelo cliente</Badge>
+                        : <Badge variant={statusConfig[q.status]?.variant || 'secondary'}>{statusConfig[q.status]?.label || q.status}</Badge>}
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">{new Date(q.created_at).toLocaleDateString('pt-BR')}</TableCell>
                   </TableRow>

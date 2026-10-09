@@ -293,7 +293,9 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <h1 className="text-xl font-semibold truncate">{quote.quote_number || 'Orçamento'}</h1>
-            <Badge variant={cfg.variant} className="hidden sm:inline-flex">{cfg.label}</Badge>
+            {quote.acceptance_status === 'accepted'
+              ? <Badge variant="default" className="hidden sm:inline-flex bg-green-600 hover:bg-green-700">Aceito pelo cliente</Badge>
+              : <Badge variant={cfg.variant} className="hidden sm:inline-flex">{cfg.label}</Badge>}
           </div>
           <p className="text-sm text-muted-foreground truncate">{quote.client_name}</p>
         </div>
@@ -530,6 +532,39 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
               )}
             </CardContent>
           </Card>
+
+          {quote.acceptance_status === 'accepted' && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base text-green-700">Aceite do cliente</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm">
+                <div className="flex justify-between"><span className="text-muted-foreground">Aceito por</span><span>{quote.accepted_by_name || '—'}</span></div>
+                {quote.accepted_by_document && (
+                  <div className="flex justify-between"><span className="text-muted-foreground">Documento</span><span>{quote.accepted_by_document}</span></div>
+                )}
+                {quote.accepted_at && (
+                  <div className="flex justify-between"><span className="text-muted-foreground">Data/hora</span><span>{new Date(quote.accepted_at).toLocaleString('pt-BR')}</span></div>
+                )}
+                {quote.acceptance_geolocation && (
+                  <div className="flex justify-between"><span className="text-muted-foreground">Geolocalização</span><span>{quote.acceptance_geolocation}</span></div>
+                )}
+                {quote.acceptance_ip && (
+                  <div className="flex justify-between"><span className="text-muted-foreground">IP</span><span>{quote.acceptance_ip}</span></div>
+                )}
+                <div>
+                  <span className="text-xs text-muted-foreground">Navegador</span>
+                  <p className="text-xs text-muted-foreground break-all">{quote.acceptance_user_agent || '—'}</p>
+                </div>
+                {quote.acceptance_signature && (
+                  <div>
+                    <span className="text-xs text-muted-foreground">Assinatura</span>
+                    <img src={quote.acceptance_signature} alt="Assinatura do cliente" className="border rounded bg-white mt-1 max-h-24" />
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           {history.length > 0 && (
             <Card>
