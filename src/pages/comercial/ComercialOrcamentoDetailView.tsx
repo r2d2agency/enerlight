@@ -245,6 +245,7 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
         client_email: quote.client_email,
         client_phone: quote.client_phone,
         valid_until: quote.valid_until,
+        payment_method: quote.payment_method,
         payment_terms: quote.payment_terms,
         shipping_type: quote.shipping_type || 'cif',
         shipping_value: quote.freight_value,

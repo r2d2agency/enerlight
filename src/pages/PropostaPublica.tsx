@@ -179,6 +179,7 @@ export default function PropostaPublica() {
         client_email: quote.client_email,
         client_phone: quote.client_phone,
         valid_until: quote.valid_until,
+        payment_method: quote.payment_method,
         payment_terms: quote.payment_terms,
         shipping_type: quote.shipping_type || 'cif',
         shipping_value: quote.freight_value,
@@ -303,6 +304,7 @@ export default function PropostaPublica() {
           <CardContent className="grid sm:grid-cols-2 gap-x-6 gap-y-1 text-sm text-muted-foreground">
             {quote.client_document && <p>Documento: {quote.client_document}</p>}
             {quote.client_email && <p>Email: {quote.client_email}</p>}
+            {quote.payment_method && <p>Forma de pagamento: {quote.payment_method}</p>}
             {quote.payment_terms && <p>Condição de pagamento: {quote.payment_terms}</p>}
             {quote.delivery_time && <p>Prazo de entrega: {quote.delivery_time}</p>}
             {quote.valid_until && <p>Validade: {new Date(quote.valid_until).toLocaleDateString('pt-BR')}</p>}
