@@ -118,7 +118,7 @@ export default function AdminComercialPortal() {
   const [addItemForm, setAddItemForm] = useState({ product_id: '', sale_price: '', cost_price: '' });
   const [importPreview, setImportPreview] = useState<Array<ImportRow & { found: boolean; product_name?: string; base_price?: number }>>([]);
   const [importing, setImporting] = useState(false);
-  const [commercialSettings, setCommercialSettings] = useState({ delivery_terms: '', payment_terms_options: '', default_shipping_type: 'cif' as 'fob' | 'cif', legal_text: '', primary_color: '#202D3D', accent_color: '#1E5AAF', text_color: '#282828' });
+  const [commercialSettings, setCommercialSettings] = useState({ delivery_terms: '', payment_terms_options: '', payment_method_options: '', default_shipping_type: 'cif' as 'fob' | 'cif', legal_text: '', primary_color: '#202D3D', accent_color: '#1E5AAF', text_color: '#282828' });
   const [quoteTemplates, setQuoteTemplates] = useState<ComercialQuoteTemplate[]>([]);
   const [templateForm, setTemplateForm] = useState({ name: '', description: '', cover_url: '', logo_url: '', header_text: '', footer_text: '' });
   const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
@@ -155,7 +155,7 @@ export default function AdminComercialPortal() {
         setProductCategories(categoriesRes.categories);
         setProductChannels(channelsRes.channels);
         setProductRegions(regionsRes.regions);
-        setCommercialSettings({ delivery_terms: settingsRes.settings.delivery_terms.join('\n'), payment_terms_options: settingsRes.settings.payment_terms_options.join('\n'), default_shipping_type: settingsRes.settings.default_shipping_type, legal_text: settingsRes.settings.legal_text || '', primary_color: settingsRes.settings.primary_color || '#202D3D', accent_color: settingsRes.settings.accent_color || '#1E5AAF', text_color: settingsRes.settings.text_color || '#282828' });
+        setCommercialSettings({ delivery_terms: settingsRes.settings.delivery_terms.join('\n'), payment_terms_options: settingsRes.settings.payment_terms_options.join('\n'), payment_method_options: (settingsRes.settings.payment_method_options || []).join('\n'), default_shipping_type: settingsRes.settings.default_shipping_type, legal_text: settingsRes.settings.legal_text || '', primary_color: settingsRes.settings.primary_color || '#202D3D', accent_color: settingsRes.settings.accent_color || '#1E5AAF', text_color: settingsRes.settings.text_color || '#282828' });
         setQuoteTemplates(templatesRes.templates);
       })
       .catch((error) => toast({ title: 'Erro ao carregar Portal Comercial', description: error?.message, variant: 'destructive' }))
@@ -175,6 +175,31 @@ export default function AdminComercialPortal() {
       toast({ title: 'Rodapé salvo' });
     } catch (error) {
       toast({ title: 'Erro ao salvar o rodapé', description: error instanceof Error ? error.message : 'Tente novamente', variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  /** Converte o texto do textarea (uma opção por linha) em lista. */
+  const toOptionList = (value: string) =>
+    value
+      .split('\n')
+      .map((item) => item.trim())
+      .filter((item) => item.length > 0);
+
+  /** Grava prazos, condições, formas de pagamento e tipo de frete padrão. */
+  const saveCommercialOptions = async () => {
+    setSaving(true);
+    try {
+      await comercialAdminApi.updateSettings({
+        delivery_terms: toOptionList(commercialSettings.delivery_terms),
+        payment_terms_options: toOptionList(commercialSettings.payment_terms_options),
+        payment_method_options: toOptionList(commercialSettings.payment_method_options),
+        default_shipping_type: commercialSettings.default_shipping_type,
+      });
+      toast({ title: 'Opções comerciais salvas' });
+    } catch (error) {
+      toast({ title: 'Erro ao salvar as opções comerciais', description: error instanceof Error ? error.message : 'Tente novamente', variant: 'destructive' });
     } finally {
       setSaving(false);
     }
@@ -784,6 +809,8 @@ export default function AdminComercialPortal() {
           <Card><CardContent className="space-y-4 pt-6">
             <div><Label>Prazos de entrega</Label><Textarea value={commercialSettings.delivery_terms} onChange={(e) => setCommercialSettings({ ...commercialSettings, delivery_terms: e.target.value })} placeholder="Uma opção por linha" /></div>
             <div><Label>Condições de pagamento</Label><Textarea value={commercialSettings.payment_terms_options} onChange={(e) => setCommercialSettings({ ...commercialSettings, payment_terms_options: e.target.value })} placeholder="Uma opção por linha" /></div>
+            <div><Label>Formas de pagamento</Label><Textarea value={commercialSettings.payment_method_options} onChange={(e) => setCommercialSettings({ ...commercialSettings, payment_method_options: e.target.value })} placeholder="Uma opção por linha (ex: PIX, Boleto bancário, Cartão de crédito)" /><p className="text-xs text-muted-foreground">É o que o vendedor ou representante seleciona no orçamento. Diferente da condição de pagamento, que trata dos prazos.</p></div>
+            <div className="flex justify-end"><Button onClick={saveCommercialOptions} disabled={saving}>Salvar opções</Button></div>
             <div className="space-y-1"><Label>Frete padrão</Label><Select value={commercialSettings.default_shipping_type} onValueChange={(value: 'fob' | 'cif') => setCommercialSettings({ ...commercialSettings, default_shipping_type: value })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="cif">CIF (remetente)</SelectItem><SelectItem value="fob">FOB (destinatário)</SelectItem></SelectContent></Select></div>
           </CardContent></Card>
 

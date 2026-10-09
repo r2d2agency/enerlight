@@ -27,7 +27,7 @@ interface QuoteApiBundle {
   sendQuote: (id: string) => Promise<{ message: string; status: string; public_token?: string }>;
   convertQuoteToSale: (id: string) => Promise<{ sale: ComercialSale }>;
   listQuoteProducts: (id: string) => Promise<{ products: ComercialCatalogProduct[] }>;
-  getQuoteSettings?: () => Promise<{ settings: { delivery_terms: string[]; payment_terms_options: string[]; default_shipping_type: 'fob' | 'cif' } }>;
+  getQuoteSettings?: () => Promise<{ settings: { delivery_terms: string[]; payment_terms_options: string[]; payment_method_options: string[]; default_shipping_type: 'fob' | 'cif' } }>;
 }
 
 interface Props {
@@ -51,7 +51,7 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
   const { toast } = useToast();
 
   const [detail, setDetail] = useState<ComercialQuoteDetail | null>(null);
-  const [quoteSettings, setQuoteSettings] = useState({ delivery_terms: [] as string[], payment_terms_options: [] as string[], default_shipping_type: 'cif' as 'fob' | 'cif' });
+  const [quoteSettings, setQuoteSettings] = useState({ delivery_terms: [] as string[], payment_terms_options: [] as string[], payment_method_options: [] as string[], default_shipping_type: 'cif' as 'fob' | 'cif' });
   const [customPayment, setCustomPayment] = useState(false);
   const [customDelivery, setCustomDelivery] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -63,7 +63,7 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
   const [converting, setConverting] = useState(false);
 
   const [form, setForm] = useState({
-    payment_terms: '', delivery_time: '', shipping_type: 'cif' as 'fob' | 'cif', valid_until: '', freight_value: '0', notes: '', internal_notes: '',
+    payment_method: '', payment_terms: '', delivery_time: '', shipping_type: 'cif' as 'fob' | 'cif', valid_until: '', freight_value: '0', notes: '', internal_notes: '',
   });
 
   const [products, setProducts] = useState<ComercialCatalogProduct[]>([]);
@@ -81,6 +81,7 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
       .then((res) => {
         setDetail(res);
         setForm({
+          payment_method: res.quote.payment_method || '',
           payment_terms: res.quote.payment_terms || '',
           delivery_time: res.quote.delivery_time || '',
           shipping_type: res.quote.shipping_type || 'cif',
@@ -95,7 +96,7 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
   };
 
   useEffect(load, [id]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { api.getQuoteSettings?.().then(({ settings }) => setQuoteSettings({ delivery_terms: settings.delivery_terms || [], payment_terms_options: settings.payment_terms_options || [], default_shipping_type: settings.default_shipping_type || 'cif' })).catch(() => {}); }, [api]);
+  useEffect(() => { api.getQuoteSettings?.().then(({ settings }) => setQuoteSettings({ delivery_terms: settings.delivery_terms || [], payment_terms_options: settings.payment_terms_options || [], payment_method_options: settings.payment_method_options || [], default_shipping_type: settings.default_shipping_type || 'cif' })).catch(() => {}); }, [api]);
 
   if (loading || !detail) {
     return (
@@ -114,6 +115,7 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
     setSaving(true);
     try {
       await api.updateQuote(id, {
+        payment_method: form.payment_method || undefined,
         payment_terms: form.payment_terms || undefined,
         delivery_time: form.delivery_time || undefined,
         shipping_type: form.shipping_type,
@@ -461,6 +463,10 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label>Forma de pagamento</Label>
+                  {quoteSettings.payment_method_options.length > 0 ? <Select disabled={!editable} value={form.payment_method} onValueChange={(value) => setForm({ ...form, payment_method: value })}><SelectTrigger><SelectValue placeholder="Selecione a forma" /></SelectTrigger><SelectContent>{quoteSettings.payment_method_options.map((option) => <SelectItem key={option} value={option}>{option}</SelectItem>)}</SelectContent></Select> : <Input disabled={!editable} value={form.payment_method} onChange={(e) => setForm({ ...form, payment_method: e.target.value })} placeholder="Ex: PIX, boleto, cartão" />}
+                </div>
                 <div className="space-y-1">
                   <Label>Condição de pagamento</Label>
                   {quoteSettings.payment_terms_options.length > 0 && !customPayment ? <Select disabled={!editable} value={form.payment_terms} onValueChange={(value) => { if (value === '__custom__') setCustomPayment(true); else setForm({ ...form, payment_terms: value }); }}><SelectTrigger><SelectValue placeholder="Selecione uma condição" /></SelectTrigger><SelectContent>{quoteSettings.payment_terms_options.map((option) => <SelectItem key={option} value={option}>{option}</SelectItem>)}<SelectItem value="__custom__">Outro / personalizado</SelectItem></SelectContent></Select> : <Input disabled={!editable} value={form.payment_terms} onChange={(e) => setForm({ ...form, payment_terms: e.target.value })} placeholder="Ex: 30/60/90 dias" />}{quoteSettings.payment_terms_options.length > 0 && customPayment && <Button type="button" size="sm" variant="link" onClick={() => setCustomPayment(false)}>Usar opções cadastradas</Button>}

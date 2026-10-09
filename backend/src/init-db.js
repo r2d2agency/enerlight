@@ -5924,6 +5924,16 @@ EXCEPTION WHEN duplicate_column THEN NULL; END $$;
 CREATE INDEX IF NOT EXISTS idx_online_quotes_acceptance ON online_quotes(acceptance_status) WHERE acceptance_status IS NOT NULL;
 `;
 
+// Formas de pagamento selecionáveis pelo vendedor/representante (PIX, boleto,
+// cartão...). Mesmo padrão de payment_terms_options: lista por organização em
+// online_quotes_config. O DEFAULT deixa as opções comuns já disponíveis nas
+// organizações existentes, que hoje ficam sem lista e caem em texto livre.
+const step85PaymentMethods = `
+DO $$ BEGIN
+  ALTER TABLE online_quotes_config ADD COLUMN payment_method_options JSONB DEFAULT '["PIX", "Boleto bancário", "Cartão de crédito", "Cartão de débito", "Dinheiro", "Transferência bancária"]'::jsonb;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+`;
+
 // Portal Comercial (Fase 4) — oportunidades (kanban configurável por
 // organização) e vendas. Venda é criada por conversão de orçamento, mas com
 // itens copiados (nunca um JOIN vivo) — alterar o orçamento depois não
@@ -6533,6 +6543,7 @@ const migrationSteps = [
   { name: 'Portal Comercial (Cliente por equipe)', sql: step82ComercialCustomerTeamOwner, critical: false },
   { name: 'Portal Comercial (Personalização do PDF)', sql: step83QuotePdfBranding, critical: false },
   { name: 'Portal Comercial (Aceite do cliente na proposta)', sql: step84QuoteAcceptance, critical: false },
+  { name: 'Portal Comercial (Formas de pagamento)', sql: step85PaymentMethods, critical: false },
 ];
 
 

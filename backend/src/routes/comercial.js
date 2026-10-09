@@ -812,7 +812,7 @@ async function updateQuoteHandler(req, res) {
     if (QUOTE_LOCKED_STATUSES.includes(quote.status)) return res.status(400).json({ error: 'Este orçamento não pode mais ser editado' });
 
     const b = req.body || {};
-    const fields = ['payment_terms', 'delivery_time', 'shipping_type', 'valid_until', 'freight_value', 'notes', 'internal_notes'];
+    const fields = ['payment_method', 'payment_terms', 'delivery_time', 'shipping_type', 'valid_until', 'freight_value', 'notes', 'internal_notes'];
     if (b.shipping_type !== undefined && !['fob', 'cif'].includes(b.shipping_type)) return res.status(400).json({ error: 'Modalidade de frete inválida', code: 'INVALID_SHIPPING_TYPE' });
     if (b.freight_value !== undefined && (!Number.isFinite(Number(b.freight_value)) || Number(b.freight_value) < 0)) return res.status(400).json({ error: 'Valor de frete inválido', code: 'INVALID_FREIGHT' });
     const sets = [];
@@ -2149,8 +2149,8 @@ internalRouter.get('/comissoes/minhas', myCommissionsHandler);
 const quoteSettingsHandler = async (req, res) => {
   const org = await marketingOrg(req);
   if (!org) return res.status(403).json({ error: 'Sem organização' });
-  const result = await query('SELECT delivery_terms, payment_terms_options, default_shipping_type, legal_text, primary_color, accent_color, text_color FROM online_quotes_config WHERE organization_id = $1', [org]);
-  res.json({ settings: result.rows[0] || { delivery_terms: [], payment_terms_options: [], default_shipping_type: 'cif' } });
+  const result = await query('SELECT delivery_terms, payment_terms_options, payment_method_options, default_shipping_type, legal_text, primary_color, accent_color, text_color FROM online_quotes_config WHERE organization_id = $1', [org]);
+  res.json({ settings: result.rows[0] || { delivery_terms: [], payment_terms_options: [], payment_method_options: [], default_shipping_type: 'cif' } });
 };
 router.get('/quote-settings', externalActorAuth, quoteSettingsHandler);
 internalRouter.get('/quote-settings', quoteSettingsHandler);
@@ -2178,20 +2178,22 @@ adminRouter.put('/settings', gate('can_manage_comercial_portal'), async (req, re
   const body = req.body || {};
   // Atualização parcial: cada campo só é reescrito quando veio no corpo, para que
   // salvar só o rodapé (ou só as cores) não apague o resto da configuração.
-  const result = await query(`INSERT INTO online_quotes_config (organization_id, delivery_terms, payment_terms_options, default_shipping_type, legal_text, primary_color, accent_color, text_color)
-    VALUES ($1, $2::jsonb, $3::jsonb, $4, $5, $6, $7, $8)
+  const result = await query(`INSERT INTO online_quotes_config (organization_id, delivery_terms, payment_terms_options, payment_method_options, default_shipping_type, legal_text, primary_color, accent_color, text_color)
+    VALUES ($1, $2::jsonb, $3::jsonb, $4::jsonb, $5, $6, $7, $8, $9)
     ON CONFLICT (organization_id) DO UPDATE SET
-      delivery_terms = CASE WHEN $9 THEN EXCLUDED.delivery_terms ELSE online_quotes_config.delivery_terms END,
-      payment_terms_options = CASE WHEN $10 THEN EXCLUDED.payment_terms_options ELSE online_quotes_config.payment_terms_options END,
-      default_shipping_type = CASE WHEN $11 THEN EXCLUDED.default_shipping_type ELSE online_quotes_config.default_shipping_type END,
-      legal_text = CASE WHEN $12 THEN EXCLUDED.legal_text ELSE online_quotes_config.legal_text END,
-      primary_color = CASE WHEN $13 THEN EXCLUDED.primary_color ELSE online_quotes_config.primary_color END,
-      accent_color = CASE WHEN $14 THEN EXCLUDED.accent_color ELSE online_quotes_config.accent_color END,
-      text_color = CASE WHEN $15 THEN EXCLUDED.text_color ELSE online_quotes_config.text_color END,
+      delivery_terms = CASE WHEN $10 THEN EXCLUDED.delivery_terms ELSE online_quotes_config.delivery_terms END,
+      payment_terms_options = CASE WHEN $11 THEN EXCLUDED.payment_terms_options ELSE online_quotes_config.payment_terms_options END,
+      payment_method_options = CASE WHEN $12 THEN EXCLUDED.payment_method_options ELSE online_quotes_config.payment_method_options END,
+      default_shipping_type = CASE WHEN $13 THEN EXCLUDED.default_shipping_type ELSE online_quotes_config.default_shipping_type END,
+      legal_text = CASE WHEN $14 THEN EXCLUDED.legal_text ELSE online_quotes_config.legal_text END,
+      primary_color = CASE WHEN $15 THEN EXCLUDED.primary_color ELSE online_quotes_config.primary_color END,
+      accent_color = CASE WHEN $16 THEN EXCLUDED.accent_color ELSE online_quotes_config.accent_color END,
+      text_color = CASE WHEN $17 THEN EXCLUDED.text_color ELSE online_quotes_config.text_color END,
       updated_at = NOW() RETURNING *`,
     [org.organization_id,
       JSON.stringify(Array.isArray(body.delivery_terms) ? normalizeOptions(body.delivery_terms) : []),
       JSON.stringify(Array.isArray(body.payment_terms_options) ? normalizeOptions(body.payment_terms_options) : []),
+      JSON.stringify(Array.isArray(body.payment_method_options) ? normalizeOptions(body.payment_method_options) : []),
       ['fob', 'cif'].includes(body.default_shipping_type) ? body.default_shipping_type : 'cif',
       typeof body.legal_text === 'string' ? body.legal_text : null,
       hexColor(body.primary_color, '#202D3D'),
@@ -2199,6 +2201,7 @@ adminRouter.put('/settings', gate('can_manage_comercial_portal'), async (req, re
       hexColor(body.text_color, '#282828'),
       Array.isArray(body.delivery_terms),
       Array.isArray(body.payment_terms_options),
+      Array.isArray(body.payment_method_options),
       'default_shipping_type' in body,
       typeof body.legal_text === 'string',
       typeof body.primary_color === 'string',
