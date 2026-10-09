@@ -1158,6 +1158,10 @@ async function getSaleHandler(req, res) {
               tm.name as actor_team_name, t.name as price_list_name,
               q.quote_number, q.payment_method as quote_payment_method,
               q.shipping_type, q.delivery_time,
+              -- Aceite do cliente: a venda carrega os dados para rastrear a proposta
+              q.acceptance_status, q.accepted_at, q.accepted_by_name, q.accepted_by_document,
+              q.accepted_by_email, q.acceptance_geolocation, q.acceptance_ip,
+              q.acceptance_user_agent, q.acceptance_signature,
               cm.amount as commission_amount, cm.percent_applied as commission_percent,
               cm.status as commission_status
        FROM com_sales s

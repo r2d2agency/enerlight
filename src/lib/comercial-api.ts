@@ -374,6 +374,16 @@ export interface ComercialSale {
   payment_method?: string | null;
   shipping_type?: string | null;
   delivery_time?: string | null;
+  // Aceite do cliente (quando a venda nasceu da proposta pública)
+  acceptance_status?: string | null;
+  accepted_at?: string | null;
+  accepted_by_name?: string | null;
+  accepted_by_document?: string | null;
+  accepted_by_email?: string | null;
+  acceptance_geolocation?: string | null;
+  acceptance_ip?: string | null;
+  acceptance_user_agent?: string | null;
+  acceptance_signature?: string | null;
   created_at: string;
 }
 

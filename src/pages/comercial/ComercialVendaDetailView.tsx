@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { ComercialSale, ComercialSaleItem } from '@/lib/comercial-api';
-import { Loader2, ArrowLeft, Lock } from 'lucide-react';
+import { Loader2, ArrowLeft, Lock, CheckCircle2 } from 'lucide-react';
 
 const formatCurrency = (value: unknown) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value) || 0);
@@ -107,6 +107,13 @@ export default function ComercialVendaDetailView({ basePath, getSale }: Props) {
   }
 
   const address = customerAddress(sale);
+  const acceptance = [
+    sale.acceptance_status,
+    sale.accepted_at,
+    sale.accepted_by_name,
+    sale.accepted_by_document,
+    sale.acceptance_signature,
+  ].some((value) => value !== undefined && value !== null && value !== '');
   const discount = Number(sale.discount_value) || 0;
   const freight = Number(sale.freight_value) || 0;
   const subtotal = Number(sale.subtotal_value) || 0;
@@ -225,6 +232,39 @@ export default function ComercialVendaDetailView({ basePath, getSale }: Props) {
             <div className="flex justify-between font-semibold text-base"><span>Total da venda</span><span>{formatCurrency(sale.total_value)}</span></div>
           </CardContent>
         </Card>
+
+        {acceptance && (
+          <Card className="border-green-600/40">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base text-green-700 flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4" />
+                Aceite do cliente
+              </CardTitle>
+              <CardDescription>
+                Esta venda foi gerada pelo aceite digital da proposta {sale.quote_number || ''}.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="text-sm text-muted-foreground space-y-1">
+              {sale.accepted_by_name && (
+                <p>
+                  {sale.accepted_by_name}
+                  {sale.accepted_by_document ? ` · ${sale.accepted_by_document}` : ''}
+                  {sale.accepted_by_email ? ` · ${sale.accepted_by_email}` : ''}
+                </p>
+              )}
+              {sale.accepted_at && <p>Emitido em {formatDateTime(sale.accepted_at)}</p>}
+              {sale.acceptance_geolocation && <p>Localização: {sale.acceptance_geolocation}</p>}
+              {sale.acceptance_ip && <p>IP: {sale.acceptance_ip}</p>}
+              {sale.acceptance_user_agent && <p className="break-all">Navegador: {sale.acceptance_user_agent}</p>}
+              {sale.acceptance_signature && (
+                <div>
+                  <p className="mb-1">Assinatura:</p>
+                  <img src={sale.acceptance_signature} alt="Assinatura do cliente" className="border rounded bg-white max-h-24" />
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardHeader className="pb-3"><CardTitle className="text-base">Frete, pagamento e condições</CardTitle></CardHeader>
