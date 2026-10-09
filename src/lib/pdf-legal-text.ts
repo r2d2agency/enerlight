@@ -152,7 +152,8 @@ export const drawLegalBlocks = (
       doc.setFont('helvetica', run.bold ? 'bold' : run.italic ? 'italic' : 'normal');
       doc.setFontSize(block.size);
       const chunks = run.text.split(/(\n)/);
-      for (const chunk of chunks) {
+      for (let chunkIdx = 0; chunkIdx < chunks.length; chunkIdx++) {
+        const chunk = chunks[chunkIdx];
         if (chunk === '\n') { flushCurrent(); lines.push([]); continue; }
         const words = chunk.split(' ');
         for (let i = 0; i < words.length; i += 1) {
@@ -167,7 +168,7 @@ export const drawLegalBlocks = (
           }
         }
         // Preserva o espaço entre palavras exatamente como veio do texto.
-        if (i < words.length - 1) current += ' ';
+        if (chunkIdx < chunks.length - 1) current += ' ';
       }
     }
     flushCurrent();
