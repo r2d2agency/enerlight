@@ -38,7 +38,10 @@ interface Props {
   api: QuoteApiBundle;
 }
 
-const EDITABLE_STATUSES = ['draft', 'em_elaboracao'];
+// Espelha o QUOTE_LOCKED_STATUSES do backend: depois de convertido em venda (ou
+// cancelado) o orçamento é somente-leitura; em negociacao o cliente pode pedir
+// desconto e o vendedor ainda ajusta quantidade, preço e condicoes.
+const EDITABLE_STATUSES = ['draft', 'em_elaboracao', 'enviado', 'visualizado', 'em_negociacao'];
 const CONVERTIBLE_STATUSES = ['enviado', 'visualizado', 'em_negociacao'];
 
 export default function ComercialOrcamentoDetailView({ actor, basePath, salesBasePath, proposalBaseUrl, api }: Props) {
