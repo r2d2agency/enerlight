@@ -119,7 +119,7 @@ const generateModernPortraitPDF = async (quote: any, organization: any) => {
   doc.setFillColor(...branding.primary); doc.rect(0, 0, pageWidth, 38, 'F');
   doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(22); doc.text('PROPOSTA', margin, 18);
   doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.text(`CÓDIGO ${String(quote.id || '').split('-')[0].toUpperCase()}`, margin, 27);
-  doc.text(format(new Date(), 'dd/MM/yyyy'), pageWidth - margin, 27, { align: 'right' });
+  doc.text(format(new Date(), 'dd/MM/yyyy'), pageWidth - 50, 27, { align: 'right' });
   await drawHeaderLogo(doc, branding, organization, pageWidth - 45, 6, 25, 20);
   let y = 50;
   doc.setTextColor(...branding.primary); doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.text('CLIENTE', margin, y);

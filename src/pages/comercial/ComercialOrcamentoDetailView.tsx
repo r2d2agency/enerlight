@@ -313,7 +313,7 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
         {CONVERTIBLE_STATUSES.includes(quote.status) && (
           <Button size="sm" onClick={handleConvert} disabled={converting} className="flex-1 sm:flex-none min-w-[9rem] sm:min-w-0">
             {converting ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <ShoppingCart className="h-4 w-4 mr-1" />}
-            Converter em venda
+            Converter em pedido
           </Button>
         )}
       </div>
