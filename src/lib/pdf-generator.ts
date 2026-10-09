@@ -137,13 +137,38 @@ const generateModernPortraitPDF = async (quote: any, organization: any) => {
   autoTable(doc, { startY: y, margin: { left: margin, right: margin }, head: [['Produto', 'Qtd', 'Unitário', 'Desc.', 'Total']], body: (quote.items || []).map((item: any) => [item.product_name || 'Produto', item.quantity || 0, currency.format(item.unit_price || 0), `${Number(item.discount_value || item.discount_percent || 0).toFixed(2)}%`, currency.format(item.total_price || 0)]), theme: 'striped', headStyles: { fillColor: branding.primary, textColor: 255, fontSize: 8 }, bodyStyles: { fontSize: 8, cellPadding: 3 }, columnStyles: { 0: { cellWidth: 'auto' }, 1: { halign: 'center', cellWidth: 20 }, 2: { halign: 'right', cellWidth: 45 }, 3: { halign: 'right', cellWidth: 30 }, 4: { halign: 'right', cellWidth: 50 } }, foot: [[{ content: 'TOTAL', colSpan: 4, styles: { halign: 'right', fontStyle: 'bold', fillColor: branding.accent, textColor: 255 } }, { content: currency.format(Number(quote.total_value || 0)), styles: { halign: 'right', fontStyle: 'bold', fillColor: branding.primary, textColor: 255 } }]], showHead: 'everyPage' });
   y = (doc as any).lastAutoTable.finalY + 12;
   const notes = [quote.notes, quote.fiscal_info || quote.template_fiscal_info].filter(Boolean).join('\n');
-  if (notes) { doc.setFontSize(9); doc.setFont('helvetica', 'bold'); doc.text('OBSERVAÇÕES', margin, y); y += 6; doc.setFont('helvetica', 'normal'); doc.setTextColor(80, 90, 100); doc.text(doc.splitTextToSize(String(notes).replace(/<[^>]*>/g, ''), pageWidth - margin * 2), margin, y); }
+  if (notes) {
+    doc.setFontSize(9); doc.setFont('helvetica', 'bold'); doc.setTextColor(...branding.primary); doc.text('OBSERVAÇÕES', margin, y); y += 6;
+    doc.setFont('helvetica', 'normal'); doc.setTextColor(80, 90, 100);
+    const notesLines = doc.splitTextToSize(String(notes).replace(/<[^>]*>/g, ''), pageWidth - margin * 2);
+    doc.text(notesLines, margin, y, { lineHeightFactor: 1.15 });
+    // Avança o cursor pela altura real das linhas desenhadas, senão as
+    // informações legais começam por cima do texto das observações.
+    y += notesLines.length * 3.7 + 6;
+  }
   const legalBlocks = htmlToBlocks(quote?.template?.legal_text ?? quote?.legal_text ?? '', 7.5);
+  const sellerName = String(quote.actor_name || quote.seller_name || '').trim();
   if (legalBlocks.length > 0) {
     if (y + 26 > pageHeight - 24) { doc.addPage(); y = 20; }
     doc.setTextColor(...branding.primary); doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
     doc.text('INFORMAÇÕES LEGAIS', margin, y); y += 7;
-    drawLegalBlocks(doc, legalBlocks, margin, y, pageWidth - margin * 2, pageHeight, [90, 100, 110]);
+    const legalEnd = drawLegalBlocks(doc, legalBlocks, margin, y, pageWidth - margin * 2, pageHeight, [90, 100, 110]);
+    if (sellerName) {
+      let sellerY = legalEnd + 10;
+      if (sellerY + 20 > pageHeight - 20) { doc.addPage(); sellerY = 20; }
+      doc.setTextColor(...branding.primary); doc.setFont('helvetica', 'bold'); doc.setFontSize(10);
+      doc.text('VENDEDOR RESPONSÁVEL', margin, sellerY); sellerY += 6;
+      doc.setFont('helvetica', 'normal'); doc.setTextColor(70, 80, 90); doc.setFontSize(10);
+      doc.text(sellerName, margin, sellerY);
+    }
+  } else if (sellerName) {
+    // Sem texto legal, o vendedor aparece logo após as observações.
+    let sellerY = y + 6;
+    if (sellerY + 20 > pageHeight - 20) { doc.addPage(); sellerY = 20; }
+    doc.setTextColor(...branding.primary); doc.setFont('helvetica', 'bold'); doc.setFontSize(10);
+    doc.text('VENDEDOR RESPONSÁVEL', margin, sellerY); sellerY += 6;
+    doc.setFont('helvetica', 'normal'); doc.setTextColor(70, 80, 90); doc.setFontSize(10);
+    doc.text(sellerName, margin, sellerY);
   }
   for (let page = 1; page <= doc.getNumberOfPages(); page += 1) { doc.setPage(page); doc.setDrawColor(210, 215, 220); doc.line(margin, pageHeight - 14, pageWidth - margin, pageHeight - 14); doc.setFontSize(7); doc.setTextColor(120, 130, 140); doc.text(String(quote.template_footer || quote.footer_text || organization?.name || ''), pageWidth / 2, pageHeight - 8, { align: 'center' }); }
   const fileName = (quote.client_name || 'proposta').replace(/\s+/g, '-').toLowerCase(); doc.save(`proposta-${fileName}-vertical.pdf`);
@@ -203,6 +228,17 @@ export const generateQuotePDF = async (quote: any, organization: any, options: {
   doc.setFontSize(12);
   doc.setTextColor(...branding.text);
   doc.text(organization?.name || "Empresa", pageWidth - 14, 50, { align: "right" });
+
+  const sellerName = String(quote.actor_name || quote.seller_name || '').trim();
+  if (sellerName) {
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(...branding.text);
+    doc.text("VENDEDOR RESPONSÁVEL:", pageWidth - 14, 42, { align: "right" });
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(100, 100, 100);
+    doc.text(sellerName, pageWidth - 14, 46, { align: "right" });
+  }
 
   // 4. Client Info
   doc.setDrawColor(220, 220, 220);
@@ -279,8 +315,8 @@ export const generateQuotePDF = async (quote: any, organization: any, options: {
   }
   
   const headers = includeImages
-    ? [['Foto', 'Produto', 'Qtd', 'Unitário', 'Desc.', 'Total']]
-    : [['Produto', 'Qtd', 'Unitário', 'Desc.', 'Total']];
+    ? [['Foto', 'Cód.', 'Produto', 'Qtd', 'Unitário', 'Desc.', 'Total']]
+    : [['Cód.', 'Produto', 'Qtd', 'Unitário', 'Desc.', 'Total']];
 
   const itemSubtotal = (quote.items || []).reduce((acc: number, item: any) => acc + numberValue(item.total_price), 0);
   const totalValue = numberValue(quote.total_value) || itemSubtotal + numberValue(quote.shipping_value);
@@ -291,6 +327,7 @@ export const generateQuotePDF = async (quote: any, organization: any, options: {
       : new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.discount_value || item.discount || 0);
 
     const row = [
+      item.product_code || item.sku || item.code || '—',
       item.product_name || 'Produto sem nome',
       item.quantity || 0,
       new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.unit_price || 0),
@@ -312,17 +349,19 @@ export const generateQuotePDF = async (quote: any, organization: any, options: {
     headStyles: { fillColor: branding.primary, textColor: [255, 255, 255], fontStyle: 'bold' },
     columnStyles: includeImages ? {
       0: { cellWidth: 20, minCellHeight: 20 },
-      1: { cellWidth: 'auto' },
-      2: { halign: 'center', cellWidth: 25 },
-      3: { halign: 'right', cellWidth: 30 },
-      4: { halign: 'right', cellWidth: 25 },
-      5: { halign: 'right', cellWidth: 35 },
+      1: { cellWidth: 22 },
+      2: { cellWidth: 'auto' },
+      3: { halign: 'center', cellWidth: 14 },
+      4: { halign: 'right', cellWidth: 24 },
+      5: { halign: 'right', cellWidth: 18 },
+      6: { halign: 'right', cellWidth: 26 },
     } : {
-      0: { cellWidth: 'auto' },
-      1: { halign: 'center', cellWidth: 25 },
-      2: { halign: 'right', cellWidth: 30 },
-      3: { halign: 'right', cellWidth: 25 },
-      4: { halign: 'right', cellWidth: 35 },
+      0: { cellWidth: 22 },
+      1: { cellWidth: 'auto' },
+      2: { halign: 'center', cellWidth: 14 },
+      3: { halign: 'right', cellWidth: 24 },
+      4: { halign: 'right', cellWidth: 18 },
+      5: { halign: 'right', cellWidth: 26 },
     },
     styles: { cellPadding: 2, overflow: 'linebreak' },
     margin: { left: 14, right: 14 },
@@ -343,15 +382,15 @@ export const generateQuotePDF = async (quote: any, organization: any, options: {
     },
     foot: [
       [
-        { content: 'SUBTOTAL ITENS', colSpan: includeImages ? 5 : 4, styles: { halign: 'right', fontStyle: 'bold' as const, fillColor: branding.accent, textColor: [255, 255, 255] } },
+        { content: 'SUBTOTAL ITENS', colSpan: includeImages ? 6 : 5, styles: { halign: 'right', fontStyle: 'bold' as const, fillColor: branding.accent, textColor: [255, 255, 255] } },
         { content: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(itemSubtotal), styles: { fontStyle: 'bold' as const, fillColor: branding.accent, halign: 'right', textColor: [255, 255, 255] } }
       ],
       ...(quote.shipping_value > 0 ? [[
-        { content: `FRETE (${quote.shipping_type?.toUpperCase() || 'CIF'})`, colSpan: includeImages ? 5 : 4, styles: { halign: 'right', fontStyle: 'bold' as const, fillColor: branding.accent, textColor: [255, 255, 255] } },
+        { content: `FRETE (${quote.shipping_type?.toUpperCase() || 'CIF'})`, colSpan: includeImages ? 6 : 5, styles: { halign: 'right', fontStyle: 'bold' as const, fillColor: branding.accent, textColor: [255, 255, 255] } },
         { content: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(quote.shipping_value), styles: { fontStyle: 'bold' as const, fillColor: branding.accent, halign: 'right', textColor: [255, 255, 255] } }
       ]] : []),
       [
-        { content: 'VALOR TOTAL', colSpan: includeImages ? 5 : 4, styles: { halign: 'right', fontStyle: 'bold' as const, fillColor: branding.primary, textColor: [255, 255, 255] } },
+        { content: 'VALOR TOTAL', colSpan: includeImages ? 6 : 5, styles: { halign: 'right', fontStyle: 'bold' as const, fillColor: branding.primary, textColor: [255, 255, 255] } },
         { content: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalValue), styles: { fontStyle: 'bold' as const, fillColor: branding.primary, halign: 'right', textColor: [255, 255, 255] } }
       ]
     ] as any,

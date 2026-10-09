@@ -233,6 +233,7 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
       await generateQuotePDF(
       {
         id: quote.id,
+        actor_name: quote.actor_name,
         client_name: quote.client_name,
         client_document: quote.client_document,
         client_email: quote.client_email,
@@ -252,6 +253,7 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
         total_value: quote.total_value,
         include_images: true,
         items: items.map((i) => ({
+          product_code: i.product_code,
           product_name: i.product_name,
           quantity: i.quantity,
           unit_price: i.unit_price,
