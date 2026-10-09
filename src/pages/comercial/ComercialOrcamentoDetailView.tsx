@@ -38,10 +38,11 @@ interface Props {
   api: QuoteApiBundle;
 }
 
-// Espelha o QUOTE_LOCKED_STATUSES do backend: depois de convertido em venda (ou
-// cancelado) o orçamento é somente-leitura; em negociacao o cliente pode pedir
-// desconto e o vendedor ainda ajusta quantidade, preço e condicoes.
-const EDITABLE_STATUSES = ['draft', 'em_elaboracao', 'enviado', 'visualizado', 'em_negociacao'];
+// Espelha o QUOTE_LOCKED_STATUSES do backend ['convertido', 'cancelado'].
+// Enquanto estiver em negociacao com o cliente o vendedor pode aplicar
+// desconto pedido; 'aguardando_aprovacao' tambem segue editavel para o
+// vendedor ajustar o desconto antes de reenviar para aprovacao.
+const EDITABLE_STATUSES = ['draft', 'em_elaboracao', 'enviado', 'visualizado', 'em_negociacao', 'aguardando_aprovacao'];
 const CONVERTIBLE_STATUSES = ['enviado', 'visualizado', 'em_negociacao'];
 
 export default function ComercialOrcamentoDetailView({ actor, basePath, salesBasePath, proposalBaseUrl, api }: Props) {
@@ -312,7 +313,7 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
         {editable && (
           <Button size="sm" onClick={handleSend} disabled={sending} className="flex-1 sm:flex-none min-w-[9rem] sm:min-w-0">
             {sending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Send className="h-4 w-4 mr-1" />}
-            Enviar orçamento
+            {quote.status === 'aguardando_aprovacao' ? 'Reenviar para aprovação' : 'Enviar orçamento'}
           </Button>
         )}
         {CONVERTIBLE_STATUSES.includes(quote.status) && (

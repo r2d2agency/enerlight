@@ -959,9 +959,13 @@ async function sendQuoteHandler(req, res) {
       && maxDiscount > Number(req.actor.max_discount_percent);
 
     if (needsApproval) {
+      // A tabela não tem UNIQUE(quote_id, status), entao um reenvio sem
+      // verificar a pendencia atual duplicava a solicitacao na fila do admin.
+      await query(`UPDATE com_quote_approvals SET status = 'superseded', note = COALESCE(note, '') || ' [substituída por novo envio]' WHERE quote_id = $1 AND status = 'pending'`, [quote.id]);
+
       await query(`UPDATE online_quotes SET status = 'aguardando_aprovacao', updated_at = NOW() WHERE id = $1`, [quote.id]);
-      await query(
-        `INSERT INTO com_quote_approvals (quote_id, requested_discount_percent, max_allowed_percent) VALUES ($1, $2, $3)`,
+      const approvalResult = await query(
+        `INSERT INTO com_quote_approvals (quote_id, requested_discount_percent, max_allowed_percent) VALUES ($1, $2, $3) RETURNING id`,
         [quote.id, maxDiscount, req.actor.max_discount_percent]
       );
       await query(
@@ -969,8 +973,12 @@ async function sendQuoteHandler(req, res) {
          VALUES ($1, $2, 'send_requested', $3, 'aguardando_aprovacao', $4)`,
         [quote.id, req.actor.id, quote.status, `Desconto de ${maxDiscount}% acima do limite de ${req.actor.max_discount_percent}%`]
       );
-      return res.json({ message: 'Orçamento enviado para aprovação por desconto acima do permitido.', status: 'aguardando_aprovacao' });
+      return res.json({ message: 'Orçamento enviado para aprovação por desconto acima do permitido.', status: 'aguardando_aprovacao', approval_id: approvalResult.rows[0].id });
     }
+
+    // O desconto caiu para dentro do limite depois de uma recusa/reenvio: a
+    // solicitacao antiga nao pode continuar pendente na fila do admin.
+    await query(`UPDATE com_quote_approvals SET status = 'superseded', note = COALESCE(note, '') || ' [desconto ajustado para dentro do limite]' WHERE quote_id = $1 AND status = 'pending'`, [quote.id]);
 
     const publicToken = quote.public_token || genToken();
     await query(`UPDATE online_quotes SET status = 'enviado', public_token = $1, updated_at = NOW() WHERE id = $2`, [publicToken, quote.id]);
