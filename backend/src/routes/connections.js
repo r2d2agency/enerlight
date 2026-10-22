@@ -136,6 +136,10 @@ router.post('/', async (req, res) => {
       if (!instance_id || !wapi_token) {
         return res.status(400).json({ error: 'Instance ID e Token são obrigatórios para W-API' });
       }
+    } else if (provider === 'uazapi') {
+      if (!api_url || !api_key) {
+        return res.status(400).json({ error: 'Base URL e Token são obrigatórios para Uazapi' });
+      }
     } else {
       if (!api_url || !api_key || !instance_name) {
         return res.status(400).json({ error: 'URL, API Key e nome da instância são obrigatórios' });

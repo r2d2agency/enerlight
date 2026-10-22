@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Plus, QrCode, RefreshCw, Plug, Unplug, Trash2, Phone, Loader2, Wifi, WifiOff, Send, Settings2, AlertTriangle, CheckCircle, Eye, Activity, Radio, Users, Download, Pencil, UserCheck, MessageSquare, Bot } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { api } from "@/lib/api";
+import { api, API_URL } from "@/lib/api";
 import { toast } from "sonner";
 import { TestMessageDialog } from "@/components/conexao/TestMessageDialog";
 import { WebhookDiagnosticPanel } from "@/components/conexao/WebhookDiagnosticPanel";
@@ -23,7 +23,7 @@ import { SyncProgressDialog } from "@/components/conexao/SyncProgressDialog";
 interface Connection {
   id: string;
   name: string;
-  provider?: 'evolution' | 'wapi' | 'meta';
+  provider?: 'evolution' | 'wapi' | 'meta' | 'uazapi';
   instance_name: string;
   instance_id?: string;
   status: string;
@@ -46,7 +46,9 @@ const Conexao = () => {
   const [creating, setCreating] = useState(false);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [newConnectionName, setNewConnectionName] = useState("");
-  const [newConnectionProvider, setNewConnectionProvider] = useState<'evolution' | 'wapi' | 'meta'>('evolution');
+  const [newConnectionProvider, setNewConnectionProvider] = useState<'evolution' | 'wapi' | 'meta' | 'uazapi'>('evolution');
+  const [uazapiBaseUrl, setUazapiBaseUrl] = useState('');
+  const [uazapiToken, setUazapiToken] = useState('');
   const [newConnectionInstanceId, setNewConnectionInstanceId] = useState("");
   const [newConnectionWapiToken, setNewConnectionWapiToken] = useState("");
   const [newConnectionApiUrl, setNewConnectionApiUrl] = useState("");
@@ -221,6 +223,8 @@ const Conexao = () => {
     setMetaPhoneNumberId('');
     setMetaAccessToken('');
     setMetaAppSecret('');
+    setUazapiBaseUrl('');
+    setUazapiToken('');
   };
 
   const handleCreateConnection = async () => {
@@ -237,6 +241,11 @@ const Conexao = () => {
     } else if (newConnectionProvider === 'wapi' && !wapiAutoCreate) {
       if (!newConnectionInstanceId.trim() || !newConnectionWapiToken.trim()) {
         toast.error('Instance ID e Token são obrigatórios para W-API');
+        return;
+      }
+    } else if (newConnectionProvider === 'uazapi') {
+      if (!uazapiBaseUrl.trim() || !uazapiToken.trim()) {
+        toast.error('Base URL e Token são obrigatórios para Uazapi');
         return;
       }
     }
@@ -258,6 +267,17 @@ const Conexao = () => {
           },
         });
         toast.success('Conexão Meta WhatsApp Business criada!');
+      } else if (newConnectionProvider === 'uazapi') {
+        result = await api<Connection>('/api/connections', {
+          method: 'POST',
+          body: {
+            provider: 'uazapi',
+            name: newConnectionName,
+            api_url: uazapiBaseUrl.trim(),
+            api_key: uazapiToken.trim(),
+          },
+        });
+        toast.success('Conexão Uazapi criada! Use o QR Code para conectar.');
       } else if (newConnectionProvider === 'wapi') {
         if (wapiAutoCreate) {
           result = await api<Connection>('/api/connections/wapi/auto-create', {
@@ -637,7 +657,7 @@ const handleGetQRCode = async (connection: Connection) => {
                   <Label>Provedor</Label>
                   <Select 
                     value={newConnectionProvider} 
-                    onValueChange={(value: 'evolution' | 'wapi' | 'meta') => setNewConnectionProvider(value)}
+                    onValueChange={(value: 'evolution' | 'wapi' | 'meta' | 'uazapi') => setNewConnectionProvider(value)}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione o provedor" />
@@ -655,6 +675,12 @@ const handleGetQRCode = async (connection: Connection) => {
                           <span>W-API</span>
                         </div>
                       </SelectItem>
+                      <SelectItem value="uazapi">
+                        <div className="flex items-center gap-2">
+                          <Radio className="h-4 w-4" />
+                          <span>Uazapi</span>
+                        </div>
+                      </SelectItem>
                       <SelectItem value="meta">
                         <div className="flex items-center gap-2">
                           <MessageSquare className="h-4 w-4" />
@@ -664,10 +690,12 @@ const handleGetQRCode = async (connection: Connection) => {
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">
-                    {newConnectionProvider === 'evolution' 
-                      ? 'Evolution API: Gera QR Code para conexão' 
+                    {newConnectionProvider === 'evolution'
+                      ? 'Evolution API: Gera QR Code para conexão'
                       : newConnectionProvider === 'wapi'
                       ? 'W-API: Cria instância automaticamente ou use dados manuais'
+                      : newConnectionProvider === 'uazapi'
+                      ? 'Uazapi: informe a Base URL e o Token da instância. Conecta via QR Code.'
                       : 'Meta Cloud API: Conexão oficial com WABA, templates e mensagens em massa'}
                   </p>
                 </div>
@@ -681,6 +709,43 @@ const handleGetQRCode = async (connection: Connection) => {
                     onChange={(e) => setNewConnectionName(e.target.value)}
                   />
                 </div>
+
+                {/* Uazapi specific fields */}
+                {newConnectionProvider === 'uazapi' && (
+                  <>
+                    <div className="space-y-2">
+                      <Label>Base URL</Label>
+                      <Input
+                        placeholder="Ex: https://api.suaconta.uazapi.com"
+                        value={uazapiBaseUrl}
+                        onChange={(e) => setUazapiBaseUrl(e.target.value)}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Endereço base da sua instância Uazapi, sem barra no final
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Token da instância</Label>
+                      <Input
+                        type="password"
+                        placeholder="Token da instância Uazapi"
+                        value={uazapiToken}
+                        onChange={(e) => setUazapiToken(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Webhook para cadastrar no painel Uazapi</Label>
+                      <Input
+                        readOnly
+                        value={`${API_URL || window.location.origin}/api/uazapi/webhook`}
+                        className="font-mono text-xs"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Copie esta URL e cadastre no painel da Uazapi para receber mensagens
+                      </p>
+                    </div>
+                  </>
+                )}
 
                 {/* W-API specific fields */}
                 {newConnectionProvider === 'wapi' && (

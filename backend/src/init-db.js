@@ -445,7 +445,19 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'connections_provider_chk') THEN
         ALTER TABLE connections
         ADD CONSTRAINT connections_provider_chk
-        CHECK (provider IN ('evolution', 'wapi'));
+        CHECK (provider IN ('evolution', 'wapi', 'uazapi'));
+    ELSE
+        -- Recria o constraint se ainda não incluir 'uazapi'
+        IF EXISTS (
+            SELECT 1 FROM pg_constraint
+             WHERE conname = 'connections_provider_chk'
+               AND pg_get_constraintdef(oid) NOT LIKE '%uazapi%'
+        ) THEN
+            ALTER TABLE connections DROP CONSTRAINT connections_provider_chk;
+            ALTER TABLE connections
+            ADD CONSTRAINT connections_provider_chk
+            CHECK (provider IN ('evolution', 'wapi', 'uazapi'));
+        END IF;
     END IF;
 
     -- Required fields per provider constraint
@@ -456,7 +468,26 @@ BEGIN
             (provider = 'wapi' AND instance_id IS NOT NULL AND wapi_token IS NOT NULL)
             OR
             (provider = 'evolution' AND api_url IS NOT NULL AND api_key IS NOT NULL AND instance_name IS NOT NULL)
+            OR
+            (provider = 'uazapi' AND api_url IS NOT NULL AND api_key IS NOT NULL)
         );
+    ELSE
+        IF EXISTS (
+            SELECT 1 FROM pg_constraint
+             WHERE conname = 'connections_provider_required_fields_chk'
+               AND pg_get_constraintdef(oid) NOT LIKE '%uazapi%'
+        ) THEN
+            ALTER TABLE connections DROP CONSTRAINT connections_provider_required_fields_chk;
+            ALTER TABLE connections
+            ADD CONSTRAINT connections_provider_required_fields_chk
+            CHECK (
+                (provider = 'wapi' AND instance_id IS NOT NULL AND wapi_token IS NOT NULL)
+                OR
+                (provider = 'evolution' AND api_url IS NOT NULL AND api_key IS NOT NULL AND instance_name IS NOT NULL)
+                OR
+                (provider = 'uazapi' AND api_url IS NOT NULL AND api_key IS NOT NULL)
+            );
+        END IF;
     END IF;
 END $$;
 

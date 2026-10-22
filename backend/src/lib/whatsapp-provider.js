@@ -2,6 +2,7 @@
 // Routes requests to the correct provider (Evolution API or W-API)
 
 import * as wapiProvider from './wapi-provider.js';
+import * as uazapiProvider from './uazapi-provider.js';
 import { logError, logInfo, logWarn } from '../logger.js';
 
 /**
@@ -29,6 +30,10 @@ export async function checkStatus(connection) {
 
   if (provider === 'wapi') {
     return wapiProvider.checkStatus(connection.instance_id, connection.wapi_token);
+  }
+
+  if (provider === 'uazapi') {
+    return uazapiProvider.checkStatus(connection.api_url, connection.api_key);
   }
 
   // Evolution API
@@ -110,6 +115,10 @@ export async function getQRCode(connection) {
     return wapiProvider.getQRCode(connection.instance_id, connection.wapi_token);
   }
 
+  if (provider === 'uazapi') {
+    return uazapiProvider.getQRCode(connection.api_url, connection.api_key);
+  }
+
   // Evolution API
   try {
     const response = await fetch(
@@ -139,6 +148,10 @@ export async function disconnect(connection) {
 
   if (provider === 'wapi') {
     return wapiProvider.disconnect(connection.instance_id, connection.wapi_token);
+  }
+
+  if (provider === 'uazapi') {
+    return uazapiProvider.disconnect(connection.api_url, connection.api_key);
   }
 
   // Evolution API
@@ -173,6 +186,34 @@ export async function sendMessage(connection, phone, content, messageType, media
     has_content: Boolean(content),
     phone_preview: phone ? String(phone).substring(0, 15) : null,
   });
+
+  if (provider === 'uazapi') {
+    try {
+      const result = await uazapiProvider.sendMessage(
+        connection.api_url,
+        connection.api_key,
+        phone,
+        content,
+        messageType,
+        mediaUrl
+      );
+
+      logInfo('whatsapp.send_message_uazapi_result', {
+        connection_id: connection.id,
+        success: result.success,
+        error: result.error || null,
+        duration_ms: Date.now() - startedAt,
+      });
+
+      return result;
+    } catch (error) {
+      logError('whatsapp.send_message_uazapi_exception', error, {
+        connection_id: connection.id,
+        duration_ms: Date.now() - startedAt,
+      });
+      return { success: false, error: error.message };
+    }
+  }
 
   if (provider === 'wapi') {
     try {
@@ -266,6 +307,11 @@ export async function checkNumber(connection, phone) {
 
   if (provider === 'wapi') {
     return wapiProvider.checkNumber(connection.instance_id, connection.wapi_token, phone);
+  }
+
+  // Uazapi: no dedicated check-number endpoint documented; assume reachable
+  if (provider === 'uazapi') {
+    return true;
   }
 
   // Evolution API - clean phone number (digits only, ensure country code)
