@@ -401,7 +401,7 @@ const handleGetQRCode = async (connection: Connection) => {
 
   const handleDelete = async (connection: Connection) => {
     try {
-      const isWapi = connection.provider === 'wapi' || !!connection.instance_id;
+      const isWapi = connection.provider === 'wapi' || connection.provider === 'uazapi' || !!connection.instance_id;
       const deleteUrl = isWapi 
         ? `/api/connections/${connection.id}` 
         : `/api/evolution/${connection.id}`;
@@ -447,7 +447,7 @@ const handleGetQRCode = async (connection: Connection) => {
   };
 
   const handleConfigureWapiWebhooks = async (connection: Connection) => {
-    const isWapi = connection.provider === 'wapi' || !!connection.instance_id;
+    const isWapi = connection.provider === 'wapi' || connection.provider === 'uazapi' || !!connection.instance_id;
 
     if (!isWapi) {
       toast.info('Esta ação é apenas para conexões W-API');
@@ -495,7 +495,7 @@ const handleGetQRCode = async (connection: Connection) => {
       return;
     }
 
-    const isWapi = editingConnection.provider === 'wapi' || !!editingConnection.instance_id;
+    const isWapi = editingConnection.provider === 'wapi' || editingConnection.provider === 'uazapi' || !!editingConnection.instance_id;
     
     if (isWapi && !editInstanceId.trim()) {
       toast.error('Instance ID é obrigatório');
@@ -921,7 +921,7 @@ const handleGetQRCode = async (connection: Connection) => {
                     </Badge>
                   </div>
                   <CardDescription className="text-xs">
-                    {(connection.provider === 'wapi' || !!connection.instance_id)
+                    {(connection.provider === 'wapi' || connection.provider === 'uazapi' || !!connection.instance_id)
                       ? (connection.instance_id || 'W-API')
                       : (connection.instance_name || '')}
                   </CardDescription>
@@ -937,10 +937,10 @@ const handleGetQRCode = async (connection: Connection) => {
                     </div>
                     <div className="flex items-center gap-1.5 p-2 rounded bg-muted/50">
                       <Badge variant="outline" className="text-[10px] px-1.5">
-                        {(connection.provider === 'wapi' || !!connection.instance_id) ? 'W-API' : 'Evolution'}
+                        {(connection.provider === 'wapi' || connection.provider === 'uazapi' || !!connection.instance_id) ? (connection.provider === 'uazapi' ? 'Uazapi' : 'W-API') : 'Evolution'}
                       </Badge>
                       <code className="text-[10px] truncate flex-1">
-                        {(connection.provider === 'wapi' || !!connection.instance_id) 
+                        {(connection.provider === 'wapi' || connection.provider === 'uazapi' || !!connection.instance_id) 
                           ? connection.instance_id 
                           : connection.instance_name}
                       </code>
@@ -1106,7 +1106,7 @@ const handleGetQRCode = async (connection: Connection) => {
                     </Button>
 
                     {/* W-API: Configure webhooks */}
-                    {(connection.provider === 'wapi' || !!connection.instance_id) && (
+                    {(connection.provider === 'wapi' || connection.provider === 'uazapi' || !!connection.instance_id) && (
                       <Button
                         variant="outline"
                         size="sm"
@@ -1123,7 +1123,7 @@ const handleGetQRCode = async (connection: Connection) => {
                     )}
                     
                     {/* W-API: Sync contacts */}
-                    {(connection.provider === 'wapi' || !!connection.instance_id) && connection.status === 'connected' && (
+                    {(connection.provider === 'wapi' || connection.provider === 'uazapi' || !!connection.instance_id) && connection.status === 'connected' && (
                       <Button
                         variant="outline"
                         size="sm"
@@ -1135,7 +1135,7 @@ const handleGetQRCode = async (connection: Connection) => {
                     )}
 
                     {/* W-API: Sync chats */}
-                    {(connection.provider === 'wapi' || !!connection.instance_id) && connection.status === 'connected' && (
+                    {(connection.provider === 'wapi' || connection.provider === 'uazapi' || !!connection.instance_id) && connection.status === 'connected' && (
                       <Button
                         variant="outline"
                         size="sm"
@@ -1147,7 +1147,7 @@ const handleGetQRCode = async (connection: Connection) => {
                     )}
                     
                     {/* Webhook Diagnostic (Evolution only) */}
-                    {!(connection.provider === 'wapi' || !!connection.instance_id) && (
+                    {!(connection.provider === 'wapi' || connection.provider === 'uazapi' || !!connection.instance_id) && (
                       <Popover>
                         <PopoverTrigger asChild>
                           <Button 
@@ -1448,7 +1448,7 @@ const handleGetQRCode = async (connection: Connection) => {
             <DialogHeader>
               <DialogTitle>Editar Conexão</DialogTitle>
               <DialogDescription>
-                {editingConnection && (editingConnection.provider === 'wapi' || !!editingConnection.instance_id)
+                {editingConnection && (editingConnection.provider === 'wapi' || editingConnection.provider === 'uazapi' || !!editingConnection.instance_id)
                   ? 'Atualize os dados da sua conexão W-API.'
                   : 'Dê um nome amigável para sua conexão.'}
               </DialogDescription>
@@ -1467,7 +1467,7 @@ const handleGetQRCode = async (connection: Connection) => {
               </div>
               
               {/* W-API specific fields */}
-              {editingConnection && (editingConnection.provider === 'wapi' || !!editingConnection.instance_id) && (
+              {editingConnection && (editingConnection.provider === 'wapi' || editingConnection.provider === 'uazapi' || !!editingConnection.instance_id) && (
                 <>
                   <div className="space-y-2">
                     <Label>Instance ID</Label>

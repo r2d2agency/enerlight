@@ -49,7 +49,7 @@ export function QuickStatusPanel({ connection, onConfigureWebhooks, onOpenFullDi
   const [checkDuration, setCheckDuration] = useState<number | null>(null);
 
   // Detect provider
-  const isWapi = connection.provider === 'wapi' || 
+  const isWapi = connection.provider === 'wapi' || connection.provider === 'uazapi' ||
     (!!connection.instance_id && !connection.instance_name);
 
   const checkStatus = useCallback(async () => {
