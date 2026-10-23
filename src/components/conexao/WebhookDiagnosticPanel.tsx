@@ -28,7 +28,7 @@ import {
 interface Connection {
   id: string;
   name: string;
-  provider?: 'evolution' | 'wapi' | 'meta';
+  provider?: 'evolution' | 'wapi' | 'meta' | 'uazapi';
   instance_name: string;
   instance_id?: string;
   status: string;
@@ -141,10 +141,11 @@ interface Props {
 }
 
 export function WebhookDiagnosticPanel({ connection, onClose }: Props) {
-  // Detect W-API: explicit provider OR has instance_id
-  const isWapi = connection.provider === 'wapi' || connection.provider === 'uazapi' ||
+  // Detect W-API: explicit provider OR has instance_id (Uazapi fica fora — caminho exclusivo)
+  const isUazapi = connection.provider === 'uazapi';
+  const isWapi = !isUazapi && (connection.provider === 'wapi' ||
     (!!connection.instance_id && !connection.instance_name) ||
-    (!!connection.instance_id && connection.instance_id.length > 0);
+    (!!connection.instance_id && connection.instance_id.length > 0));
   
   const [loading, setLoading] = useState(true);
   const [reconfiguring, setReconfiguring] = useState(false);
@@ -164,7 +165,41 @@ export function WebhookDiagnosticPanel({ connection, onClose }: Props) {
   const fetchDiagnostic = useCallback(async () => {
     setLoading(true);
     try {
-      if (isWapi) {
+      if (isUazapi) {
+        // Uazapi: caminho exclusivo — status via evolution + endpoint próprio
+        const statusResult = await api<{
+          status: string;
+          phoneNumber?: string | null;
+          provider?: string;
+          error?: string | null;
+        }>(`/api/evolution/${connection.id}/status`);
+
+        const errors: string[] = [];
+        if (statusResult.status !== 'connected') {
+          errors.push('Instância não conectada');
+          if (statusResult.error) errors.push(`Detalhe: ${statusResult.error}`);
+        }
+
+        setWapiDiagnostic({
+          connection: {
+            id: connection.id,
+            name: connection.name,
+            instanceId: '',
+            status: statusResult.status,
+            provider: 'uazapi',
+          },
+          instanceStatus: {
+            connected: statusResult.status === 'connected',
+            phoneNumber: statusResult.phoneNumber || null,
+            error: statusResult.error || undefined,
+          },
+          webhooksConfigured: null,
+          webhookEndpoint: `${API_URL}/api/uazapi/webhook`,
+          healthy: statusResult.status === 'connected',
+          errors,
+        });
+        setDiagnostic(null);
+      } else if (isWapi) {
         // For W-API, we check status and webhook configuration
         const statusResult = await api<{
           status: string;
@@ -173,7 +208,7 @@ export function WebhookDiagnosticPanel({ connection, onClose }: Props) {
           error?: string | null;
         }>(`/api/evolution/${connection.id}/status`);
 
-        const webhookEndpoint = `${API_URL}/api/wapi/webhook`;
+        const webhookEndpoint = isUazapi ? `${API_URL}/api/uazapi/webhook` : `${API_URL}/api/wapi/webhook`;
         const errors: string[] = [];
 
         if (statusResult.status !== 'connected') {
@@ -187,7 +222,7 @@ export function WebhookDiagnosticPanel({ connection, onClose }: Props) {
             name: connection.name,
             instanceId: connection.instance_id || '',
             status: statusResult.status,
-            provider: 'wapi',
+            provider: isUazapi ? 'uazapi' : 'wapi',
           },
           instanceStatus: {
             connected: statusResult.status === 'connected',
@@ -229,7 +264,7 @@ export function WebhookDiagnosticPanel({ connection, onClose }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [connection.id, connection.name, connection.instance_id, isWapi]);
+  }, [connection.id, connection.name, connection.instance_id, isUazapi, isWapi]);
 
   const fetchEvents = useCallback(async () => {
     if (isWapi) return; // Evolution only
@@ -276,7 +311,19 @@ export function WebhookDiagnosticPanel({ connection, onClose }: Props) {
   const handleReconfigure = async () => {
     setReconfiguring(true);
     try {
-      if (isWapi) {
+      if (isUazapi) {
+        // Exclusivo Uazapi — rota própria, sem tocar W-API
+        const result = await api<{ success: boolean; message?: string }>(
+          `/api/connections/${connection.id}/uazapi/configure-webhook`,
+          { method: "POST" }
+        );
+
+        if (result.success) {
+          toast.success(result.message || 'Webhook Uazapi configurado com sucesso');
+        } else {
+          toast.error(result.message || 'Falha ao configurar webhook Uazapi');
+        }
+      } else if (isWapi) {
         const result = await api<{ success: boolean; message?: string; configured?: number; total?: number }>(
           `/api/connections/${connection.id}/configure-webhooks`,
           { method: "POST" }
@@ -374,8 +421,8 @@ export function WebhookDiagnosticPanel({ connection, onClose }: Props) {
       <XCircle className="h-4 w-4 text-destructive" />
     );
 
-  // W-API Diagnostic View
-  if (isWapi && wapiDiagnostic) {
+  // W-API / Uazapi Diagnostic View (caminhos exclusivos por provedor)
+  if ((isWapi || isUazapi) && wapiDiagnostic) {
     return (
       <div className="space-y-6">
         {/* Header */}
@@ -383,10 +430,12 @@ export function WebhookDiagnosticPanel({ connection, onClose }: Props) {
           <div>
             <h2 className="text-xl font-semibold flex items-center gap-2">
               <Radio className="h-5 w-5 text-primary" />
-              Diagnóstico W-API: {connection.name}
+              Diagnóstico {isUazapi ? 'Uazapi' : 'W-API'}: {connection.name}
             </h2>
             <p className="text-sm text-muted-foreground mt-1">
-              Instance ID: <code className="text-xs bg-muted px-1 py-0.5 rounded">{connection.instance_id}</code>
+              {isUazapi
+                ? <>Webhook: <code className="text-xs bg-muted px-1 py-0.5 rounded">{`${API_URL}/api/uazapi/webhook`}</code></>
+                : <>Instance ID: <code className="text-xs bg-muted px-1 py-0.5 rounded">{connection.instance_id}</code></>}
             </p>
           </div>
           <div className="flex items-center gap-2">

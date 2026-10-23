@@ -26,6 +26,8 @@ interface Connection {
   provider?: 'evolution' | 'wapi' | 'meta' | 'uazapi';
   instance_name: string;
   instance_id?: string;
+  api_url?: string;
+  api_key?: string;
   status: string;
   phone_number?: string;
   show_groups?: boolean;
@@ -102,6 +104,9 @@ const Conexao = () => {
   const [editName, setEditName] = useState("");
   const [editInstanceId, setEditInstanceId] = useState("");
   const [editWapiToken, setEditWapiToken] = useState("");
+  // Edit Uazapi (exclusivo — Base URL + Token, sem instance_id)
+  const [editUazapiBaseUrl, setEditUazapiBaseUrl] = useState("");
+  const [editUazapiToken, setEditUazapiToken] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
   const [diagnosticConnection, setDiagnosticConnection] = useState<Connection | null>(null);
   
@@ -401,10 +406,11 @@ const handleGetQRCode = async (connection: Connection) => {
 
   const handleDelete = async (connection: Connection) => {
     try {
-      const isWapi = connection.provider === 'wapi' || connection.provider === 'uazapi' || !!connection.instance_id;
-      const deleteUrl = isWapi 
-        ? `/api/connections/${connection.id}` 
-        : `/api/evolution/${connection.id}`;
+      // Exclusivo: Evolution deleta pela rota evolution; W-API e Uazapi pela rota connections
+      const isEvolution = !connection.provider || connection.provider === 'evolution';
+      const deleteUrl = isEvolution
+        ? `/api/evolution/${connection.id}`
+        : `/api/connections/${connection.id}`;
       await api(deleteUrl, { method: 'DELETE' });
       setConnections(prev => prev.filter(c => c.id !== connection.id));
       toast.success('Conexão excluída');
@@ -447,9 +453,8 @@ const handleGetQRCode = async (connection: Connection) => {
   };
 
   const handleConfigureWapiWebhooks = async (connection: Connection) => {
-    const isWapi = connection.provider === 'wapi' || connection.provider === 'uazapi' || !!connection.instance_id;
-
-    if (!isWapi) {
+    // Exclusivo W-API — Uazapi usa handleConfigureUazapiWebhook
+    if (connection.provider !== 'wapi') {
       toast.info('Esta ação é apenas para conexões W-API');
       return;
     }
@@ -473,6 +478,31 @@ const handleGetQRCode = async (connection: Connection) => {
     }
   };
 
+  // Exclusivo Uazapi — configura webhook na instância Uazapi (rota separada da W-API)
+  const handleConfigureUazapiWebhook = async (connection: Connection) => {
+    if (connection.provider !== 'uazapi') {
+      toast.info('Esta ação é apenas para conexões Uazapi');
+      return;
+    }
+
+    setConfiguringWapiWebhooks(connection.id);
+    try {
+      const result = await api<{ success: boolean; message?: string }>(
+        `/api/connections/${connection.id}/uazapi/configure-webhook`,
+        { method: 'POST' }
+      );
+
+      if (result.success) {
+        toast.success(result.message || 'Webhook Uazapi configurado com sucesso');
+      } else {
+        toast.error(result.message || 'Falha ao configurar webhook Uazapi');
+      }
+    } catch (error: any) {
+      toast.error(error?.message || 'Erro ao configurar webhook Uazapi');
+    } finally {
+      setConfiguringWapiWebhooks(null);
+    }
+  };
   const openSyncDialog = (connection: Connection, type: "contacts" | "chats") => {
     setSyncDialogConnection(connection);
     setSyncDialogType(type);
@@ -484,20 +514,29 @@ const handleGetQRCode = async (connection: Connection) => {
     setEditName(connection.name);
     setEditInstanceId(connection.instance_id || '');
     setEditWapiToken(''); // Don't show existing token for security
+    setEditUazapiBaseUrl((connection as any).api_url || '');
+    setEditUazapiToken(''); // Don't show existing token for security
     setEditDialogOpen(true);
   };
 
   const handleSaveEdit = async () => {
     if (!editingConnection) return;
-    
+
     if (!editName.trim()) {
       toast.error('Digite um nome para a conexão');
       return;
     }
 
-    const isWapi = editingConnection.provider === 'wapi' || editingConnection.provider === 'uazapi' || !!editingConnection.instance_id;
-    
-    if (isWapi && !editInstanceId.trim()) {
+    // Exclusivo por provedor: uazapi usa api_url/api_key; wapi usa instance_id/wapi_token
+    const isUazapi = editingConnection.provider === 'uazapi';
+    const isWapi = editingConnection.provider === 'wapi' || (!isUazapi && !!editingConnection.instance_id);
+
+    if (isUazapi) {
+      if (!editUazapiBaseUrl.trim()) {
+        toast.error('Base URL é obrigatória para Uazapi');
+        return;
+      }
+    } else if (isWapi && !editInstanceId.trim()) {
       toast.error('Instance ID é obrigatório');
       return;
     }
@@ -505,8 +544,13 @@ const handleGetQRCode = async (connection: Connection) => {
     setSavingEdit(true);
     try {
       const body: Record<string, string> = { name: editName };
-      
-      if (isWapi) {
+
+      if (isUazapi) {
+        body.api_url = editUazapiBaseUrl.trim();
+        if (editUazapiToken.trim()) {
+          body.api_key = editUazapiToken.trim();
+        }
+      } else if (isWapi) {
         body.instance_id = editInstanceId;
         if (editWapiToken.trim()) {
           body.wapi_token = editWapiToken;
@@ -518,9 +562,9 @@ const handleGetQRCode = async (connection: Connection) => {
         body,
       });
 
-      setConnections(prev => prev.map(c => 
-        c.id === editingConnection.id 
-          ? { ...c, name: editName, instance_id: editInstanceId } 
+      setConnections(prev => prev.map(c =>
+        c.id === editingConnection.id
+          ? { ...c, name: editName, instance_id: isWapi ? editInstanceId : c.instance_id } as Connection
           : c
       ));
 
@@ -921,9 +965,11 @@ const handleGetQRCode = async (connection: Connection) => {
                     </Badge>
                   </div>
                   <CardDescription className="text-xs">
-                    {(connection.provider === 'wapi' || connection.provider === 'uazapi' || !!connection.instance_id)
-                      ? (connection.instance_id || 'W-API')
-                      : (connection.instance_name || '')}
+                    {connection.provider === 'uazapi'
+                      ? ((connection as any).api_url || connection.phone_number || 'Uazapi')
+                      : (connection.provider === 'wapi' || !!connection.instance_id)
+                        ? (connection.instance_id || 'W-API')
+                        : (connection.instance_name || '')}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -937,12 +983,14 @@ const handleGetQRCode = async (connection: Connection) => {
                     </div>
                     <div className="flex items-center gap-1.5 p-2 rounded bg-muted/50">
                       <Badge variant="outline" className="text-[10px] px-1.5">
-                        {(connection.provider === 'wapi' || connection.provider === 'uazapi' || !!connection.instance_id) ? (connection.provider === 'uazapi' ? 'Uazapi' : 'W-API') : 'Evolution'}
+                        {connection.provider === 'uazapi' ? 'Uazapi' : (connection.provider === 'wapi' || !!connection.instance_id) ? 'W-API' : 'Evolution'}
                       </Badge>
                       <code className="text-[10px] truncate flex-1">
-                        {(connection.provider === 'wapi' || connection.provider === 'uazapi' || !!connection.instance_id) 
-                          ? connection.instance_id 
-                          : connection.instance_name}
+                        {connection.provider === 'uazapi'
+                          ? ((connection as any).api_url || connection.phone_number || 'Uazapi')
+                          : (connection.provider === 'wapi' || !!connection.instance_id)
+                            ? connection.instance_id
+                            : connection.instance_name}
                       </code>
                     </div>
                   </div>
@@ -1105,8 +1153,8 @@ const handleGetQRCode = async (connection: Connection) => {
                       <Activity className="h-4 w-4" />
                     </Button>
 
-                    {/* W-API: Configure webhooks */}
-                    {(connection.provider === 'wapi' || connection.provider === 'uazapi' || !!connection.instance_id) && (
+                    {/* W-API: Configure webhooks (exclusivo W-API) */}
+                    {connection.provider === 'wapi' && (
                       <Button
                         variant="outline"
                         size="sm"
@@ -1121,9 +1169,26 @@ const handleGetQRCode = async (connection: Connection) => {
                         )}
                       </Button>
                     )}
-                    
-                    {/* W-API: Sync contacts */}
-                    {(connection.provider === 'wapi' || connection.provider === 'uazapi' || !!connection.instance_id) && connection.status === 'connected' && (
+
+                    {/* Uazapi: Configure webhook (exclusivo Uazapi) */}
+                    {connection.provider === 'uazapi' && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleConfigureUazapiWebhook(connection)}
+                        disabled={configuringWapiWebhooks === connection.id}
+                        title="Configurar webhook (Uazapi)"
+                      >
+                        {configuringWapiWebhooks === connection.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Settings2 className="h-4 w-4" />
+                        )}
+                      </Button>
+                    )}
+
+                    {/* W-API: Sync contacts (exclusivo W-API) */}
+                    {connection.provider === 'wapi' && connection.status === 'connected' && (
                       <Button
                         variant="outline"
                         size="sm"
@@ -1134,8 +1199,8 @@ const handleGetQRCode = async (connection: Connection) => {
                       </Button>
                     )}
 
-                    {/* W-API: Sync chats */}
-                    {(connection.provider === 'wapi' || connection.provider === 'uazapi' || !!connection.instance_id) && connection.status === 'connected' && (
+                    {/* W-API: Sync chats (exclusivo W-API) */}
+                    {connection.provider === 'wapi' && connection.status === 'connected' && (
                       <Button
                         variant="outline"
                         size="sm"
@@ -1147,7 +1212,7 @@ const handleGetQRCode = async (connection: Connection) => {
                     )}
                     
                     {/* Webhook Diagnostic (Evolution only) */}
-                    {!(connection.provider === 'wapi' || connection.provider === 'uazapi' || !!connection.instance_id) && (
+                    {(!connection.provider || connection.provider === 'evolution') && !connection.instance_id && (
                       <Popover>
                         <PopoverTrigger asChild>
                           <Button 
@@ -1441,6 +1506,8 @@ const handleGetQRCode = async (connection: Connection) => {
               setEditName('');
               setEditInstanceId('');
               setEditWapiToken('');
+              setEditUazapiBaseUrl('');
+              setEditUazapiToken('');
             }
           }}
         >
@@ -1448,15 +1515,17 @@ const handleGetQRCode = async (connection: Connection) => {
             <DialogHeader>
               <DialogTitle>Editar Conexão</DialogTitle>
               <DialogDescription>
-                {editingConnection && (editingConnection.provider === 'wapi' || editingConnection.provider === 'uazapi' || !!editingConnection.instance_id)
-                  ? 'Atualize os dados da sua conexão W-API.'
-                  : 'Dê um nome amigável para sua conexão.'}
+                {editingConnection?.provider === 'uazapi'
+                  ? 'Atualize os dados da sua instância Uazapi (já criada no painel Uazapi).'
+                  : editingConnection?.provider === 'wapi'
+                    ? 'Atualize os dados da sua conexão W-API.'
+                    : 'Dê um nome amigável para sua conexão.'}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
                 <Label>Nome Amigável</Label>
-                <Input 
+                <Input
                   placeholder="Ex: WhatsApp Principal, Vendas, Suporte..."
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
@@ -1465,9 +1534,35 @@ const handleGetQRCode = async (connection: Connection) => {
                   Este nome será exibido no chat e em toda a plataforma
                 </p>
               </div>
-              
-              {/* W-API specific fields */}
-              {editingConnection && (editingConnection.provider === 'wapi' || editingConnection.provider === 'uazapi' || !!editingConnection.instance_id) && (
+
+              {/* Uazapi specific fields (exclusivo — sem instance_id) */}
+              {editingConnection?.provider === 'uazapi' && (
+                <>
+                  <div className="space-y-2">
+                    <Label>Base URL (Server URL da instância)</Label>
+                    <Input
+                      placeholder="Ex: https://gleego.uazapi.com"
+                      value={editUazapiBaseUrl}
+                      onChange={(e) => setEditUazapiBaseUrl(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Instance Token (deixe em branco para manter o atual)</Label>
+                    <Input
+                      type="password"
+                      placeholder="Novo token (opcional)"
+                      value={editUazapiToken}
+                      onChange={(e) => setEditUazapiToken(e.target.value)}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Por segurança, o token atual não é exibido.
+                    </p>
+                  </div>
+                </>
+              )}
+
+              {/* W-API specific fields (exclusivo W-API) */}
+              {(editingConnection?.provider === 'wapi' || (!editingConnection?.provider && !!editingConnection?.instance_id)) && (
                 <>
                   <div className="space-y-2">
                     <Label>Instance ID</Label>

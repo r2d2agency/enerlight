@@ -249,6 +249,41 @@ export async function fetchContacts(baseUrl, token) {
 }
 
 /**
+ * Configure the webhook URL on the Uazapi instance so incoming messages
+ * are delivered to the Enerlight backend.
+ * POST {base}/webhook  (best-effort; Uazapi panels vary by version)
+ * Returns { success, error?, raw? }
+ */
+export async function configureWebhook(baseUrl, token, webhookUrl) {
+  const base = normalizeBaseUrl(baseUrl);
+  if (!base || !token) return { success: false, error: 'Base URL ou Token não configurado' };
+  if (!webhookUrl) return { success: false, error: 'URL de webhook não informada' };
+  try {
+    const response = await fetch(`${base}/webhook`, {
+      method: 'POST',
+      headers: getHeaders(token),
+      body: JSON.stringify({
+        url: webhookUrl,
+        webhook: webhookUrl,
+        enabled: true,
+        events: ['messages', 'connection', 'status'],
+      }),
+    });
+    const { data, rawText } = await parseJsonSafe(response);
+    if (!response.ok) {
+      const errMsg = data?.message || data?.error || `HTTP ${response.status}`;
+      logWarn('uazapi.configure_webhook_failed', { status_code: response.status, body_preview: String(rawText || '').slice(0, 300) });
+      return { success: false, error: errMsg, raw: rawText };
+    }
+    logInfo('uazapi.configure_webhook_ok', { webhook_url: webhookUrl });
+    return { success: true, raw: data };
+  } catch (error) {
+    logError('uazapi.configure_webhook_exception', error, {});
+    return { success: false, error: error.message };
+  }
+}
+
+/**
  * Generic send used by the unified provider (chat.js, scheduled-messages, notifications)
  * Maps internal messageType -> Uazapi endpoints.
  */

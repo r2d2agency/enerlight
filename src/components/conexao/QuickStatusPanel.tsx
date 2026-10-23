@@ -21,7 +21,7 @@ import { cn } from "@/lib/utils";
 interface Connection {
   id: string;
   name: string;
-  provider?: 'evolution' | 'wapi';
+  provider?: 'evolution' | 'wapi' | 'uazapi';
   instance_name?: string | null;
   instance_id?: string | null;
   status: string;
@@ -48,9 +48,10 @@ export function QuickStatusPanel({ connection, onConfigureWebhooks, onOpenFullDi
   const [lastCheck, setLastCheck] = useState<Date | null>(null);
   const [checkDuration, setCheckDuration] = useState<number | null>(null);
 
-  // Detect provider
-  const isWapi = connection.provider === 'wapi' || connection.provider === 'uazapi' ||
-    (!!connection.instance_id && !connection.instance_name);
+  // Detect provider — exclusivo por tipo (Uazapi nunca cai no caminho W-API)
+  const isUazapi = connection.provider === 'uazapi';
+  const isWapi = connection.provider === 'wapi' ||
+    (!isUazapi && !!connection.instance_id && !connection.instance_name);
 
   const checkStatus = useCallback(async () => {
     setLoading(true);
@@ -90,8 +91,8 @@ export function QuickStatusPanel({ connection, onConfigureWebhooks, onOpenFullDi
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Badge variant={isWapi ? "secondary" : "outline"} className="text-xs">
-            {isWapi ? "W-API" : "Evolution"}
+          <Badge variant={isWapi || isUazapi ? "secondary" : "outline"} className="text-xs">
+            {isUazapi ? "Uazapi" : isWapi ? "W-API" : "Evolution"}
           </Badge>
           <span className="font-medium">{connection.name}</span>
         </div>

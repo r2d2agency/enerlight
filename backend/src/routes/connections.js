@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { query } from '../db.js';
 import { authenticate } from '../middleware/auth.js';
 import * as wapiProvider from '../lib/wapi-provider.js';
+import * as uazapiProvider from '../lib/uazapi-provider.js';
 
 const router = Router();
 router.use(authenticate);
@@ -148,15 +149,30 @@ router.post('/', async (req, res) => {
 
     const org = await getUserOrganization(req.userId);
 
+    let initialStatus = provider === 'meta' ? 'connected' : 'disconnected';
+    let initialPhone = null;
+
+    // For Uazapi the instance already exists: verify it right away and
+    // persist the real status/phone so the card shows the truth.
+    if (provider === 'uazapi') {
+      try {
+        const statusCheck = await uazapiProvider.checkStatus(api_url, api_key);
+        initialStatus = statusCheck.status || 'disconnected';
+        initialPhone = statusCheck.phoneNumber || null;
+      } catch (statusError) {
+        console.error('[Uazapi] Status check on create failed:', statusError.message);
+      }
+    }
+
     const result = await query(
-      `INSERT INTO connections (user_id, organization_id, provider, api_url, api_key, instance_name, instance_id, wapi_token, name, meta_waba_id, meta_phone_number_id, meta_access_token, meta_app_secret, status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING *`,
+      `INSERT INTO connections (user_id, organization_id, provider, api_url, api_key, instance_name, instance_id, wapi_token, name, meta_waba_id, meta_phone_number_id, meta_access_token, meta_app_secret, status, phone_number)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING *`,
       [
-        req.userId, 
-        org?.organization_id || null, 
+        req.userId,
+        org?.organization_id || null,
         provider,
-        api_url || null, 
-        api_key || null, 
+        api_url || null,
+        api_key || null,
         instance_name || null,
         instance_id || null,
         wapi_token || null,
@@ -165,7 +181,8 @@ router.post('/', async (req, res) => {
         meta_phone_number_id || null,
         meta_access_token || null,
         meta_app_secret || null,
-        provider === 'meta' ? 'connected' : 'disconnected'
+        initialStatus,
+        initialPhone
       ]
     );
 
@@ -180,6 +197,30 @@ router.post('/', async (req, res) => {
         connection.webhooks_count = webhookResult.configured;
       } catch (webhookError) {
         console.error('[W-API] Failed to configure webhooks:', webhookError);
+        connection.webhooks_configured = false;
+      }
+    }
+
+    // Auto-configure webhook for Uazapi connections (best-effort).
+    // If the Uazapi version rejects the endpoint, the user can still
+    // paste the URL manually in the Uazapi panel.
+    if (provider === 'uazapi') {
+      try {
+        const webhookBase = process.env.WEBHOOK_BASE_URL || process.env.API_BASE_URL || '';
+        const webhookUrl = webhookBase ? `${webhookBase}/api/uazapi/webhook` : null;
+        if (webhookUrl) {
+          const webhookResult = await uazapiProvider.configureWebhook(api_url, api_key, webhookUrl);
+          console.log('[Uazapi] Webhook configuration result:', webhookResult);
+          connection.webhooks_configured = webhookResult.success;
+          if (webhookResult.success) {
+            await query('UPDATE connections SET webhook_url = $1 WHERE id = $2', [webhookUrl, connection.id]);
+            connection.webhook_url = webhookUrl;
+          }
+        } else {
+          connection.webhook_configuration = 'manual';
+        }
+      } catch (webhookError) {
+        console.error('[Uazapi] Failed to configure webhook:', webhookError);
         connection.webhooks_configured = false;
       }
     }
@@ -334,6 +375,68 @@ router.post('/:id/configure-webhooks', async (req, res) => {
   } catch (error) {
     console.error('Configure webhooks error:', error);
     res.status(500).json({ error: 'Erro ao configurar webhooks' });
+  }
+});
+
+// Configure webhook for Uazapi connection (exclusive — does not touch W-API)
+router.post('/:id/uazapi/configure-webhook', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const org = await getUserOrganization(req.userId);
+
+    let whereClause = 'id = $1 AND user_id = $2';
+    let params = [id, req.userId];
+
+    if (org) {
+      whereClause = 'id = $1 AND organization_id = $2';
+      params = [id, org.organization_id];
+    }
+
+    const connResult = await query(
+      `SELECT * FROM connections WHERE ${whereClause}`,
+      params
+    );
+
+    if (connResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Conexão não encontrada' });
+    }
+
+    const connection = connResult.rows[0];
+
+    if (connection.provider !== 'uazapi') {
+      return res.status(400).json({ error: 'Esta funcionalidade é apenas para conexões Uazapi' });
+    }
+
+    if (!connection.api_url || !connection.api_key) {
+      return res.status(400).json({ error: 'Base URL e Instance Token não configurados' });
+    }
+
+    const webhookBase = process.env.WEBHOOK_BASE_URL || process.env.API_BASE_URL || '';
+    const webhookUrl = webhookBase ? `${webhookBase}/api/uazapi/webhook` : null;
+
+    if (!webhookUrl) {
+      return res.status(400).json({
+        error: 'WEBHOOK_BASE_URL não configurada no servidor. Configure manualmente no painel Uazapi: /api/uazapi/webhook',
+      });
+    }
+
+    const result = await uazapiProvider.configureWebhook(connection.api_url, connection.api_key, webhookUrl);
+
+    if (result.success) {
+      await query('UPDATE connections SET webhook_url = $1, updated_at = NOW() WHERE id = $2', [webhookUrl, id]);
+    }
+
+    res.json({
+      success: result.success,
+      message: result.success
+        ? 'Webhook Uazapi configurado com sucesso'
+        : `Falha ao configurar webhook: ${result.error || 'erro desconhecido'}. Configure manualmente no painel Uazapi.`,
+      webhook_url: webhookUrl,
+      details: result.raw || null,
+    });
+  } catch (error) {
+    console.error('Configure Uazapi webhook error:', error);
+    res.status(500).json({ error: 'Erro ao configurar webhook Uazapi' });
   }
 });
 
