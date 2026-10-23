@@ -282,7 +282,7 @@ const Conexao = () => {
             api_key: uazapiToken.trim(),
           },
         });
-        toast.success('Conexão Uazapi criada! Use o QR Code para conectar.');
+        toast.success('Instância Uazapi vinculada! Status e telefone já verificados.');
       } else if (newConnectionProvider === 'wapi') {
         if (wapiAutoCreate) {
           result = await api<Connection>('/api/connections/wapi/auto-create', {
@@ -690,9 +690,13 @@ const handleGetQRCode = async (connection: Connection) => {
               </DialogTrigger>
             <DialogContent className="max-w-md">
               <DialogHeader>
-                <DialogTitle>Nova Conexão WhatsApp</DialogTitle>
+                <DialogTitle>
+                  {newConnectionProvider === 'uazapi' ? 'Vincular Instância Uazapi' : 'Nova Conexão WhatsApp'}
+                </DialogTitle>
                 <DialogDescription>
-                  Escolha o provedor e configure sua conexão.
+                  {newConnectionProvider === 'uazapi'
+                    ? 'A instância já foi criada no painel Uazapi. Aqui você só informa os dados dela para vincular — nada é criado de novo.'
+                    : 'Escolha o provedor e configure sua conexão.'}
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 py-4">
@@ -739,7 +743,7 @@ const handleGetQRCode = async (connection: Connection) => {
                       : newConnectionProvider === 'wapi'
                       ? 'W-API: Cria instância automaticamente ou use dados manuais'
                       : newConnectionProvider === 'uazapi'
-                      ? 'Uazapi: informe a Base URL e o Token da instância. Conecta via QR Code.'
+                      ? 'Uazapi: vincule a instância já criada e conectada no painel Uazapi'
                       : 'Meta Cloud API: Conexão oficial com WABA, templates e mensagens em massa'}
                   </p>
                 </div>
@@ -754,28 +758,35 @@ const handleGetQRCode = async (connection: Connection) => {
                   />
                 </div>
 
-                {/* Uazapi specific fields */}
+                {/* Uazapi specific fields — só vincular a instância já criada */}
                 {newConnectionProvider === 'uazapi' && (
                   <>
+                    <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs text-blue-800">
+                      A instância <strong>já existe no painel Uazapi</strong> (criada e conectada por lá).
+                      Aqui você só <strong>vincula</strong> informando os dados dela — nenhum QR é gerado aqui.
+                    </div>
                     <div className="space-y-2">
-                      <Label>Base URL</Label>
+                      <Label>Server URL (Base URL da instância)</Label>
                       <Input
-                        placeholder="Ex: https://api.suaconta.uazapi.com"
+                        placeholder="Ex: https://gleego.uazapi.com"
                         value={uazapiBaseUrl}
                         onChange={(e) => setUazapiBaseUrl(e.target.value)}
                       />
                       <p className="text-xs text-muted-foreground">
-                        Endereço base da sua instância Uazapi, sem barra no final
+                        Copie do painel Uazapi (Server URL), sem barra no final
                       </p>
                     </div>
                     <div className="space-y-2">
-                      <Label>Token da instância</Label>
+                      <Label>Instance Token</Label>
                       <Input
                         type="password"
-                        placeholder="Token da instância Uazapi"
+                        placeholder="Token da instância (painel Uazapi)"
                         value={uazapiToken}
                         onChange={(e) => setUazapiToken(e.target.value)}
                       />
+                      <p className="text-xs text-muted-foreground">
+                        Copie do painel Uazapi (Instance Token) — fica salvo para as chamadas
+                      </p>
                     </div>
                     <div className="space-y-2">
                       <Label>Webhook para cadastrar no painel Uazapi</Label>
@@ -914,12 +925,12 @@ const handleGetQRCode = async (connection: Connection) => {
                   {creating ? (
                     <>
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Criando...
+                      {newConnectionProvider === 'uazapi' ? 'Vinculando...' : 'Criando...'}
                     </>
                   ) : (
                     <>
                       <Plus className="h-4 w-4 mr-2" />
-                      Criar
+                      {newConnectionProvider === 'uazapi' ? 'Vincular' : 'Criar'}
                     </>
                   )}
                 </Button>
@@ -1113,10 +1124,36 @@ const handleGetQRCode = async (connection: Connection) => {
                           <Unplug className="h-4 w-4" />
                         </Button>
                       </>
+                    ) : connection.provider === 'uazapi' ? (
+                      <>
+                        <Button
+                          variant="default"
+                          size="sm"
+                          className="flex-1"
+                          onClick={() => handleCheckStatus(connection)}
+                          disabled={checkingStatus === connection.id}
+                          title="A instância já existe no painel Uazapi — clique para verificar o status"
+                        >
+                          {checkingStatus === connection.id ? (
+                            <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                          ) : (
+                            <RefreshCw className="h-4 w-4 mr-1" />
+                          )}
+                          Verificar status
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleOpenEditDialog(connection)}
+                          title="Atualizar Base URL / Token"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      </>
                     ) : (
                       <>
-                        <Button 
-                          variant="default" 
+                        <Button
+                          variant="default"
                           size="sm"
                           className="flex-1"
                           onClick={() => handleGetQRCode(connection)}
@@ -1124,8 +1161,8 @@ const handleGetQRCode = async (connection: Connection) => {
                           <QrCode className="h-4 w-4 mr-1" />
                           Conectar
                         </Button>
-                        <Button 
-                          variant="outline" 
+                        <Button
+                          variant="outline"
                           size="sm"
                           onClick={() => handleCheckStatus(connection)}
                           disabled={checkingStatus === connection.id}
