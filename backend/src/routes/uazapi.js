@@ -67,24 +67,38 @@ function normalizePayload(payload) {
   const key = payload.key || {};
   const msg = payload.message?.message || payload.message || payload;
 
-  // JID: Baileys-style first, fallbacks to flat fields
-  const rawJid = key.remoteJid || payload.chatid || payload.chatId || payload.remoteJid || payload.from || payload.chat?.id || null;
-  const fromMe = key.fromMe ?? payload.fromMe ?? payload.isFromMe ?? payload.sent_by_me ?? false;
+  // JID: Baileys-style first, fallbacks to flat fields.
+  // Uazapi also sends owner/phone/LID style fields (e.g. owner, phone, lid,
+  // sender: { id }, participant) that must be considered.
+  const rawJid = key.remoteJid || payload.chatid || payload.chatId || payload.remoteJid
+    || payload.from || payload.chat?.id || payload.sender?.id
+    || payload.participant || payload.phone || payload.owner || payload.lid || null;
+  const fromMe = key.fromMe ?? payload.fromMe ?? payload.isFromMe ?? payload.sent_by_me
+    ?? payload.from_me ?? (payload.event && String(payload.event).toLowerCase().includes('sent')) ?? false;
 
-  const isGroup = Boolean(rawJid && String(rawJid).includes('@g.us'));
-  let chatPhone = null;
-  if (rawJid && !isGroup) {
+  const isGroup = Boolean(rawJid && (String(rawJid).includes('@g.us') || String(rawJid).includes('@lid@g')));
+  let chatPhone = onlyDigits(payload.phone || payload.chat?.phone || payload.sender?.phone || '') || null;
+  if (rawJid && !isGroup && !chatPhone) {
     chatPhone = onlyDigits(String(rawJid).split('@')[0].split(':')[0]) || null;
   }
   const remoteJid = rawJid
     ? (String(rawJid).includes('@') ? String(rawJid) : (isGroup ? `${rawJid}@g.us` : `${chatPhone || rawJid}@s.whatsapp.net`))
     : null;
 
-  // Content extraction covering common Uazapi/Baileys fields
-  let messageType = payload.messageType || payload.type || null;
-  let content = payload.text || payload.content || payload.body || null;
-  let mediaUrl = payload.mediaUrl || payload.file_url || payload.media || null;
-  let mediaMimetype = payload.mimetype || payload.mediaMimetype || null;
+  // Content extraction covering common Uazapi/Baileys fields.
+  // Uazapi text webhooks often arrive as { message: "text", type: "text" },
+  // { content: { text } }, { message: { text } } or { text: { message } }.
+  let messageType = payload.messageType || payload.type || payload.msgType || null;
+  let content = (typeof payload.text === 'string' ? payload.text : null)
+    || (typeof payload.content === 'string' ? payload.content : null)
+    || (typeof payload.body === 'string' ? payload.body : null)
+    || (typeof payload.message === 'string' ? payload.message : null)
+    || payload.content?.text || payload.message?.text || payload.text?.message || null;
+  let mediaUrl = payload.mediaUrl || payload.file_url || payload.fileUrl || payload.file
+    || payload.media || payload.documentUrl || payload.url || null;
+  let mediaMimetype = payload.mimetype || payload.mediaMimetype || payload.mimeType || payload.mime_type || null;
+  if (typeof content === 'object') content = null;
+  if (typeof mediaUrl === 'object') mediaUrl = null;
 
   if (msg.conversation || msg.extendedTextMessage?.text) {
     messageType = messageType || 'text';
@@ -130,10 +144,10 @@ function normalizePayload(payload) {
 
   return {
     remoteJid,
-    chatPhone,
-    messageId: key.id || payload.messageId || payload.id || null,
+    chatPhone: chatPhone || (remoteJid && !isGroup ? onlyDigits(String(remoteJid).split('@')[0]) || null : null),
+    messageId: key.id || payload.messageId || payload.messageid || payload.id || null,
     fromMe: fromMe === true,
-    pushName: payload.pushName || msg.pushName || payload.sender?.pushName || null,
+    pushName: payload.pushName || msg.pushName || payload.sender?.pushName || payload.senderName || null,
     messageType: String(messageType).toLowerCase(),
     content: content ? String(content) : null,
     mediaUrl: mediaUrl || null,
@@ -216,17 +230,24 @@ router.post('/webhook', async (req, res) => {
 
     if (existing.rows.length > 0) {
       conversationId = existing.rows[0].id;
+      // Mirror Evolution/W-API: bump unread and reopen finished conversations
+      // when an inbound (not from me) message arrives.
       await query(
-        `UPDATE conversations SET last_message_at = NOW(), updated_at = NOW() WHERE id = $1`,
-        [conversationId]
+        `UPDATE conversations
+         SET last_message_at = NOW(),
+             updated_at = NOW(),
+             unread_count = CASE WHEN $3 THEN unread_count + 1 ELSE unread_count END,
+             attendance_status = CASE WHEN $3 AND attendance_status = 'finished' THEN 'waiting' ELSE attendance_status END
+         WHERE id = $1`,
+        [conversationId, msg.isGroup ? null : msg.chatPhone, !msg.fromMe]
       );
     } else {
       const contactName = msg.pushName || msg.chatPhone || 'Contato';
       const created = await query(
-        `INSERT INTO conversations (connection_id, remote_jid, contact_name, contact_phone, is_group, group_name, last_message_at, unread_count)
-         VALUES ($1, $2, $3, $4, $5, $6, NOW(), 0)
+        `INSERT INTO conversations (connection_id, remote_jid, contact_name, contact_phone, is_group, group_name, last_message_at, unread_count, attendance_status)
+         VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7, 'waiting')
          RETURNING id`,
-        [connection.id, msg.remoteJid, contactName, msg.isGroup ? null : msg.chatPhone, msg.isGroup, msg.isGroup ? contactName : null]
+        [connection.id, msg.remoteJid, contactName, msg.isGroup ? null : msg.chatPhone, msg.isGroup, msg.isGroup ? contactName : null, msg.fromMe ? 0 : 1]
       );
       conversationId = created.rows[0].id;
     }
