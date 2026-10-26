@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import { query } from '../db.js';
 import { authenticate } from '../middleware/auth.js';
 import { logInfo, logError } from '../logger.js';
+import { checkStatus as checkConnectionStatus } from '../lib/whatsapp-provider.js';
 
 // Metas fixas usadas no relatório de WhatsApp (sobrepõem crm_goals)
 const REPORT_GOAL_OVERRIDES = { billing_value: 1200000 };
@@ -8225,11 +8226,26 @@ router.post('/goals/report-send-now', async (req, res) => {
     const config = configResult.rows[0];
     if (!config) return res.status(400).json({ error: 'Configure o relatório primeiro' });
 
-    const connection = await query(
-      'SELECT * FROM connections WHERE id = $1 AND status = $2',
-      [config.connection_id, 'connected']
+    const connectionResult = await query(
+      'SELECT * FROM connections WHERE id = $1',
+      [config.connection_id]
     );
-    if (!connection.rows[0]) return res.status(400).json({ error: 'Conexão não encontrada ou desconectada' });
+    const connRow = connectionResult.rows[0];
+    if (!connRow) return res.status(400).json({ error: 'Conexão não encontrada ou desconectada' });
+
+    // Para Uazapi/Evolution/W-API o status salvo no banco pode estar
+    // desatualizado: valida ao vivo antes de barrar o envio.
+    let liveStatus = String(connRow.status || '').toLowerCase();
+    try {
+      const live = await checkConnectionStatus(connRow);
+      if (live?.status) liveStatus = String(live.status).toLowerCase();
+      if (liveStatus === 'connected' && connRow.status !== 'connected') {
+        await query('UPDATE connections SET status = $1, updated_at = NOW() WHERE id = $2', ['connected', connRow.id]);
+        connRow.status = 'connected';
+      }
+    } catch (_) {}
+    if (liveStatus !== 'connected') return res.status(400).json({ error: 'Conexão não encontrada ou desconectada' });
+    const connection = { rows: [connRow] };
 
     const recipients = await query(
       'SELECT * FROM crm_goals_report_recipients WHERE config_id = $1 AND is_active = true',

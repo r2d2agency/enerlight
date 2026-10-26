@@ -1,5 +1,6 @@
 import { query } from './db.js';
 import { sendMessage } from './lib/whatsapp-provider.js';
+import { checkStatus as checkConnectionStatus } from './lib/whatsapp-provider.js';
 import { logInfo, logError } from './logger.js';
 
 // Metas fixas usadas no relatório de WhatsApp (sobrepõem crm_goals)
@@ -264,8 +265,22 @@ async function generateReportText(orgId, userId, reportType, includeChannels, in
 }
 
 async function getConnection(connectionId) {
-  const result = await query('SELECT * FROM connections WHERE id = $1 AND status = $2', [connectionId, 'connected']);
-  return result.rows[0];
+  const result = await query('SELECT * FROM connections WHERE id = $1', [connectionId]);
+  const conn = result.rows[0];
+  if (!conn) return null;
+
+  let liveStatus = String(conn.status || '').toLowerCase();
+  try {
+    const live = await checkConnectionStatus(conn);
+    if (live?.status) liveStatus = String(live.status).toLowerCase();
+    if (liveStatus === 'connected' && conn.status !== 'connected') {
+      await query('UPDATE connections SET status = $1, updated_at = NOW() WHERE id = $2', ['connected', conn.id]);
+      conn.status = 'connected';
+    }
+  } catch (_) {}
+
+  if (liveStatus !== 'connected') return null;
+  return conn;
 }
 
 export async function executeGoalsReport() {
