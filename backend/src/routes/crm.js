@@ -8219,6 +8219,8 @@ router.post('/goals/report-send-now', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No organization' });
 
+    const { recipientId } = req.body || {};
+
     const configResult = await query(
       'SELECT * FROM crm_goals_report_config WHERE organization_id = $1 LIMIT 1',
       [org.organization_id]
@@ -8247,13 +8249,24 @@ router.post('/goals/report-send-now', async (req, res) => {
     if (liveStatus !== 'connected') return res.status(400).json({ error: 'Conexão não encontrada ou desconectada' });
     const connection = { rows: [connRow] };
 
-    const recipients = await query(
-      'SELECT * FROM crm_goals_report_recipients WHERE config_id = $1 AND is_active = true',
-      [config.id]
-    );
+    let recipientsQuery;
+    let paramsRecipients = [config.id];
+    if (recipientId) {
+      recipientsQuery = 'SELECT * FROM crm_goals_report_recipients WHERE config_id = $1 AND id = $2 AND is_active = true';
+      paramsRecipients.push(recipientId);
+    } else {
+      recipientsQuery = 'SELECT * FROM crm_goals_report_recipients WHERE config_id = $1 AND is_active = true';
+    }
+
+    const recipients = await query(recipientsQuery, paramsRecipients);
+
+    if (!recipients.rows.length) {
+      return res.status(400).json({ error: recipientId ? 'Destinatário não encontrado ou inativo' : 'Nenhum destinatário ativo configurado' });
+    }
 
     const { sendMessage } = await import('../lib/whatsapp-provider.js');
     let sent = 0;
+    let failed = 0;
 
     // Generate preview text using same logic
     const now = new Date();
@@ -8408,14 +8421,24 @@ router.post('/goals/report-send-now', async (req, res) => {
         const greeting = greetingTpl.replace(/\{primeiro_nome\}/gi, firstName);
         const fullText = greeting + '\n\n' + text;
 
-        await sendMessage(connection.rows[0], recipient.phone, fullText, 'text', null);
+        const result = await sendMessage(connection.rows[0], recipient.phone, fullText, 'text', null);
+        if (result && result.success === false) {
+          failed++;
+          logError('goals_report.send_error', new Error(result.error || 'Falha ao enviar'), {
+            recipient_id: recipient.id,
+            phone: recipient.phone,
+            error: result.error || null,
+          });
+          continue;
+        }
         sent++;
       } catch (err) {
+        failed++;
         logError('goals_report.send_error', err, { recipient_id: recipient.id });
       }
     }
 
-    res.json({ success: true, sent, total: recipients.rows.length });
+    res.json({ success: sent > 0, sent, failed, total: recipients.rows.length });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

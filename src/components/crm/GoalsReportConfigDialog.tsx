@@ -81,6 +81,7 @@ export function GoalsReportConfigDialog({ open, onOpenChange }: Props) {
   const [newName, setNewName] = useState("");
   const [newUserId, setNewUserId] = useState("");
   const [newReportType, setNewReportType] = useState<"full" | "individual">("full");
+  const [sendTarget, setSendTarget] = useState<string>("all");
 
   // Sync form state when config loads
   useEffect(() => {
@@ -133,8 +134,22 @@ export function GoalsReportConfigDialog({ open, onOpenChange }: Props) {
   });
 
   const sendNow = useMutation({
-    mutationFn: () => api("/api/crm/goals/report-send-now", { method: "POST" }),
-    onSuccess: () => toast.success("Relatório enviado com sucesso!"),
+    mutationFn: (recipientId?: string) =>
+      api<{ success: boolean; sent: number; total: number; failed?: number; error?: string }>(
+        "/api/crm/goals/report-send-now",
+        { method: "POST", body: recipientId ? { recipientId } : {} }
+      ),
+    onSuccess: (res) => {
+      if (res?.sent > 0) {
+        toast.success(
+          res.failed
+            ? `Relatório enviado para ${res.sent} de ${res.total} destinatário(s).`
+            : `Relatório enviado para ${res.sent} destinatário(s)!`
+        );
+      } else {
+        toast.error(res?.error || "Nenhum destinatário recebeu o relatório.");
+      }
+    },
     onError: () => toast.error("Erro ao enviar relatório"),
   });
 
@@ -290,6 +305,7 @@ export function GoalsReportConfigDialog({ open, onOpenChange }: Props) {
                         <TableHead>Nome</TableHead>
                         <TableHead>Telefone</TableHead>
                         <TableHead>Tipo</TableHead>
+                        <TableHead className="w-[90px] text-right">Enviar</TableHead>
                         <TableHead className="w-[60px]" />
                       </TableRow>
                     </TableHeader>
@@ -302,6 +318,21 @@ export function GoalsReportConfigDialog({ open, onOpenChange }: Props) {
                             <Badge variant={r.report_type === "full" ? "default" : "secondary"}>
                               {r.report_type === "full" ? "Completo" : "Individual"}
                             </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              title={`Enviar relatório só para ${r.name}`}
+                              disabled={sendNow.isPending}
+                              onClick={() => sendNow.mutate(r.id)}
+                            >
+                              {sendNow.isPending && sendNow.variables === r.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Send className="h-4 w-4" />
+                              )}
+                            </Button>
                           </TableCell>
                           <TableCell>
                             <Button variant="ghost" size="icon" onClick={() => removeRecipient.mutate(r.id)}>
@@ -327,9 +358,20 @@ export function GoalsReportConfigDialog({ open, onOpenChange }: Props) {
                 {previewReport.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                 Pré-visualizar
               </Button>
+              <Select value={sendTarget} onValueChange={setSendTarget}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Enviar para..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os destinatários</SelectItem>
+                  {recipients?.map(r => (
+                    <SelectItem key={r.id} value={r.id}>{r.name || r.phone}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <Button
                 className="flex-1"
-                onClick={() => sendNow.mutate()}
+                onClick={() => sendNow.mutate(sendTarget === "all" ? undefined : sendTarget)}
                 disabled={sendNow.isPending || !config}
               >
                 {sendNow.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}

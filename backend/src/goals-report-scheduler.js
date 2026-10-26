@@ -327,7 +327,15 @@ export async function executeGoalsReport() {
             const greeting = greetingTpl.replace(/\{primeiro_nome\}/gi, firstName);
             const fullText = greeting + '\n\n' + text;
 
-            await sendMessage(connection, recipient.phone, fullText, 'text', null);
+            const result = await sendMessage(connection, recipient.phone, fullText, 'text', null);
+            if (result && result.success === false) {
+              logError('goals_report.send_error', new Error(result.error || 'Falha ao enviar'), {
+                recipient_id: recipient.id,
+                phone: recipient.phone,
+                error: result.error || null,
+              });
+              continue;
+            }
             logInfo('goals_report.sent', { recipient: recipient.name, phone: recipient.phone, type: recipient.report_type });
           } catch (err) {
             logError('goals_report.send_error', err, { recipient_id: recipient.id });
