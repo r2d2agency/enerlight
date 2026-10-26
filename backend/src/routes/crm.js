@@ -4,9 +4,11 @@ import { query } from '../db.js';
 import { authenticate } from '../middleware/auth.js';
 import { logInfo, logError } from '../logger.js';
 import { checkStatus as checkConnectionStatus } from '../lib/whatsapp-provider.js';
-
-// Metas fixas usadas no relatório de WhatsApp (sobrepõem crm_goals)
-const REPORT_GOAL_OVERRIDES = { billing_value: 1200000 };
+import {
+  ensureReportTables,
+  generateReportText,
+  buildRecipientMessage,
+} from '../lib/goals-report.js';
 
 const router = express.Router();
 router.use(authenticate);
@@ -7910,34 +7912,6 @@ router.get('/goals/carteira', async (req, res) => {
 // GOALS DAILY REPORT VIA WHATSAPP
 // ============================================
 
-async function ensureReportTables() {
-  await query(`CREATE TABLE IF NOT EXISTS crm_goals_report_config (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-    connection_id UUID NOT NULL,
-    send_time TIME NOT NULL DEFAULT '18:00',
-    is_active BOOLEAN DEFAULT true,
-    include_channel_breakdown BOOLEAN DEFAULT true,
-    include_enerlight BOOLEAN DEFAULT true,
-    greeting_template TEXT DEFAULT 'Olá {primeiro_nome}, segue seu relatório diário! 👇',
-    created_by UUID REFERENCES users(id),
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
-  )`);
-  await query(`ALTER TABLE crm_goals_report_config
-    ADD COLUMN IF NOT EXISTS greeting_template TEXT DEFAULT 'Olá {primeiro_nome}, segue seu relatório diário! 👇'`);
-  await query(`CREATE TABLE IF NOT EXISTS crm_goals_report_recipients (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    config_id UUID NOT NULL REFERENCES crm_goals_report_config(id) ON DELETE CASCADE,
-    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-    phone VARCHAR(30) NOT NULL,
-    name VARCHAR(255),
-    report_type VARCHAR(20) NOT NULL DEFAULT 'full',
-    is_active BOOLEAN DEFAULT true,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-  )`);
-}
-
 // Get report config
 router.get('/goals/report-config', async (req, res) => {
   try {
@@ -8064,147 +8038,13 @@ router.post('/goals/report-preview', async (req, res) => {
     if (!org) return res.status(403).json({ error: 'No organization' });
     const { reportType, userId } = req.body;
 
-    const now = new Date();
-    const sd = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-    const ed = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
-    const dateExpr = `COALESCE(CASE WHEN data_type = 'faturamento' THEN billing_date WHEN data_type = 'pedido' THEN COALESCE(emission_date, delivery_date) ELSE emission_date END, emission_date, delivery_date, created_at::date)`;
-    const baseWhere = `organization_id = $1 AND ${dateExpr} >= $2::date AND ${dateExpr} <= $3::date`;
-
-    let userFilter = '';
-    const params = [org.organization_id, sd, ed];
-    if (reportType === 'individual' && userId) {
-      params.push(userId);
-      userFilter = ` AND user_id = $${params.length}`;
-    }
-
-    const summary = await query(
-      `SELECT data_type,
-              COUNT(*) as count,
-              COALESCE(SUM(value),0) as total_value,
-              COALESCE(SUM(
-                COALESCE(cost,
-                  CASE WHEN margin IS NOT NULL AND (1 + margin/100.0) <> 0
-                       THEN value / (1 + margin/100.0) END)
-              ),0) as total_cost,
-              COALESCE(SUM(
-                CASE WHEN cost IS NOT NULL
-                          OR (margin IS NOT NULL AND (1 + margin/100.0) <> 0)
-                     THEN value ELSE 0 END
-              ),0) as value_with_cost
-       FROM crm_goals_data WHERE ${baseWhere}${userFilter} GROUP BY data_type`, params
+    const text = await generateReportText(
+      org.organization_id,
+      reportType === 'individual' ? userId || null : null,
+      reportType || 'full',
+      true,
+      true
     );
-    const gd = { orcamento: { count: 0, value: 0, cost: 0, value_with_cost: 0 }, pedido: { count: 0, value: 0, cost: 0, value_with_cost: 0 }, faturamento: { count: 0, value: 0, cost: 0, value_with_cost: 0 } };
-    for (const row of summary.rows) {
-      gd[row.data_type] = { count: parseInt(row.count), value: parseFloat(row.total_value), cost: parseFloat(row.total_cost || 0), value_with_cost: parseFloat(row.value_with_cost || 0) };
-    }
-
-    const goalsResult = await query(
-      `SELECT metric, target_value FROM crm_goals WHERE organization_id = $1 AND is_active = true AND type = 'geral'`,
-      [org.organization_id]
-    );
-    const goalMap = {};
-    for (const g of goalsResult.rows) {
-      goalMap[g.metric] = (goalMap[g.metric] || 0) + parseFloat(g.target_value);
-    }
-
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-    function countBizDays(start, end) {
-      let cnt = 0; const d = new Date(start);
-      while (d <= end) { if (d.getDay() !== 0 && d.getDay() !== 6) cnt++; d.setDate(d.getDate() + 1); }
-      return cnt;
-    }
-    const totalBizDays = countBizDays(monthStart, monthEnd);
-    const elapsedBizDays = countBizDays(monthStart, today);
-
-    let enerlightByType = {};
-    if (reportType === 'full') {
-      const enerlightResult = await query(
-        `SELECT data_type, COALESCE(SUM(value),0) as total_value
-         FROM crm_goals_data WHERE ${baseWhere} AND LOWER(seller_name) SIMILAR TO '%(gustavo|fabio)%'
-         GROUP BY data_type`, [org.organization_id, sd, ed]
-      );
-      for (const r of enerlightResult.rows) enerlightByType[r.data_type] = parseFloat(r.total_value);
-    }
-
-    function fmt(v) {
-      return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0 }).format(v);
-    }
-
-    const dateStr = now.toLocaleDateString('pt-BR');
-    let text = `📊 *RELATÓRIO DE METAS — ${dateStr}*\n\n`;
-
-    const sections = [
-      { label: '📄 Orçamentos', type: 'orcamento', metricValue: 'quotes_value', data: gd.orcamento },
-      { label: '🛒 Pedidos', type: 'pedido', metricValue: 'orders_value', data: gd.pedido },
-      { label: '💰 Faturamento', type: 'faturamento', metricValue: 'billing_value', data: gd.faturamento },
-    ];
-
-    for (const s of sections) {
-      const planned = REPORT_GOAL_OVERRIDES[s.metricValue] ?? (goalMap[s.metricValue] || 0);
-      const mtd = totalBizDays > 0 ? (planned / totalBizDays) * elapsedBizDays : 0;
-      const saldoMtd = s.data.value - mtd;
-      const pct = planned > 0 ? ((s.data.value / planned) * 100).toFixed(1) : '—';
-      const ticket = s.data.count > 0 ? s.data.value / s.data.count : 0;
-
-      text += `${s.label}\n`;
-      text += `  Qtd: ${s.data.count} | TM: ${fmt(ticket)}\n`;
-      if (planned > 0) text += `  Planejado: ${fmt(planned)}\n`;
-      text += `  Realizado: ${fmt(s.data.value)}`;
-      if (planned > 0) text += ` (${pct}%)`;
-      text += '\n';
-      if (planned > 0) {
-        text += `  MTD: ${fmt(mtd)}\n`;
-        text += `  Saldo: ${saldoMtd >= 0 ? '✅' : '❌'} ${fmt(saldoMtd)}\n`;
-      }
-      if (s.type !== 'orcamento' && s.data.cost !== 0) {
-        const markupBase = s.data.value_with_cost > 0 ? s.data.value_with_cost : s.data.value;
-        const markup = markupBase / s.data.cost;
-        const markupStr = markup.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        text += `  Markup: ${markupStr}\n`;
-      }
-      const enerlightVal = enerlightByType[s.type] || 0;
-      if (enerlightVal > 0 && reportType === 'full') {
-        const realSemEnerlight = s.data.value - enerlightVal;
-        const saldoSemEnerlight = realSemEnerlight - mtd;
-        text += `  ⚡ Enerlight: ${fmt(enerlightVal)}\n`;
-        text += `  Saldo s/ Enerlight: ${saldoSemEnerlight >= 0 ? '✅' : '❌'} ${fmt(saldoSemEnerlight)}\n`;
-      }
-      text += '\n';
-    }
-
-    text += await buildCarteiraSection(org.organization_id, reportType === 'individual' ? userId : null, fmt, sd, ed);
-
-
-
-    // Channel breakdown
-    if (reportType === 'full') {
-      const channelResult = await query(
-        `SELECT data_type, COALESCE(channel, 'Sem Canal') as channel, COUNT(*) as count, COALESCE(SUM(value),0) as total_value
-         FROM crm_goals_data WHERE ${baseWhere}
-         GROUP BY data_type, channel ORDER BY data_type, total_value DESC`,
-        [org.organization_id, sd, ed]
-      );
-      if (channelResult.rows.length > 0) {
-        text += `📡 *POR CANAL*\n\n`;
-        const channelsByType = {};
-        for (const r of channelResult.rows) {
-          if (!channelsByType[r.data_type]) channelsByType[r.data_type] = [];
-          channelsByType[r.data_type].push(r);
-        }
-        const typeLabels = { orcamento: '📄 Orçamentos', pedido: '🛒 Pedidos', faturamento: '💰 Faturamento' };
-        for (const [type, rows] of Object.entries(channelsByType)) {
-          text += `${typeLabels[type] || type}\n`;
-          for (const r of rows) text += `  • ${r.channel}: ${fmt(parseFloat(r.total_value))} (${r.count})\n`;
-          text += '\n';
-        }
-      }
-    }
-
-    const remaining = countBizDays(new Date(today.getTime() + 86400000), monthEnd);
-    text += `📅 _${remaining} dias úteis restantes no mês_`;
 
     res.json({ text });
   } catch (error) {
@@ -8268,158 +8108,17 @@ router.post('/goals/report-send-now', async (req, res) => {
     let sent = 0;
     let failed = 0;
 
-    // Generate preview text using same logic
-    const now = new Date();
-    const sd = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-    const ed = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
-    const dateExpr = `COALESCE(CASE WHEN data_type = 'faturamento' THEN billing_date WHEN data_type = 'pedido' THEN COALESCE(emission_date, delivery_date) ELSE emission_date END, emission_date, delivery_date, created_at::date)`;
-
     for (const recipient of recipients.rows) {
       try {
-        const baseWhere = `organization_id = $1 AND ${dateExpr} >= $2::date AND ${dateExpr} <= $3::date`;
-        let userFilter = '';
-        const params = [org.organization_id, sd, ed];
-        if (recipient.report_type === 'individual' && recipient.user_id) {
-          params.push(recipient.user_id);
-          userFilter = ` AND user_id = $${params.length}`;
-        }
-
-        const summary = await query(
-          `SELECT data_type,
-                  COUNT(*) as count,
-                  COALESCE(SUM(value),0) as total_value,
-                  COALESCE(SUM(
-                    COALESCE(cost,
-                      CASE WHEN margin IS NOT NULL AND (1 + margin/100.0) <> 0
-                           THEN value / (1 + margin/100.0) END)
-                  ),0) as total_cost,
-                  COALESCE(SUM(
-                    CASE WHEN cost IS NOT NULL
-                              OR (margin IS NOT NULL AND (1 + margin/100.0) <> 0)
-                         THEN value ELSE 0 END
-                  ),0) as value_with_cost
-           FROM crm_goals_data WHERE ${baseWhere}${userFilter} GROUP BY data_type`, params
-        );
-        const gd = { orcamento: { count: 0, value: 0, cost: 0, value_with_cost: 0 }, pedido: { count: 0, value: 0, cost: 0, value_with_cost: 0 }, faturamento: { count: 0, value: 0, cost: 0, value_with_cost: 0 } };
-        for (const row of summary.rows) {
-          gd[row.data_type] = { count: parseInt(row.count), value: parseFloat(row.total_value), cost: parseFloat(row.total_cost || 0), value_with_cost: parseFloat(row.value_with_cost || 0) };
-        }
-
-        const goalsResult = await query(
-          `SELECT metric, target_value FROM crm_goals WHERE organization_id = $1 AND is_active = true AND type = 'geral'`,
-          [org.organization_id]
-        );
-        const goalMap = {};
-        for (const g of goalsResult.rows) goalMap[g.metric] = (goalMap[g.metric] || 0) + parseFloat(g.target_value);
-
-        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-        const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        function countBizDays(start, end) {
-          let cnt = 0; const d = new Date(start);
-          while (d <= end) { if (d.getDay() !== 0 && d.getDay() !== 6) cnt++; d.setDate(d.getDate() + 1); }
-          return cnt;
-        }
-        const totalBizDays = countBizDays(monthStart, monthEnd);
-        const elapsedBizDays = countBizDays(monthStart, today);
-
-        function fmt(v) {
-          return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0 }).format(v);
-        }
-
-        const dateStr = now.toLocaleDateString('pt-BR');
-        let text = `📊 *RELATÓRIO DE METAS — ${dateStr}*\n`;
-        if (recipient.report_type === 'individual' && recipient.name) {
-          text += `👤 *${recipient.name}*\n`;
-        }
-        text += '\n';
-
-        const sections = [
-          { label: '📄 Orçamentos', type: 'orcamento', metricValue: 'quotes_value', data: gd.orcamento },
-          { label: '🛒 Pedidos', type: 'pedido', metricValue: 'orders_value', data: gd.pedido },
-          { label: '💰 Faturamento', type: 'faturamento', metricValue: 'billing_value', data: gd.faturamento },
-        ];
-
-        for (const s of sections) {
-          const planned = REPORT_GOAL_OVERRIDES[s.metricValue] ?? (goalMap[s.metricValue] || 0);
-          const mtd = totalBizDays > 0 ? (planned / totalBizDays) * elapsedBizDays : 0;
-          const saldoMtd = s.data.value - mtd;
-          const pct = planned > 0 ? ((s.data.value / planned) * 100).toFixed(1) : '—';
-          const ticket = s.data.count > 0 ? s.data.value / s.data.count : 0;
-
-          text += `${s.label}\n`;
-          text += `  Qtd: ${s.data.count} | TM: ${fmt(ticket)}\n`;
-          if (planned > 0) text += `  Planejado: ${fmt(planned)}\n`;
-          text += `  Realizado: ${fmt(s.data.value)}`;
-          if (planned > 0) text += ` (${pct}%)`;
-          text += '\n';
-          if (planned > 0) {
-            text += `  MTD: ${fmt(mtd)}\n`;
-            text += `  Saldo: ${saldoMtd >= 0 ? '✅' : '❌'} ${fmt(saldoMtd)}\n`;
-          }
-
-          if (s.type !== 'orcamento' && s.data.cost !== 0) {
-            const markupBase = s.data.value_with_cost > 0 ? s.data.value_with_cost : s.data.value;
-            const markup = markupBase / s.data.cost;
-            const markupStr = markup.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            text += `  Markup: ${markupStr}\n`;
-          }
-
-          if (config.include_enerlight && recipient.report_type === 'full') {
-            try {
-              const enerlightResult = await query(
-                `SELECT COALESCE(SUM(value),0) as total_value
-                 FROM crm_goals_data WHERE organization_id = $1 AND ${dateExpr} >= $2::date AND ${dateExpr} <= $3::date
-                 AND data_type = $4 AND LOWER(seller_name) SIMILAR TO '%(gustavo|fabio)%'`,
-                [org.organization_id, sd, ed, s.type]
-              );
-              const enerlightVal = parseFloat(enerlightResult.rows[0]?.total_value || '0');
-              if (enerlightVal > 0) {
-                const realSemEnerlight = s.data.value - enerlightVal;
-                const saldoSemEnerlight = realSemEnerlight - mtd;
-                text += `  ⚡ Enerlight: ${fmt(enerlightVal)}\n`;
-                text += `  Saldo s/ Enerlight: ${saldoSemEnerlight >= 0 ? '✅' : '❌'} ${fmt(saldoSemEnerlight)}\n`;
-              }
-            } catch (_) {}
-          }
-          text += '\n';
-        }
-
-        text += await buildCarteiraSection(org.organization_id, recipient.report_type === 'individual' ? recipient.user_id : null, fmt, sd, ed);
-
-
-
-        if (config.include_channel_breakdown && recipient.report_type === 'full') {
-          const channelResult = await query(
-            `SELECT data_type, COALESCE(channel, 'Sem Canal') as channel, COUNT(*) as count, COALESCE(SUM(value),0) as total_value
-             FROM crm_goals_data WHERE organization_id = $1 AND ${dateExpr} >= $2::date AND ${dateExpr} <= $3::date
-             GROUP BY data_type, channel ORDER BY data_type, total_value DESC`,
-            [org.organization_id, sd, ed]
-          );
-          if (channelResult.rows.length > 0) {
-            text += `📡 *POR CANAL*\n\n`;
-            const channelsByType = {};
-            for (const r of channelResult.rows) {
-              if (!channelsByType[r.data_type]) channelsByType[r.data_type] = [];
-              channelsByType[r.data_type].push(r);
-            }
-            const typeLabels = { orcamento: '📄 Orçamentos', pedido: '🛒 Pedidos', faturamento: '💰 Faturamento' };
-            for (const [type, rows] of Object.entries(channelsByType)) {
-              text += `${typeLabels[type] || type}\n`;
-              for (const r of rows) text += `  • ${r.channel}: ${fmt(parseFloat(r.total_value))} (${r.count})\n`;
-              text += '\n';
-            }
-          }
-        }
-
-        const remaining = countBizDays(new Date(today.getTime() + 86400000), monthEnd);
-        text += `📅 _${remaining} dias úteis restantes no mês_`;
-
-        // Prepend greeting
-        const firstName = (recipient.name || '').split(' ')[0] || 'Olá';
-        const greetingTpl = config.greeting_template || 'Olá {primeiro_nome}, segue seu relatório diário! 👇';
-        const greeting = greetingTpl.replace(/\{primeiro_nome\}/gi, firstName);
-        const fullText = greeting + '\n\n' + text;
+        const fullText = await buildRecipientMessage({
+          orgId: org.organization_id,
+          userId: recipient.user_id,
+          reportType: recipient.report_type,
+          includeChannels: config.include_channel_breakdown,
+          includeEnerlight: config.include_enerlight,
+          greetingTemplate: config.greeting_template,
+          recipientName: recipient.name,
+        });
 
         const result = await sendMessage(connection.rows[0], recipient.phone, fullText, 'text', null);
         if (result && result.success === false) {
@@ -8720,56 +8419,6 @@ const MIN_FEEDBACK_LEN = 10;
 function normFollowup(v) {
   return String(v || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
 }
-
-// Bloco "Pedidos em Carteira" para os relatórios de WhatsApp
-async function buildCarteiraSection(orgId, userId, fmt, startDate, endDate) {
-  let values = [];
-  try {
-    await ensureFollowupTables();
-    const cfg = await query(`SELECT carteira_values FROM crm_followup_config WHERE organization_id = $1`, [orgId]);
-    values = (cfg.rows[0]?.carteira_values || []).filter(Boolean);
-  } catch (e) {
-    console.error('[carteira-section] config indisponível:', e.message);
-  }
-
-  try {
-    const params = [orgId];
-    let match;
-    if (values.length) {
-      params.push(values.map(normFollowup).filter(Boolean));
-      match = `REGEXP_REPLACE(UPPER(TRANSLATE(TRIM(COALESCE(followup, '')),
-        'ÁÀÂÃÉÊÍÓÔÕÚÜÇáàâãéêíóôõúüç','AAAAEEIOOOUUCAAAAEEIOOOUUC')), '\\s+', ' ', 'g') = ANY($2::text[])`;
-    } else {
-      // Fallback: detecta automaticamente followups de carteira
-      match = `UPPER(TRANSLATE(COALESCE(followup, ''),
-        'ÁÀÂÃÉÊÍÓÔÕÚÜÇáàâãéêíóôõúüç','AAAAEEIOOOUUCAAAAEEIOOOUUC')) LIKE '%CARTEIRA%'`;
-    }
-
-    const dateExpr = `COALESCE(emission_date, delivery_date, created_at::date)`;
-    let dateFilter = '';
-    if (startDate && endDate) {
-      params.push(startDate, endDate);
-      dateFilter = ` AND ${dateExpr} >= $${params.length - 1}::date AND ${dateExpr} <= $${params.length}::date`;
-    }
-    let userFilter = '';
-    if (userId) { params.push(userId); userFilter = ` AND user_id = $${params.length}`; }
-
-    const r = await query(
-      `SELECT COUNT(*)::int AS cnt, COALESCE(SUM(value),0) AS total
-       FROM crm_goals_data
-       WHERE organization_id = $1 AND data_type = 'pedido' AND ${match}${dateFilter}${userFilter}`,
-      params
-    );
-    const cnt = r.rows[0]?.cnt || 0;
-    const total = parseFloat(r.rows[0]?.total || 0);
-    return `📦 *Pedidos em Carteira*\n  Qtd: ${cnt} | Total: ${fmt(total)}\n\n`;
-  } catch (e) {
-    console.error('[carteira-section] erro:', e.message);
-    return `📦 *Pedidos em Carteira*\n  Indisponível\n\n`;
-  }
-}
-
-
 
 async function ensureFollowupTables() {
 
