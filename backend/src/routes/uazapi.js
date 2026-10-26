@@ -70,6 +70,34 @@ function detectEventType(payload) {
   return 'message_received';
 }
 
+// Deep-scan fallback: Uazapi nests phone/text at unpredictable depths/keys.
+// Walks the whole payload collecting phone-like and text-like string values.
+function deepScan(payload) {
+  const phones = [];
+  const texts = [];
+  const media = [];
+  const seen = new Set();
+  const PHONE_KEY = /(phone|waid|wa_id|number|sender|remotejid|chatid|from|to\b|lid|owner|contact)/i;
+  const TEXT_KEY = /^(text|body|content|caption|conversation|message|mensagem|texto)$/i;
+  const MEDIA_KEY = /(mediaurl|file_url|fileurl|documenturl|imagepreview|image|audio|video|document|file$|url$)/i;
+  (function walk(node, key) {
+    if (node == null || seen.has(node)) return;
+    if (typeof node === 'string') {
+      const digits = onlyDigits(node);
+      if (key && PHONE_KEY.test(key) && digits.length >= 10 && digits.length <= 15) phones.push(digits);
+      else if (/^\d{10,15}$/.test(node.trim()) && key && !/^(id|_id|token|instance)/i.test(key)) phones.push(node.trim());
+      if (key && TEXT_KEY.test(key) && node.trim().length > 0 && node.trim().length < 4000
+        && !/^(messages?|text|image|audio|video|document|sticker|contact)$/i.test(node.trim())) texts.push(node.trim());
+      if (key && MEDIA_KEY.test(key) && /^https?:\/\//i.test(node.trim())) media.push(node.trim());
+      return;
+    }
+    if (typeof node !== 'object') return;
+    seen.add(node);
+    for (const k of Object.keys(node)) walk(node[k], k);
+  })(payload, '');
+  return { phones, texts, media };
+}
+
 /**
  * Normalize a Uazapi webhook payload into a common shape:
  * { remoteJid, chatPhone, messageId, fromMe, pushName, messageType, content, mediaUrl, mediaMimetype, isGroup, senderPhone }
@@ -116,9 +144,20 @@ function normalizePayload(payload) {
   if (rawJid && !isGroup && !chatPhone) {
     chatPhone = onlyDigits(String(rawJid).split('@')[0].split(':')[0]) || null;
   }
-  const remoteJid = rawJid
+  // Deep-scan fallback: Uazapi nests the phone at unpredictable keys/depths.
+  // Only accept scanned phones when the explicit JID looks like an internal
+  // id (e.g. chat.id "rf6be61c...") instead of a phone-JID.
+  const scanned = deepScan(payload);
+  const rawJidLooksInternal = !rawJid || (!String(rawJid).includes('@') && onlyDigits(rawJid).length < 10);
+  if (!chatPhone && rawJidLooksInternal && scanned.phones.length > 0) {
+    // Prefer the most common phone found across the payload
+    const freq = new Map();
+    for (const p of scanned.phones) freq.set(p, (freq.get(p) || 0) + 1);
+    chatPhone = [...freq.entries()].sort((a, b) => b[1] - a[1])[0][0];
+  }
+  const remoteJid = rawJid && !rawJidLooksInternal
     ? (String(rawJid).includes('@') ? String(rawJid) : (isGroup ? `${rawJid}@g.us` : `${chatPhone || rawJid}@s.whatsapp.net`))
-    : null;
+    : (chatPhone ? (isGroup ? `${chatPhone}@g.us` : `${chatPhone}@s.whatsapp.net`) : null);
 
   // Content extraction covering common Uazapi/Baileys fields.
   // Uazapi text webhooks often arrive as { message: "text", type: "text" },
@@ -141,6 +180,13 @@ function normalizePayload(payload) {
   }
   if (typeof mediaUrl === 'object' && mediaUrl !== null) {
     mediaUrl = mediaUrl.url || mediaUrl.fileUrl || mediaUrl.href || null;
+  }
+  // Deep-scan fallbacks when explicit paths miss.
+  if (!mediaUrl && scanned.media.length > 0) mediaUrl = scanned.media[0];
+  if (!content && scanned.texts.length > 0) {
+    // Prefer longest non-trivial text that isn't a type label
+    const sorted = [...scanned.texts].sort((a, b) => b.length - a.length);
+    content = sorted.find((t) => t.length > 1) || sorted[0] || null;
   }
 
   if (msg.conversation || msg.extendedTextMessage?.text) {
