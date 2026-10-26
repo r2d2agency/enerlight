@@ -162,6 +162,10 @@ export function WebhookDiagnosticPanel({ connection, onClose }: Props) {
   const [wapiSendAttempts, setWapiSendAttempts] = useState<WapiSendAttempt[]>([]);
   const [wapiSendAttemptsLoading, setWapiSendAttemptsLoading] = useState(false);
 
+  // Uazapi diagnostics (in-memory on backend, global endpoint)
+  const [uazapiEvents, setUazapiEvents] = useState<WapiWebhookEvent[]>([]);
+  const [uazapiEventsLoading, setUazapiEventsLoading] = useState(false);
+
   const fetchDiagnostic = useCallback(async () => {
     setLoading(true);
     try {
@@ -280,6 +284,20 @@ export function WebhookDiagnosticPanel({ connection, onClose }: Props) {
     }
   }, [connection.id, isWapi]);
 
+  const fetchUazapiEvents = useCallback(async () => {
+    if (!isUazapi) return;
+
+    setUazapiEventsLoading(true);
+    try {
+      const result = await api<{ events: WapiWebhookEvent[] }>(`/api/uazapi/webhook-events?limit=200`);
+      setUazapiEvents(result.events || []);
+    } catch (error: any) {
+      console.error('Error fetching Uazapi events:', error);
+    } finally {
+      setUazapiEventsLoading(false);
+    }
+  }, [isUazapi]);
+
   const fetchWapiEvents = useCallback(async () => {
     if (!isWapi) return;
 
@@ -384,18 +402,22 @@ export function WebhookDiagnosticPanel({ connection, onClose }: Props) {
   useEffect(() => {
     fetchDiagnostic();
 
-    if (isWapi) {
+    if (isUazapi) {
+      fetchUazapiEvents();
+    } else if (isWapi) {
       fetchWapiEvents();
       fetchWapiSendAttempts();
     } else {
       fetchEvents();
     }
-  }, [fetchDiagnostic, fetchEvents, fetchWapiEvents, fetchWapiSendAttempts, isWapi]);
+  }, [fetchDiagnostic, fetchEvents, fetchUazapiEvents, fetchWapiEvents, fetchWapiSendAttempts, isUazapi, isWapi]);
 
   // Auto-refresh every 3 seconds
   useEffect(() => {
     const interval = setInterval(() => {
-      if (isWapi) {
+      if (isUazapi) {
+        fetchUazapiEvents();
+      } else if (isWapi) {
         fetchWapiEvents();
         fetchWapiSendAttempts();
       } else {
@@ -404,7 +426,7 @@ export function WebhookDiagnosticPanel({ connection, onClose }: Props) {
     }, 3000);
 
     return () => clearInterval(interval);
-  }, [fetchEvents, fetchWapiEvents, fetchWapiSendAttempts, isWapi]);
+  }, [fetchEvents, fetchUazapiEvents, fetchWapiEvents, fetchWapiSendAttempts, isUazapi, isWapi]);
 
   if (loading) {
     return (
@@ -468,7 +490,7 @@ export function WebhookDiagnosticPanel({ connection, onClose }: Props) {
               )}
               <Badge variant="outline" className="ml-2">
                 <Radio className="h-3 w-3 mr-1" />
-                W-API
+                {isUazapi ? 'Uazapi' : 'W-API'}
               </Badge>
             </CardTitle>
           </CardHeader>
@@ -491,7 +513,7 @@ export function WebhookDiagnosticPanel({ connection, onClose }: Props) {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
               <Server className="h-4 w-4" />
-              Estado da Instância W-API
+              {isUazapi ? 'Estado da Instância Uazapi' : 'Estado da Instância W-API'}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -522,7 +544,7 @@ export function WebhookDiagnosticPanel({ connection, onClose }: Props) {
               Configuração de Webhooks
             </CardTitle>
             <CardDescription>
-              Configure os webhooks no painel da W-API ou use o botão abaixo
+              {isUazapi ? 'Configure o webhook no painel da Uazapi ou use o botão abaixo' : 'Configure os webhooks no painel da W-API ou use o botão abaixo'}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -546,12 +568,18 @@ export function WebhookDiagnosticPanel({ connection, onClose }: Props) {
             </div>
 
             <div className="bg-muted/50 p-3 rounded-lg text-sm">
-              <p className="font-medium mb-2">URLs para configurar no painel W-API:</p>
+              <p className="font-medium mb-2">{isUazapi ? 'URL para configurar no painel Uazapi:' : 'URLs para configurar no painel W-API:'}</p>
               <ul className="space-y-1 text-xs text-muted-foreground">
+                {isUazapi ? (
+                  <li>• Webhook de mensagens: <code>{wapiDiagnostic.webhookEndpoint}</code></li>
+                ) : (
+                  <>
                 <li>• Ao receber uma mensagem: <code>{wapiDiagnostic.webhookEndpoint}</code></li>
                 <li>• Ao enviar uma mensagem: <code>{wapiDiagnostic.webhookEndpoint}</code></li>
                 <li>• Ao conectar: <code>{wapiDiagnostic.webhookEndpoint}</code></li>
                 <li>• Ao desconectar: <code>{wapiDiagnostic.webhookEndpoint}</code></li>
+                  </>
+                )}
               </ul>
             </div>
 
@@ -585,9 +613,9 @@ export function WebhookDiagnosticPanel({ connection, onClose }: Props) {
             </CardTitle>
           </CardHeader>
           <CardContent className="text-sm text-muted-foreground space-y-2">
-            <p>1. Se o status mostra "Desconectado", verifique se o QR code foi escaneado no painel da W-API.</p>
+            <p>1. Se o status mostra "Desconectado", verifique se a instância está conectada no painel {isUazapi ? 'da Uazapi' : 'da W-API'}.</p>
             <p>2. Clique em "Configurar Webhooks Automaticamente" para configurar os webhooks via API.</p>
-            <p>3. Se a configuração automática falhar, configure manualmente no painel da W-API usando as URLs acima.</p>
+            <p>3. Se a configuração automática falhar, configure manualmente no painel {isUazapi ? 'da Uazapi' : 'da W-API'} usando as URLs acima.</p>
           </CardContent>
         </Card>
 
@@ -596,13 +624,54 @@ export function WebhookDiagnosticPanel({ connection, onClose }: Props) {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
               <Activity className="h-4 w-4" />
-              Monitor (W-API)
+              {isUazapi ? 'Monitor (Uazapi)' : 'Monitor (W-API)'}
             </CardTitle>
             <CardDescription>
-              Mostra os últimos eventos de webhook recebidos pelo backend e as últimas tentativas de envio do backend para a W-API (buffer em memória).
+              {isUazapi
+                ? 'Mostra os últimos eventos de webhook recebidos pelo backend na rota /api/uazapi/webhook (buffer em memória).'
+                : 'Mostra os últimos eventos de webhook recebidos pelo backend e as últimas tentativas de envio do backend para a W-API (buffer em memória).'}
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {isUazapi ? (
+              <div className="mt-1">
+                <div className="flex items-center justify-between gap-2 mb-3">
+                  <div className="text-xs text-muted-foreground">
+                    {uazapiEvents.length ? `Último: ${new Date(uazapiEvents[0].at).toLocaleString()}` : 'Nenhum evento ainda'}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" onClick={fetchUazapiEvents} disabled={uazapiEventsLoading}>
+                      <RefreshCw className={`h-4 w-4 mr-2 ${uazapiEventsLoading ? 'animate-spin' : ''}`} />
+                      Atualizar
+                    </Button>
+                    <Button variant="destructive" size="sm" onClick={() => { setUazapiEvents([]); toast.success('Eventos Uazapi limpos'); }}>
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Limpar
+                    </Button>
+                  </div>
+                </div>
+
+                <ScrollArea className="h-[320px] rounded-md border border-border">
+                  <div className="p-3 space-y-3">
+                    {uazapiEvents.length === 0 ? (
+                      <div className="text-sm text-muted-foreground">Nenhum webhook Uazapi recebido ainda. Verifique se o webhook está configurado no painel da Uazapi apontando para {`${API_URL}/api/uazapi/webhook`}.</div>
+                    ) : (
+                      uazapiEvents.map((ev, i) => (
+                        <div key={i} className="rounded-md border border-border p-3">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="text-xs text-muted-foreground">{new Date(ev.at).toLocaleString()}</div>
+                            <Badge variant="outline">{ev.eventType || 'unknown'}</Badge>
+                          </div>
+                          <pre className="mt-2 text-xs whitespace-pre-wrap break-words bg-muted/40 rounded p-2">
+                            {ev.preview}
+                          </pre>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </ScrollArea>
+              </div>
+            ) : (
             <Tabs defaultValue="webhooks" className="w-full">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="webhooks">Webhooks</TabsTrigger>
@@ -693,6 +762,7 @@ export function WebhookDiagnosticPanel({ connection, onClose }: Props) {
                 </ScrollArea>
               </TabsContent>
             </Tabs>
+            )}
           </CardContent>
         </Card>
       </div>
