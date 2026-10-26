@@ -51,10 +51,21 @@ function onlyDigits(value) {
   return String(value || '').replace(/\D/g, '');
 }
 
+// Case-insensitive first-level lookup: Uazapi mixes camelCase/PascalCase
+// (e.g. EventType vs event, Message vs message) across versions/endpoints.
+function pick(obj, ...names) {
+  if (!obj || typeof obj !== 'object') return undefined;
+  const wanted = names.map((n) => String(n).toLowerCase());
+  for (const k of Object.keys(obj)) {
+    if (wanted.includes(k.toLowerCase())) return obj[k];
+  }
+  return undefined;
+}
+
 function detectEventType(payload) {
-  const event = String(payload.event || payload.type || '').toLowerCase();
+  const event = String(pick(payload, 'event', 'eventtype', 'type') || '').toLowerCase();
   if (event) return event;
-  const fromMe = payload.key?.fromMe ?? payload.fromMe ?? payload.isFromMe;
+  const fromMe = payload.key?.fromMe ?? pick(payload, 'fromme', 'isfromme', 'sent_by_me', 'sentbyme');
   if (fromMe === true) return 'message_sent';
   return 'message_received';
 }
@@ -62,22 +73,46 @@ function detectEventType(payload) {
 /**
  * Normalize a Uazapi webhook payload into a common shape:
  * { remoteJid, chatPhone, messageId, fromMe, pushName, messageType, content, mediaUrl, mediaMimetype, isGroup, senderPhone }
+ *
+ * Real Uazapi format seen in production (PascalCase + nested objects):
+ * {
+ *   BaseUrl, EventType: "messages",
+ *   chat: { id, phone?, waId?, number?, lid?, isGroup?, name?, pushName? },
+ *   message: { id?, fromMe?, text?, content?, body?, type?, mediaUrl?, ... },
+ *   sender: { id?, phone?, pushName? }, owner?...,
+ * }
  */
 function normalizePayload(payload) {
   const key = payload.key || {};
-  const msg = payload.message?.message || payload.message || payload;
+  // Message can be a string, a Baileys envelope, or a Uazapi object (any case).
+  const msgRaw = pick(payload, 'message', 'msg', 'data') ?? payload.message ?? payload;
+  const msg = (msgRaw && typeof msgRaw === 'object' ? (msgRaw.message || msgRaw) : msgRaw);
+  const chatObj = pick(payload, 'chat', 'conversation', 'contact') || {};
+  const senderObj = pick(payload, 'sender', 'author', 'participantobj') || {};
+  const messageObj = (msg && typeof msg === 'object') ? msg : {};
 
-  // JID: Baileys-style first, fallbacks to flat fields.
-  // Uazapi also sends owner/phone/LID style fields (e.g. owner, phone, lid,
-  // sender: { id }, participant) that must be considered.
-  const rawJid = key.remoteJid || payload.chatid || payload.chatId || payload.remoteJid
-    || payload.from || payload.chat?.id || payload.sender?.id
-    || payload.participant || payload.phone || payload.owner || payload.lid || null;
-  const fromMe = key.fromMe ?? payload.fromMe ?? payload.isFromMe ?? payload.sent_by_me
-    ?? payload.from_me ?? (payload.event && String(payload.event).toLowerCase().includes('sent')) ?? false;
+  // JID: Baileys-style first, then Uazapi chat object, then flat fallbacks.
+  const rawJid = key.remoteJid
+    || pick(payload, 'chatid', 'remotejid', 'from', 'lid', 'owner', 'phone')
+    || chatObj.id || chatObj.waId || chatObj.waid || chatObj.jid || chatObj.remoteJid
+    || pick(payload, 'chat')?.id
+    || payload.chat?.id || senderObj.id
+    || payload.participant || payload.owner || payload.lid || null;
+  const fromMe = key.fromMe
+    ?? pick(payload, 'fromme', 'isfromme', 'sent_by_me', 'sentbyme', 'from_me')
+    ?? messageObj.fromMe ?? messageObj.fromme ?? pick(messageObj, 'fromme', 'isfromme')
+    ?? (payload.event && String(payload.event).toLowerCase().includes('sent')) ?? false;
 
-  const isGroup = Boolean(rawJid && (String(rawJid).includes('@g.us') || String(rawJid).includes('@lid@g')));
-  let chatPhone = onlyDigits(payload.phone || payload.chat?.phone || payload.sender?.phone || '') || null;
+  const jidHint = String(rawJid || chatObj.id || '').toLowerCase();
+  const isGroup = Boolean(
+    chatObj.isGroup === true || pick(chatObj, 'isgroup') === true
+    || (rawJid && (String(rawJid).includes('@g.us') || String(rawJid).includes('@lid@g')))
+    || jidHint.includes('@g.us')
+  );
+  let chatPhone = onlyDigits(
+    pick(payload, 'phone', 'number', 'waid', 'wa_id') || chatObj.phone || chatObj.number
+    || chatObj.waId || chatObj.waid || chatObj.lid || senderObj.phone || ''
+  ) || null;
   if (rawJid && !isGroup && !chatPhone) {
     chatPhone = onlyDigits(String(rawJid).split('@')[0].split(':')[0]) || null;
   }
@@ -87,51 +122,59 @@ function normalizePayload(payload) {
 
   // Content extraction covering common Uazapi/Baileys fields.
   // Uazapi text webhooks often arrive as { message: "text", type: "text" },
-  // { content: { text } }, { message: { text } } or { text: { message } }.
-  let messageType = payload.messageType || payload.type || payload.msgType || null;
-  let content = (typeof payload.text === 'string' ? payload.text : null)
-    || (typeof payload.content === 'string' ? payload.content : null)
-    || (typeof payload.body === 'string' ? payload.body : null)
+  // { content: { text } }, { message: { text } } or { text: { message } },
+  // or nested: { message: { text, content, body, type } } (any case).
+  let messageType = pick(payload, 'messagetype', 'msgtype', 'type')
+    || messageObj.type || messageObj.messageType || messageObj.msgType || null;
+  let content = (typeof pick(payload, 'text', 'content', 'body') === 'string' ? pick(payload, 'text', 'content', 'body') : null)
+    || (typeof pick(messageObj, 'text', 'content', 'body', 'caption') === 'string' ? pick(messageObj, 'text', 'content', 'body', 'caption') : null)
     || (typeof payload.message === 'string' ? payload.message : null)
-    || payload.content?.text || payload.message?.text || payload.text?.message || null;
-  let mediaUrl = payload.mediaUrl || payload.file_url || payload.fileUrl || payload.file
-    || payload.media || payload.documentUrl || payload.url || null;
-  let mediaMimetype = payload.mimetype || payload.mediaMimetype || payload.mimeType || payload.mime_type || null;
-  if (typeof content === 'object') content = null;
-  if (typeof mediaUrl === 'object') mediaUrl = null;
+    || payload.content?.text || payload.message?.text || payload.text?.message
+    || messageObj.content?.text || messageObj.message?.text || messageObj.text?.message || null;
+  let mediaUrl = pick(payload, 'mediaurl', 'file_url', 'fileurl', 'file', 'media', 'documenturl', 'url', 'filepreview')
+    || messageObj.mediaUrl || messageObj.file_url || messageObj.fileUrl || messageObj.file
+    || messageObj.media || messageObj.documentUrl || messageObj.url || null;
+  let mediaMimetype = pick(payload, 'mimetype', 'mediamimetype', 'mime_type')
+    || messageObj.mimetype || messageObj.mediaMimetype || messageObj.mimeType || messageObj.mime_type || null;
+  if (typeof content === 'object' && content !== null) {
+    content = content.text || content.body || content.message || null;
+  }
+  if (typeof mediaUrl === 'object' && mediaUrl !== null) {
+    mediaUrl = mediaUrl.url || mediaUrl.fileUrl || mediaUrl.href || null;
+  }
 
   if (msg.conversation || msg.extendedTextMessage?.text) {
     messageType = messageType || 'text';
     content = msg.conversation || msg.extendedTextMessage?.text || content;
-  } else if (msg.imageMessage) {
+  } else if (msg.imageMessage || messageObj.image) {
     messageType = messageType || 'image';
-    content = msg.imageMessage.caption || content;
-    mediaUrl = mediaUrl || msg.imageMessage.url;
-    mediaMimetype = mediaMimetype || msg.imageMessage.mimetype;
-  } else if (msg.videoMessage) {
+    content = msg.imageMessage?.caption || messageObj.caption || content;
+    mediaUrl = mediaUrl || msg.imageMessage?.url || messageObj.url;
+    mediaMimetype = mediaMimetype || msg.imageMessage?.mimetype || messageObj.mimetype;
+  } else if (msg.videoMessage || messageObj.video) {
     messageType = messageType || 'video';
-    content = msg.videoMessage.caption || content;
-    mediaUrl = mediaUrl || msg.videoMessage.url;
-    mediaMimetype = mediaMimetype || msg.videoMessage.mimetype;
-  } else if (msg.audioMessage || msg.pttMessage) {
+    content = msg.videoMessage?.caption || messageObj.caption || content;
+    mediaUrl = mediaUrl || msg.videoMessage?.url || messageObj.url;
+    mediaMimetype = mediaMimetype || msg.videoMessage?.mimetype || messageObj.mimetype;
+  } else if (msg.audioMessage || msg.pttMessage || messageObj.audio) {
     messageType = messageType || 'audio';
-    mediaUrl = mediaUrl || msg.audioMessage?.url || msg.pttMessage?.url;
-    mediaMimetype = mediaMimetype || msg.audioMessage?.mimetype || msg.pttMessage?.mimetype;
-  } else if (msg.documentMessage) {
+    mediaUrl = mediaUrl || msg.audioMessage?.url || msg.pttMessage?.url || messageObj.url;
+    mediaMimetype = mediaMimetype || msg.audioMessage?.mimetype || msg.pttMessage?.mimetype || messageObj.mimetype;
+  } else if (msg.documentMessage || messageObj.document || messageObj.file) {
     messageType = messageType || 'document';
-    content = msg.documentMessage.caption || msg.documentMessage.fileName || content;
-    mediaUrl = mediaUrl || msg.documentMessage.url;
-    mediaMimetype = mediaMimetype || msg.documentMessage.mimetype;
+    content = msg.documentMessage?.caption || msg.documentMessage?.fileName || messageObj.caption || messageObj.fileName || content;
+    mediaUrl = mediaUrl || msg.documentMessage?.url || messageObj.url || messageObj.fileUrl;
+    mediaMimetype = mediaMimetype || msg.documentMessage?.mimetype || messageObj.mimetype;
   } else if (msg.documentWithCaptionMessage?.message?.documentMessage) {
     const doc = msg.documentWithCaptionMessage.message.documentMessage;
     messageType = messageType || 'document';
     content = doc.caption || doc.fileName || content;
     mediaUrl = mediaUrl || doc.url;
     mediaMimetype = mediaMimetype || doc.mimetype;
-  } else if (msg.stickerMessage) {
+  } else if (msg.stickerMessage || messageObj.sticker) {
     messageType = messageType || 'sticker';
-    mediaUrl = mediaUrl || msg.stickerMessage.url;
-    mediaMimetype = mediaMimetype || msg.stickerMessage.mimetype;
+    mediaUrl = mediaUrl || msg.stickerMessage?.url || messageObj.url;
+    mediaMimetype = mediaMimetype || msg.stickerMessage?.mimetype || messageObj.mimetype;
   } else if (msg.contactMessage || msg.contactsArrayMessage) {
     messageType = messageType || 'contact';
     content = msg.contactMessage?.displayName || content;
@@ -145,9 +188,9 @@ function normalizePayload(payload) {
   return {
     remoteJid,
     chatPhone: chatPhone || (remoteJid && !isGroup ? onlyDigits(String(remoteJid).split('@')[0]) || null : null),
-    messageId: key.id || payload.messageId || payload.messageid || payload.id || null,
+    messageId: key.id || messageObj.id || pick(payload, 'messageid', 'message_id', 'id') || messageObj.messageId || null,
     fromMe: fromMe === true,
-    pushName: payload.pushName || msg.pushName || payload.sender?.pushName || payload.senderName || null,
+    pushName: pick(payload, 'pushname', 'sendername') || chatObj.name || chatObj.pushName || senderObj.pushName || senderObj.name || msg.pushName || messageObj.pushName || null,
     messageType: String(messageType).toLowerCase(),
     content: content ? String(content) : null,
     mediaUrl: mediaUrl || null,
@@ -207,6 +250,7 @@ router.post('/webhook', async (req, res) => {
       return res.status(200).json({ received: true, skipped: 'status_or_reaction' });
     }
     if (!msg.remoteJid || (!msg.content && !msg.mediaUrl)) {
+      logInfo('uazapi.skipped_empty', { eventType, remoteJid: msg.remoteJid, hasContent: Boolean(msg.content), hasMedia: Boolean(msg.mediaUrl) });
       return res.status(200).json({ received: true, skipped: 'empty_message' });
     }
 
