@@ -8086,7 +8086,17 @@ router.post('/goals/report-send-now', async (req, res) => {
         connRow.status = 'connected';
       }
     } catch (_) {}
-    if (liveStatus !== 'connected') return res.status(400).json({ error: 'Conexão não encontrada ou desconectada' });
+    // Se não conseguir validar ao vivo mas já consta como conectada no banco,
+    // permite o envio (evita falso-negativo com algumas instâncias Uazapi).
+    if (liveStatus !== 'connected' && liveStatus !== 'connecting') {
+      if (String(connRow.status || '').toLowerCase() === 'connected') {
+        liveStatus = 'connected';
+      } else {
+        return res.status(400).json({ error: 'Conexão não encontrada ou desconectada' });
+      }
+    } else if (liveStatus === 'connecting') {
+      liveStatus = 'connected';
+    }
     const connection = { rows: [connRow] };
 
     let recipientsQuery;

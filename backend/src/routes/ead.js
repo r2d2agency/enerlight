@@ -1263,7 +1263,7 @@ async function notifyAdminNewSignup(brand, student) {
   }
 }
 
-async function notifyApproval(student, brand, baseUrl, tempPassword) {
+async function notifyApproval(student, brand, baseUrl, tempPassword, opts = {}) {
   const base = String(baseUrl || '').replace(/\/+$/, '');
   const link = brand?.slug ? `${base}/marca/${brand.slug}/login` : `${base}/ead/login`;
   const defaultTpl = brand?.name
@@ -1277,11 +1277,15 @@ async function notifyApproval(student, brand, baseUrl, tempPassword) {
 
   const result = { whatsapp: null, email: null };
 
-  // WhatsApp — usa conexão configurada na marca, ou fallback para qualquer conexão ativa da organização
+  // WhatsApp — usa conexão informada, configurada na marca, ou fallback para qualquer conexão ativa da organização
   if (student.phone) {
     try {
       let conn = null;
-      if (brand?.notify_connection_id) {
+      if (opts.connectionId) {
+        const c = await query('SELECT * FROM connections WHERE id = $1', [opts.connectionId]);
+        conn = c.rows[0] || null;
+      }
+      if (!conn && brand?.notify_connection_id) {
         const c = await query('SELECT * FROM connections WHERE id = $1', [brand.notify_connection_id]);
         conn = c.rows[0] || null;
       }
@@ -1354,6 +1358,7 @@ async function notifyApproval(student, brand, baseUrl, tempPassword) {
 admin.post('/students/:id/approve', gate('can_manage_ead'), async (req, res) => {
   try {
     await ensureEadApprovalSchema();
+    const { connection_id } = req.body || {};
     const s = await runWithEadSchemaRetry(() => query('SELECT * FROM ead_students WHERE id = $1', [req.params.id]));
     if (!s.rows.length) return res.status(404).json({ error: 'Aluno não encontrado' });
     const student = s.rows[0];
@@ -1372,7 +1377,7 @@ admin.post('/students/:id/approve', gate('can_manage_ead'), async (req, res) => 
     // Envia notificação de forma síncrona (com timeout) para retornar resultado real ao admin
     const baseUrl = appBaseUrl(req);
     const notify = await withTimeout(
-      notifyApproval(student, b, baseUrl, tempPassword),
+      notifyApproval(student, b, baseUrl, tempPassword, { connectionId: connection_id || null }),
       9000,
       'Notificação de aprovação'
     ).catch((err) => ({
@@ -1398,6 +1403,7 @@ admin.post('/students/:id/reject', gate('can_manage_ead'), async (req, res) => {
 admin.post('/students/:id/resend-notification', gate('can_manage_ead'), async (req, res) => {
   try {
     await ensureEadApprovalSchema();
+    const { connection_id } = req.body || {};
     const s = await runWithEadSchemaRetry(() => query('SELECT * FROM ead_students WHERE id = $1', [req.params.id]));
     if (!s.rows.length) return res.status(404).json({ error: 'Não encontrado' });
     const student = s.rows[0];
@@ -1414,7 +1420,7 @@ admin.post('/students/:id/resend-notification', gate('can_manage_ead'), async (r
       ));
     }
 
-    const notify = await withTimeout(notifyApproval(student, b, appBaseUrl(req), tempPassword), 9000, 'Notificação de aprovação').catch((e) => ({
+    const notify = await withTimeout(notifyApproval(student, b, appBaseUrl(req), tempPassword, { connectionId: connection_id || null }), 9000, 'Notificação de aprovação').catch((e) => ({
       whatsapp: { success: false, error: e.message || 'Notificação não concluída' },
       email: { success: false, error: e.message || 'Notificação não concluída' },
     }));
@@ -2201,6 +2207,7 @@ router.get('/brand-admin/students/pending', brandAdminAuth, async (req, res) => 
 router.post('/brand-admin/students/:id/approve', brandAdminAuth, async (req, res) => {
   try {
     await ensureEadApprovalSchema();
+    const { connection_id } = req.body || {};
     const s = await runWithEadSchemaRetry(() => query(
       'SELECT * FROM ead_students WHERE id = $1 AND brand_id = $2', [req.params.id, req.brandId]
     ));
@@ -2219,7 +2226,7 @@ router.post('/brand-admin/students/:id/approve', brandAdminAuth, async (req, res
 
     const baseUrl = appBaseUrl(req);
     const notify = await withTimeout(
-      notifyApproval(student, b, baseUrl, tempPassword),
+      notifyApproval(student, b, baseUrl, tempPassword, { connectionId: connection_id || null }),
       9000,
       'Notificação de aprovação'
     ).catch((err) => ({

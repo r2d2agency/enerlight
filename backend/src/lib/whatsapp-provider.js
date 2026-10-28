@@ -10,14 +10,24 @@ import { logError, logInfo, logWarn } from '../logger.js';
  */
 export function detectProvider(connection) {
   if (connection.provider) {
-    return connection.provider;
+    const p = String(connection.provider).toLowerCase();
+    if (p === 'uazapi') return 'uazapi';
+    if (p === 'wapi' || p === 'whatsapp-api') return 'wapi';
+    if (p === 'evolution') return 'evolution';
+    // Keep as-is if it's something else
+    if (p) return p;
   }
-  
+
   // If has instance_id and wapi_token, it's W-API
   if (connection.instance_id && connection.wapi_token) {
     return 'wapi';
   }
-  
+
+  // Uazapi uses api_url + api_key without Evolution instance_name
+  if (connection.api_url && connection.api_key && !connection.instance_name) {
+    return 'uazapi';
+  }
+
   // Default to Evolution
   return 'evolution';
 }

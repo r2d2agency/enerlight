@@ -150,7 +150,7 @@ export default function EadBrandAdminDashboard() {
   async function approve(id: string) {
     setBusyId(id);
     try {
-      const r: any = await eadBrandAdminApi.approveStudent(id);
+      const r: any = await eadBrandAdminApi.approveStudent(id, { connection_id: settings?.notify_connection_id || null });
       const w = r?.notify?.whatsapp;
       const em = r?.notify?.email;
       toast.success(`Aprovado! WhatsApp: ${w?.success ? 'enviado' : (w?.error || 'falhou')} • E-mail: ${em?.success ? 'enviado' : (em?.error || 'falhou')}`);

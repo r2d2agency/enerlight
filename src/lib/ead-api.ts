@@ -162,10 +162,10 @@ export const eadAdminApi = {
 
   // Approvals
   pendingStudents: () => adminCall<any[]>('/api/ead/admin/students/pending'),
-  approveStudent: (id: string) => adminCall<any>(`/api/ead/admin/students/${id}/approve`, { method: 'POST' }),
+  approveStudent: (id: string, body?: any) => adminCall<any>(`/api/ead/admin/students/${id}/approve`, { method: 'POST', body }),
   rejectStudent: (id: string, reason?: string) => adminCall<any>(`/api/ead/admin/students/${id}/reject`, { method: 'POST', body: { reason } }),
-  resendNotification: (id: string) => adminCall<any>(`/api/ead/admin/students/${id}/resend-notification`, { method: 'POST' }),
-  resetPassword: (id: string) => adminCall<any>(`/api/ead/admin/students/${id}/reset-password`, { method: 'POST' }),
+  resendNotification: (id: string, body?: any) => adminCall<any>(`/api/ead/admin/students/${id}/resend-notification`, { method: 'POST', body }),
+  resetPassword: (id: string, body?: any) => adminCall<any>(`/api/ead/admin/students/${id}/reset-password`, { method: 'POST', body }),
   manualEnroll: (b: {
     name: string; cpf: string; email: string; phone?: string;
     company?: string; city?: string; state?: string;
@@ -259,8 +259,8 @@ export const eadBrandAdminApi = {
     const s = qs.toString();
     return baCall<any[]>(`/api/ead/brand-admin/students/pending${s ? `?${s}` : ''}`);
   },
-  approveStudent: (id: string) =>
-    baCall<any>(`/api/ead/brand-admin/students/${id}/approve`, { method: 'POST' }),
+  approveStudent: (id: string, body?: any) =>
+    baCall<any>(`/api/ead/brand-admin/students/${id}/approve`, { method: 'POST', body }),
   rejectStudent: (id: string, reason?: string) =>
     baCall<any>(`/api/ead/brand-admin/students/${id}/reject`, { method: 'POST', body: { reason } }),
 
