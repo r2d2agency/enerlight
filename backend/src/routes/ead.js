@@ -1872,10 +1872,39 @@ admin.post('/certificates/regenerate', gate('can_manage_ead'), async (req, res) 
 admin.patch('/students/:id', gate('can_manage_ead'), async (req, res) => {
   try {
     await ensureEadApprovalSchema();
-    const { brand_id } = req.body || {};
+    const { brand_id, name, email, phone, company, city, state } = req.body || {};
+    const hasBrand = Object.prototype.hasOwnProperty.call(req.body || {}, 'brand_id');
+    const cleanEmail = email !== undefined ? String(email || '').trim().toLowerCase() : undefined;
+    if (cleanEmail !== undefined) {
+      if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+        return res.status(400).json({ error: 'E-mail inválido' });
+      }
+      const dup = await runWithEadSchemaRetry(() => query(
+        `SELECT id FROM ead_students WHERE lower(email) = $1 AND id <> $2 LIMIT 1`,
+        [cleanEmail, req.params.id]
+      ));
+      if (dup.rows.length) return res.status(400).json({ error: 'Este e-mail já está em uso por outro instalador' });
+    }
     const r = await runWithEadSchemaRetry(() => query(
-      `UPDATE ead_students SET brand_id=$1 WHERE id=$2 RETURNING id`,
-      [brand_id || null, req.params.id]
+      `UPDATE ead_students SET
+         brand_id = CASE WHEN $1::boolean THEN $2 ELSE brand_id END,
+         name = COALESCE($3, name),
+         email = COALESCE($4, email),
+         phone = COALESCE($5, phone),
+         company = COALESCE($6, company),
+         city = COALESCE($7, city),
+         state = COALESCE($8, state)
+       WHERE id = $9 RETURNING id`,
+      [
+        hasBrand, brand_id || null,
+        name !== undefined ? (String(name || '').trim() || null) : null,
+        cleanEmail ?? null,
+        phone !== undefined ? (String(phone || '').trim() || null) : null,
+        company !== undefined ? (String(company || '').trim() || null) : null,
+        city !== undefined ? (String(city || '').trim() || null) : null,
+        state !== undefined ? (String(state || '').trim().toUpperCase().slice(0, 40) || null) : null,
+        req.params.id,
+      ]
     ));
     if (!r.rows.length) return res.status(404).json({ error: 'Aluno não encontrado' });
     res.json({ ok: true });

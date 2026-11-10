@@ -142,7 +142,7 @@ export const eadAdminApi = {
 
   students: () => adminCall<any[]>('/api/ead/admin/students'),
   student: (id: string) => adminCall<{ student: any; certificates: any[]; attempts: any[]; enrollments: any[] }>(`/api/ead/admin/students/${id}`),
-  updateStudent: (id: string, b: { brand_id?: string | null }) => adminCall<any>(`/api/ead/admin/students/${id}`, { method: 'PATCH', body: b }),
+  updateStudent: (id: string, b: { brand_id?: string | null; name?: string; email?: string; phone?: string; company?: string; city?: string; state?: string }) => adminCall<any>(`/api/ead/admin/students/${id}`, { method: 'PATCH', body: b }),
   certificates: () => adminCall<any[]>('/api/ead/admin/certificates'),
   regenerateCertificate: (b: {
     student_id?: string; course_id?: string; certificate_id?: string; resend?: boolean;

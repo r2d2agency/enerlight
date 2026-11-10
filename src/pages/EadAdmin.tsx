@@ -708,6 +708,7 @@ function StudentsTab({ students, onReload }: { students: any[]; onReload: () => 
   const [statusFilter, setStatusFilter] = useState<string>('__all__');
   const [detail, setDetail] = useState<any | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [editingStudent, setEditingStudent] = useState<any | null>(null);
 
   useEffect(() => { eadAdminApi.brands().then(setBrands).catch(() => {}); }, []);
 
@@ -952,7 +953,14 @@ function StudentsTab({ students, onReload }: { students: any[]; onReload: () => 
       <Dialog open={!!detail} onOpenChange={(o) => { if (!o) setDetail(null); }}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Detalhes do instalador</DialogTitle>
+            <DialogTitle className="flex items-center justify-between gap-2">
+              <span>Detalhes do instalador</span>
+              {detail?.student && (
+                <Button size="sm" variant="outline" onClick={() => setEditingStudent({ ...detail.student })}>
+                  <Pencil className="h-4 w-4 mr-1" /> Editar
+                </Button>
+              )}
+            </DialogTitle>
           </DialogHeader>
           {detailLoading || detail?.loading ? (
             <div className="py-10 flex justify-center"><Loader2 className="animate-spin h-6 w-6" /></div>
@@ -961,6 +969,18 @@ function StudentsTab({ students, onReload }: { students: any[]; onReload: () => 
           ) : null}
         </DialogContent>
       </Dialog>
+      {editingStudent && (
+        <EditStudentDialog
+          student={editingStudent}
+          brands={brands}
+          onClose={() => setEditingStudent(null)}
+          onSaved={async () => {
+            setEditingStudent(null);
+            setDetail(null);
+            onReload();
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -1112,6 +1132,75 @@ function StudentDetailView({ data }: { data: any }) {
       </Card>
     </div>
 
+  );
+}
+
+function EditStudentDialog({ student, brands, onClose, onSaved }: { student: any; brands: any[]; onClose: () => void; onSaved: () => void }) {
+  const [form, setForm] = useState({
+    name: student?.name || '',
+    email: student?.email || '',
+    phone: student?.phone || '',
+    company: student?.company || '',
+    city: student?.city || '',
+    state: student?.state || '',
+    brand_id: student?.brand_id || '__none__',
+  });
+  const [saving, setSaving] = useState(false);
+
+  async function save() {
+    if (!form.name.trim()) { toast.error('Nome é obrigatório'); return; }
+    const email = form.email.trim().toLowerCase();
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { toast.error('E-mail inválido'); return; }
+    setSaving(true);
+    try {
+      await eadAdminApi.updateStudent(student.id, {
+        name: form.name.trim(),
+        email,
+        phone: form.phone.trim() || '',
+        company: form.company.trim() || '',
+        city: form.city.trim() || '',
+        state: form.state.trim().toUpperCase() || '',
+        brand_id: form.brand_id === '__none__' ? null : form.brand_id,
+      });
+      toast.success('Instalador atualizado');
+      onSaved();
+    } catch (e: any) { toast.error(e.message || 'Erro ao salvar'); }
+    finally { setSaving(false); }
+  }
+
+  return (
+    <Dialog open onOpenChange={(v) => { if (!v) onClose(); }}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader><DialogTitle>Editar instalador</DialogTitle></DialogHeader>
+        <div className="grid gap-3">
+          <div><Label>Nome</Label><Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></div>
+          <div><Label>E-mail</Label><Input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder="email@exemplo.com" /></div>
+          <div className="grid grid-cols-2 gap-3">
+            <div><Label>WhatsApp</Label><Input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} /></div>
+            <div><Label>Empresa</Label><Input value={form.company} onChange={e => setForm({ ...form, company: e.target.value })} /></div>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="col-span-2"><Label>Cidade</Label><Input value={form.city} onChange={e => setForm({ ...form, city: e.target.value })} /></div>
+            <div><Label>UF</Label><Input value={form.state} maxLength={2} onChange={e => setForm({ ...form, state: e.target.value.toUpperCase() })} /></div>
+          </div>
+          <div>
+            <Label>Marca</Label>
+            <Select value={form.brand_id} onValueChange={v => setForm({ ...form, brand_id: v })}>
+              <SelectTrigger><SelectValue placeholder="Sem marca" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">Sem marca</SelectItem>
+                {brands.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="text-xs text-muted-foreground">CPF: <span className="font-mono">{student?.cpf}</span> (não editável)</div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancelar</Button>
+          <Button onClick={save} disabled={saving}>{saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Salvar</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
